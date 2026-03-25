@@ -1,0 +1,49 @@
+package net.auctionapp.common.utils;
+
+import com.google.gson.Gson;
+import com.google.gson.JsonObject;
+import net.auctionapp.common.messages.*;
+import net.auctionapp.common.messages.types.BidRequestMessage;
+import net.auctionapp.common.messages.types.ErrorMessage;
+import net.auctionapp.common.messages.types.PriceUpdateMessage;
+
+public class JsonUtil {
+
+    private static final Gson gson = new Gson();
+
+    public static String toJson(Object object) {
+        return gson.toJson(object);
+    }
+
+    public static Message fromJson(String json) {
+        try {
+            JsonObject jsonObject = gson.fromJson(json, JsonObject.class);
+
+            if (jsonObject == null || !jsonObject.has("type")) {
+                System.err.println("Invalid JSON or missing 'type' field: " + json);
+                return null;
+            }
+
+            String typeString = jsonObject.get("type").getAsString();
+            MessageType type = MessageType.valueOf(typeString);
+
+            switch (type) {
+                case BID_REQUEST:
+                    return gson.fromJson(json, BidRequestMessage.class);
+                case PRICE_UPDATE:
+                    return gson.fromJson(json, PriceUpdateMessage.class);
+                case ERROR:
+                    return gson.fromJson(json, ErrorMessage.class);
+                // Other cases will be added here as you develop new features
+                default:
+                    System.err.println("Unhandled message type: " + type);
+                    // Return null so the calling thread can safely ignore this message
+                    return null;
+            }
+        } catch (Exception e) {
+            System.err.println("Critical error while parsing JSON: " + json);
+            e.printStackTrace();
+            return null;
+        }
+    }
+}
