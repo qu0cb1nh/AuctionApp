@@ -97,3 +97,4 @@ Hệ thống cho phép nhiều người dùng tham gia cạnh tranh giá để m
    Phiên bản Java: Java 11
    Phiên bản JavaFX: JavaFX 17
    Tất cả các chữ (như dòng text trong string, comments, docs,...) đều phải viết tiếng anh
+   Các commit phải theo conventional commit: https://www.conventionalcommits.org/en/v1.0.0/
