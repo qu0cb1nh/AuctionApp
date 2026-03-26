@@ -41,7 +41,13 @@ Then open a Pull Request to `main` and merge only when all checks are green.
 
 ### Merge commit strategy
 
-Please **Squash and merge** with a clean Conventional Commit title for readable changelogs.
+- Please **Squash and merge** with a clean Conventional Commit title for readable changelogs.
+
+- Delete the branch after merging to keep the repository clean.
+
+[![RRoqr-YQCOC.png](https://i.postimg.cc/yY5TLbzP/RRoqr-YQCOC.png)](https://postimg.cc/jLHN5v2w)
+
+[![kji-TNGLd-Iw.png](https://i.postimg.cc/RVjc7Jc2/kji-TNGLd-Iw.png)](https://postimg.cc/hf1zgjZ0)
 
 ## Requirements:
 - Java 11+
