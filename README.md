@@ -1,13 +1,22 @@
 # Auction App
 
+[![CI](https://github.com/qu0cb1nh/AuctionApp/actions/workflows/maven.yml/badge.svg?branch=main)](https://github.com/qu0cb1nh/AuctionApp/actions/workflows/maven.yml)
+
+## Requirements:
+- Java 11+
+- Maven
+- Git CLI (optional, but recommended for workflow)
+
 ## Do not commit to `main`
 
 This repository uses a PR + CI workflow.
 
 - `main` is protected and should only receive changes through Pull Requests.
+- Workflow status: https://github.com/qu0cb1nh/AuctionApp/actions/workflows/maven.yml
 - Create a feature branch for each task.
 - Push your branch, open a PR to `main`, and wait for CI to pass.
 - Merge only after review/approval.
+- Auto release: Push a `v*` tag (e.g., `v1.0.0`) to create a GitHub release with Client/Server JARs. Requires non-SNAPSHOT version and tag on `main` history.
 
 ### For more details: https://docs.github.com/en/pull-requests/collaborating-with-pull-requests/proposing-changes-to-your-work-with-pull-requests
 
@@ -28,16 +37,18 @@ Use English commit messages:
 - `docs: document PR workflow`
 - for more details: https://www.conventionalcommits.org/en/v1.0.0/
 
-### Safe workflow
+### Safe workflow for commiting and pushing changes
 
+- Enter these commands to create a new branch, commit, and push:
 ```bash
-git checkout -b feat/<topic>
+git switch -c branch_name
+git status
 git add .
-git commit -m "feat: <short description>"
-git push -u origin feat/<topic>
+git commit -m "<type>: <short description>"
+git push -u origin branch_name
 ```
 
-Then open a Pull Request to `main` and merge only when all checks are green.
+- Then open a Pull Request to `main` through the Github website and merge only when all checks are green.
 
 ### Merge commit strategy
 
@@ -45,21 +56,42 @@ Then open a Pull Request to `main` and merge only when all checks are green.
 
 - Delete the branch after merging to keep the repository clean.
 
-[![RRoqr-YQCOC.png](https://i.postimg.cc/yY5TLbzP/RRoqr-YQCOC.png)](https://postimg.cc/jLHN5v2w)
+![RRoqr-YQCOC.png](https://i.postimg.cc/yY5TLbzP/RRoqr-YQCOC.png)
 
-[![kji-TNGLd-Iw.png](https://i.postimg.cc/RVjc7Jc2/kji-TNGLd-Iw.png)](https://postimg.cc/hf1zgjZ0)
+![kji-TNGLd-Iw.png](https://i.postimg.cc/RVjc7Jc2/kji-TNGLd-Iw.png)
 
-## Requirements:
-- Java 11+
-- Maven
+### After merging on GitHub: sync local `main` and delete merged branches
+
+If you merge a PR on GitHub (web UI), your local `main` does not update automatically.
+Remote `origin/main` may be ahead by one merge/squash commit (or more).
+
+Run this before starting a new task to merge and delete the old branch:
+
+```bash
+git switch main
+git fetch origin --prune
+git pull --ff-only origin main
+git branch -D old-branch-name
+```
+
+Quick check:
+
+```bash
+git status
+git branch -vv
+```
 
 ## Setup guide
 1. Clone the project:
 
-- ssh (if you know what you are doing):
+- ssh (recommended, requires a configured SSH key on GitHub):
 `git clone git@github.com:qu0cb1nh/AuctionApp.git`
 
-- or https (if you use github desktop):
+- Tutorial for setting up a ssh key:
+- https://docs.github.com/en/authentication/connecting-to-github-with-ssh/generating-a-new-ssh-key-and-adding-it-to-the-ssh-agent
+- https://docs.github.com/en/authentication/connecting-to-github-with-ssh/adding-a-new-ssh-key-to-your-github-account
+
+- Or https (not recommended for workflow, but works without SSH setup):
 `git clone https://github.com/qu0cb1nh/AuctionApp.git`
 
 2. Running in Intellij
