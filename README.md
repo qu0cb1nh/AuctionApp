@@ -5,17 +5,17 @@
 ## Requirements:
 - Java 11+
 - Maven
-- Git CLI (optional, but recommended for workflow)
+- Scene Builder
 
 ## Do not commit to `main`
 
 This repository uses a PR + CI workflow.
 
-- `main` is protected and should only receive changes through Pull Requests.
+- `main` is protected and should only receive changes through Pull Requests
 - Workflow status: https://github.com/qu0cb1nh/AuctionApp/actions/workflows/maven.yml
 - Create a feature branch for each task.
 - Push your branch, open a PR to `main`, and wait for CI to pass.
-- Merge only after review/approval.
+- Merge only after all CI checks are green (note: currently you can merge to main yourself, but please be careful)
 - Auto release: Push a `v*` tag (e.g., `v1.0.0`) to create a GitHub release with Client/Server JARs. Requires non-SNAPSHOT version and tag on `main` history.
 
 ### For more details: https://docs.github.com/en/pull-requests/collaborating-with-pull-requests/proposing-changes-to-your-work-with-pull-requests
@@ -87,9 +87,8 @@ git branch -vv
 - ssh (recommended, requires a configured SSH key on GitHub):
 `git clone git@github.com:qu0cb1nh/AuctionApp.git`
 
-- Tutorial for setting up a ssh key:
-- https://docs.github.com/en/authentication/connecting-to-github-with-ssh/generating-a-new-ssh-key-and-adding-it-to-the-ssh-agent
-- https://docs.github.com/en/authentication/connecting-to-github-with-ssh/adding-a-new-ssh-key-to-your-github-account
+- Tutorial for setting up a ssh key (please use Git Bash or any Unix terminal):
+- https://www.theodinproject.com/lessons/foundations-setting-up-git
 
 - Or https (not recommended for workflow, but works without SSH setup):
 `git clone https://github.com/qu0cb1nh/AuctionApp.git`
