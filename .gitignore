@@ -11,6 +11,7 @@ target/
 .idea/libraries/
 .idea/copilot.data.migration.ask2agent.xml
 .idea/IntelliLang.xml
+.idea/misc.xml
 *.iws
 *.iml
 *.ipr
