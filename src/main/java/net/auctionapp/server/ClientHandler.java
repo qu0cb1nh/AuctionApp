@@ -9,12 +9,14 @@ import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.PrintWriter;
 import java.net.Socket;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 public class ClientHandler implements Runnable {
     private final Socket socket;
     private PrintWriter out;
     private BufferedReader in;
     private final AuctionController auctionController;
+    private final AtomicBoolean closed = new AtomicBoolean(false);
 
     public ClientHandler(Socket socket) {
         this.socket = socket;
@@ -44,24 +46,43 @@ public class ClientHandler implements Runnable {
         } catch (IOException e) {
             System.out.println("A bidder at " + socket.getInetAddress() + " has disconnected.");
         } finally {
-            try {
-                socket.close();
-            } catch (IOException e) {
-                // Ignore
-            }
-            ServerApp.clients.remove(this);
-            System.out.println("Client removed. Current number of clients: " + ServerApp.clients.size());
+            closeConnection();
+        }
+    }
+
+    public void closeConnection() {
+        if (!closed.compareAndSet(false, true)) {
+            return;
+        }
+
+        try {
+            socket.close();
+        } catch (IOException e) {
+            // Ignore close errors during disconnect/shutdown.
+        } finally {
+            ServerApp.unregisterClient(this);
         }
     }
 
     /**
      * Sends a message (already converted to JSON) to this client.
+     *
      * @param jsonMessage The message as a JSON string.
+     * @return true if the write succeeds, false if this client is not writable.
      */
-    public void sendMessage(String jsonMessage) {
-        if (out != null) {
-            out.println(jsonMessage);
+    public boolean sendMessage(String jsonMessage) {
+        if (closed.get() || out == null || socket.isClosed()) {
+            closeConnection();
+            return false;
         }
+
+        out.println(jsonMessage);
+        if (out.checkError()) {
+            closeConnection();
+            return false;
+        }
+
+        return true;
     }
 
     @Override
