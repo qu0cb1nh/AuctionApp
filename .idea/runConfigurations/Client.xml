@@ -2,6 +2,7 @@
   <configuration default="false" name="Client" type="Application" factoryName="Application" singleton="false">
     <option name="MAIN_CLASS_NAME" value="net.auctionapp.client.ClientLauncher" />
     <module name="AuctionApp" />
+    <option name="VM_PARAMETERS" value="--enable-native-access=ALL-UNNAMED" />
     <method v="2">
       <option name="Make" enabled="true" />
     </method>

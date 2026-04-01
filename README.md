@@ -3,7 +3,7 @@
 [![CI](https://github.com/qu0cb1nh/AuctionApp/actions/workflows/maven.yml/badge.svg?branch=main)](https://github.com/qu0cb1nh/AuctionApp/actions/workflows/maven.yml)
 
 ## Requirements:
-- Java 11+
+- Java 25
 - Maven
 - Scene Builder
 
@@ -19,13 +19,6 @@ This repository uses a PR + CI workflow.
 - Auto release: Push a `v*` tag (e.g., `v1.0.0`) to create a GitHub release with Client/Server JARs. Requires non-SNAPSHOT version and tag on `main` history.
 
 ### For more details: https://docs.github.com/en/pull-requests/collaborating-with-pull-requests/proposing-changes-to-your-work-with-pull-requests
-
-### Recommended branch names
-
-- `feat/<short-topic>`
-- `fix/<short-topic>`
-- `ci/<short-topic>`
-- `docs/<short-topic>`
 
 ### Commit message format (Conventional Commits)
 
@@ -87,8 +80,7 @@ git branch -vv
 - ssh (recommended, requires a configured SSH key on GitHub):
 `git clone git@github.com:qu0cb1nh/AuctionApp.git`
 
-- Tutorial for setting up a ssh key (please use Git Bash or any Unix terminal):
-- https://www.theodinproject.com/lessons/foundations-setting-up-git
+- Tutorial for setting up SSH(use Git Bash or any Unix terminal): https://www.theodinproject.com/lessons/foundations-setting-up-git
 
 - Or https (not recommended for workflow, but works without SSH setup):
 `git clone https://github.com/qu0cb1nh/AuctionApp.git`
@@ -97,12 +89,25 @@ git branch -vv
 
 - Open the project in IntelliJ
 
-- Open Project Structure (top left), set Project SDK to Java 11
-
-![img](https://i.ibb.co/JjsBkgL0/idea64-Rx-Dt-JXDh6-B.png)
+- Open Project Structure (top left), set Project SDK to Java 25
 
 - Start the Application
 
 ![img](https://i.ibb.co/wNW19zCj/idea64-0e2-C5-B8h-Ja.png)
 
 Press run Server to start the server, then run Client to open the JavaFX application
+
+### Local environment (.env)
+
+Create a `.env` file in the repository root (do not commit it) and copy values from `.env.example`.
+
+Example:
+```
+DB_URL=jdbc:mysql://host:port/db?ssl-mode=REQUIRED
+DB_USER=your_user
+DB_PASSWORD=your_password
+```
+
+Notes:
+- `.env` is ignored by git and must stay local.
+- Use real OS environment variables in production/CI instead of `.env`.
