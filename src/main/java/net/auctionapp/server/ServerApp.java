@@ -7,7 +7,7 @@ import java.net.Socket;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicBoolean;
-import net.auctionapp.common.utils.ConfigReader;
+import net.auctionapp.common.utils.ConfigUtil;
 
 public class ServerApp {
 
@@ -20,8 +20,8 @@ public class ServerApp {
         Runtime.getRuntime().addShutdownHook(new Thread(ServerApp::shutdown)); // Shutdown on JVM exit (Ctrl+C, IDE stop, etc.)
 
         try {
-            serverSocket = new ServerSocket(ConfigReader.getServerPort());
-            System.out.println("Auction server is running on port: " + ConfigReader.getServerPort());
+            serverSocket = new ServerSocket(ConfigUtil.getServerPort());
+            System.out.println("Auction server is running on port: " + ConfigUtil.getServerPort());
             System.out.println("Waiting for Bidders to connect...");
 
             while (running.get()) {

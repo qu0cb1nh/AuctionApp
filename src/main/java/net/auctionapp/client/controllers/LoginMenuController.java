@@ -1,24 +1,34 @@
 package net.auctionapp.client.controllers;
+
+import javafx.application.Platform;
 import javafx.fxml.FXMLLoader;
 import javafx.scene.Node;
 import javafx.scene.Parent;
 import javafx.scene.Scene;
 import javafx.stage.Stage;
 import javafx.scene.input.MouseEvent;
-import java.io.IOException;
 import javafx.event.ActionEvent;
 import javafx.fxml.FXML;
 import javafx.fxml.Initializable;
 import javafx.scene.control.Button;
 import javafx.scene.control.Label;
+import javafx.scene.control.PasswordField;
 import javafx.scene.control.TextField;
+import net.auctionapp.client.ClientApp;
+import net.auctionapp.client.NetworkService;
+import net.auctionapp.common.messages.Message;
+import net.auctionapp.common.messages.MessageType;
+import net.auctionapp.common.messages.types.LoginRequestMessage;
+import net.auctionapp.common.messages.types.LoginResultMessage;
 
 import java.net.URL;
 import java.util.ResourceBundle;
 
 public class LoginMenuController implements Initializable {
+
     @Override
     public void initialize(URL url, ResourceBundle resourceBundle) {
+        ClientApp.getInstance().getNetworkService().addMessageListener(this::handleServerMessage);
     }
 
     @FXML
@@ -26,15 +36,33 @@ public class LoginMenuController implements Initializable {
     @FXML
     private TextField usernameField;
     @FXML
-    private TextField passwordField;
+    private PasswordField passwordField;
     @FXML
     private Label statusLabel;
 
     @FXML
     protected void onLoginButtonClicked(ActionEvent event) {
-        String username = usernameField.getText();
-        String password = passwordField.getText();
-        System.out.println(usernameField.getText() + " - " + passwordField.getText());
+        String username = usernameField.getText() == null ? "" : usernameField.getText().trim();
+        String password = passwordField.getText() == null ? "" : passwordField.getText();
+
+        if (username.isEmpty() || password.isEmpty()) {
+            statusLabel.setText("Please enter both username and password.");
+            return;
+        }
+
+        statusLabel.setText("Signing in...");
+        ClientApp.getInstance().getNetworkService().sendMessage(new LoginRequestMessage(username, password));
+    }
+
+    private void handleServerMessage(Message message) {
+        if (message == null) {
+            return;
+        }
+        if (message.getType() != MessageType.LOGIN_SUCCESS && message.getType() != MessageType.LOGIN_FAILURE) {
+            return;
+        }
+        LoginResultMessage result = (LoginResultMessage) message;
+        Platform.runLater(() -> statusLabel.setText(result.getMessage()));
     }
     @FXML
     public void switchToRegister(MouseEvent event) {
@@ -60,10 +88,4 @@ public class LoginMenuController implements Initializable {
             e.printStackTrace(); // Dòng này sẽ in ra chi tiết lỗi ở tab Run
         }
     }
-    @FXML
-    public void handleForgotPassword() {
-        System.out.println("The user clicked \"Forgot password!\"");
-        // Sau này code xử lý lấy lại mật khẩu sẽ nằm ở đây
-    }
-
 }

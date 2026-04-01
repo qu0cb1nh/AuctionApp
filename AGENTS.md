@@ -51,9 +51,10 @@ Hệ thống cho phép nhiều người dùng tham gia cạnh tranh giá để m
 
 4.1 Thiết kế hướng đối tượng (OOP)
 
-    Lớp chính: Entity (Abstract), Item (Abstract), User (Abstract), Auction, BidTransaction.
-
-    Kế thừa: Item → Electronics/Art/Vehicle; User → Bidder/Seller/Admin.
+    Thiết kế sơ đồ lớp (class diagram):
+   - Entity (abstract) → User (abstract) → Bidder, Seller, Admin
+   - Entity → Item (abstract) → Electronics, Art, Vehicle
+   - Auction, BidTransaction
 
     Nguyên tắc: Đảm bảo đủ Encapsulation, Inheritance, Polymorphism và Abstraction.
 
@@ -61,7 +62,7 @@ Hệ thống cho phép nhiều người dùng tham gia cạnh tranh giá để m
 
     Mô hình: Client-Server.
 
-    Giao tiếp: REST API hoặc Socket (JSON).
+    Giao tiếp: Socket (JSON).
 
     Phân tầng: MVC (Model-View-Controller) cho cả phía Client và Server.
 
@@ -73,7 +74,7 @@ Hệ thống cho phép nhiều người dùng tham gia cạnh tranh giá để m
 
     CI/CD: GitHub Actions (khuyến khích).
 
-    Design Patterns: Singleton, Factory Method, Observer, Strategy/Command.
+    Design Patterns: Singleton (AuctionManager), Factory Method (tạo Item), Observer, Strategy/Command.
 
 5. Bảng điểm đánh giá
    Nội dung đánh giá	Điểm	Mức độ
@@ -94,7 +95,6 @@ Hệ thống cho phép nhiều người dùng tham gia cạnh tranh giá để m
    Tổng điểm	10 + 1
 
 6. Các yêu cầu khác
-   Phiên bản Java: Java 11
-   Phiên bản JavaFX: JavaFX 17
+   Phiên bản Java: Java 25
    Tất cả các chữ (như dòng text trong string, comments, docs,...) đều phải viết tiếng anh
    Các commit phải theo conventional commit: https://www.conventionalcommits.org/en/v1.0.0/

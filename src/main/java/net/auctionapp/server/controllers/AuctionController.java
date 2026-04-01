@@ -14,7 +14,7 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
 public class AuctionController {
-    private static AuctionController instance;
+    private static final AuctionController INSTANCE = new AuctionController();
     private final Map<String, Auction> auctions = new ConcurrentHashMap<>();
 
     private AuctionController() {
@@ -22,11 +22,8 @@ public class AuctionController {
         auctions.put("ITEM_456", new Auction("ITEM_456", "Macbook Pro 2023", 2000));
     }
 
-    public static synchronized AuctionController getInstance() {
-        if (instance == null) {
-            instance = new AuctionController();
-        }
-        return instance;
+    public static AuctionController getInstance() {
+        return INSTANCE;
     }
 
     /**

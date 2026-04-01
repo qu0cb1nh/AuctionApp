@@ -5,6 +5,8 @@ import com.google.gson.JsonObject;
 import net.auctionapp.common.messages.*;
 import net.auctionapp.common.messages.types.BidRequestMessage;
 import net.auctionapp.common.messages.types.ErrorMessage;
+import net.auctionapp.common.messages.types.LoginRequestMessage;
+import net.auctionapp.common.messages.types.LoginResultMessage;
 import net.auctionapp.common.messages.types.PriceUpdateMessage;
 
 public class JsonUtil {
@@ -28,6 +30,11 @@ public class JsonUtil {
             MessageType type = MessageType.valueOf(typeString);
 
             switch (type) {
+                case LOGIN_REQUEST:
+                    return gson.fromJson(json, LoginRequestMessage.class);
+                case LOGIN_SUCCESS:
+                case LOGIN_FAILURE:
+                    return gson.fromJson(json, LoginResultMessage.class);
                 case BID_REQUEST:
                     return gson.fromJson(json, BidRequestMessage.class);
                 case PRICE_UPDATE:

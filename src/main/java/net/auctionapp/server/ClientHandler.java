@@ -1,7 +1,9 @@
 package net.auctionapp.server;
 
 import net.auctionapp.common.messages.Message;
+import net.auctionapp.common.messages.types.LoginRequestMessage;
 import net.auctionapp.common.utils.JsonUtil;
+import net.auctionapp.server.controllers.AuthController;
 import net.auctionapp.server.controllers.AuctionController;
 
 import java.io.BufferedReader;
@@ -16,11 +18,13 @@ public class ClientHandler implements Runnable {
     private PrintWriter out;
     private BufferedReader in;
     private final AuctionController auctionController;
+    private final AuthController authController;
     private final AtomicBoolean closed = new AtomicBoolean(false);
 
     public ClientHandler(Socket socket) {
         this.socket = socket;
         this.auctionController = AuctionController.getInstance();
+        this.authController = AuthController.getInstance();
     }
 
     @Override
@@ -34,13 +38,14 @@ public class ClientHandler implements Runnable {
                 System.out.println("Received JSON from client " + socket.getInetAddress() + ": " + jsonString);
 
                 try {
-                    // Convert JSON string to Message object
                     Message message = JsonUtil.fromJson(jsonString);
+                    if (message == null) {
+                        continue;
+                    }
 
-                    // TODO: Pass the message to the Controller for processing
+                    handleMessagesFromClient(message);
                 } catch (Exception e) {
                     System.err.println("Error processing JSON from client: " + e.getMessage());
-                    // Optionally, send an error message back to the client
                 }
             }
         } catch (IOException e) {
@@ -83,6 +88,17 @@ public class ClientHandler implements Runnable {
         }
 
         return true;
+    }
+
+    private void handleMessagesFromClient(Message message) {
+        switch (message.getType()) {
+            case LOGIN_REQUEST:
+                authController.handleLogin((LoginRequestMessage) message, this);
+                break;
+            default:
+                auctionController.processMessage(message, this);
+                break;
+        }
     }
 
     @Override
