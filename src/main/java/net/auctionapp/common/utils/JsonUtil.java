@@ -8,6 +8,8 @@ import net.auctionapp.common.messages.types.ErrorMessage;
 import net.auctionapp.common.messages.types.LoginRequestMessage;
 import net.auctionapp.common.messages.types.LoginResultMessage;
 import net.auctionapp.common.messages.types.PriceUpdateMessage;
+import net.auctionapp.common.messages.types.RegisterRequestMessage;
+import net.auctionapp.common.messages.types.RegisterResultMessage;
 
 public class JsonUtil {
 
@@ -32,9 +34,14 @@ public class JsonUtil {
             switch (type) {
                 case LOGIN_REQUEST:
                     return gson.fromJson(json, LoginRequestMessage.class);
+                case REGISTER_REQUEST:
+                    return gson.fromJson(json, RegisterRequestMessage.class);
                 case LOGIN_SUCCESS:
                 case LOGIN_FAILURE:
                     return gson.fromJson(json, LoginResultMessage.class);
+                case REGISTER_SUCCESS:
+                case REGISTER_FAILURE:
+                    return gson.fromJson(json, RegisterResultMessage.class);
                 case BID_REQUEST:
                     return gson.fromJson(json, BidRequestMessage.class);
                 case PRICE_UPDATE:

@@ -5,16 +5,23 @@ import javafx.fxml.FXMLLoader;
 import javafx.scene.Scene;
 import javafx.stage.Stage;
 import net.auctionapp.common.messages.Message;
+import net.auctionapp.common.messages.MessageType;
 import net.auctionapp.common.messages.types.ErrorMessage;
 import net.auctionapp.common.messages.types.LoginResultMessage;
 import net.auctionapp.common.messages.types.PriceUpdateMessage;
 import net.auctionapp.common.utils.ConfigUtil;
 
 import java.io.IOException;
+import java.util.List;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.function.Consumer;
 
 public class ClientApp extends Application {
     private static ClientApp instance;
     private final NetworkService networkService;
+    private final Map<MessageType, List<Consumer<Message>>> messageHandlers  = new ConcurrentHashMap<>();
 
     public ClientApp() {
         instance = this;
@@ -27,6 +34,25 @@ public class ClientApp extends Application {
 
     public NetworkService getNetworkService() {
         return networkService;
+    }
+
+    public void addMessageHandler(MessageType type, Consumer<Message> handler) {
+        if (type == null || handler == null) {
+            return;
+        }
+        messageHandlers
+                .computeIfAbsent(type, key -> new CopyOnWriteArrayList<>())
+                .add(handler);
+    }
+
+    public void removeMessageHandler(MessageType type, Consumer<Message> handler) {
+        if (type == null || handler == null) {
+            return;
+        }
+        List<Consumer<Message>> handlers = messageHandlers.get(type);
+        if (handlers != null) {
+            handlers.remove(handler);
+        }
     }
 
     public static void main(String[] args) {
@@ -48,7 +74,7 @@ public class ClientApp extends Application {
         String host = ConfigUtil.getServerHost();
         int port = ConfigUtil.getServerPort();
         networkService.connect(host, port);
-        networkService.addMessageListener(this::processMessage);
+        networkService.setMessageListener(this::processMessage);
     }
 
     /**
@@ -59,25 +85,16 @@ public class ClientApp extends Application {
         if (message == null) {
             return;
         }
+        dispatchToHandlers(message);
+    }
 
-        switch (message.getType()) {
-            case PRICE_UPDATE:
-                PriceUpdateMessage priceUpdate = (PriceUpdateMessage) message;
-                System.out.printf("[UPDATE] Item %s has a new price: %.2f (led by %s)%n",
-                        priceUpdate.getItemId(), priceUpdate.getNewPrice(), priceUpdate.getLeadingUserName());
-                break;
-            case LOGIN_SUCCESS:
-            case LOGIN_FAILURE:
-                LoginResultMessage loginResult = (LoginResultMessage) message;
-                System.out.println("[AUTH] " + loginResult.getMessage());
-                break;
-            case ERROR:
-                ErrorMessage error = (ErrorMessage) message;
-                System.err.println("[ERROR] " + error.getErrorMessage());
-                break;
-            default:
-                System.out.println("[INFO] Received an unhandled message type: " + message.getType());
-                break;
+    private void dispatchToHandlers(Message message) {
+        List<Consumer<Message>> handlers = messageHandlers.get(message.getType());
+        if (handlers == null) {
+            return;
+        }
+        for (Consumer<Message> handler : handlers) {
+            handler.accept(message);
         }
     }
 

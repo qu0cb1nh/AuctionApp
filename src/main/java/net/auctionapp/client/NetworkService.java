@@ -9,12 +9,10 @@ import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.PrintWriter;
 import java.net.Socket;
-import java.util.List;
-import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.function.Consumer;
 
 public final class NetworkService {
-    private final List<Consumer<Message>> messageListeners = new CopyOnWriteArrayList<>();
+    private Consumer<Message> messageListener;
 
     private PrintWriter out;
     private Socket socket;
@@ -54,18 +52,8 @@ public final class NetworkService {
         }
     }
 
-    public void addMessageListener(Consumer<Message> messageListener) {
-        if (messageListener == null) {
-            return;
-        }
-        messageListeners.add(messageListener);
-    }
-
-    public void removeMessageListener(Consumer<Message> messageListener) {
-        if (messageListener == null) {
-            return;
-        }
-        messageListeners.remove(messageListener);
+    public void setMessageListener(java.util.function.Consumer<Message> messageListener) {
+        this.messageListener = messageListener;
     }
 
     public void shutdown() {
@@ -84,19 +72,19 @@ public final class NetworkService {
             String jsonString;
             while ((jsonString = in.readLine()) != null) {
                 final Message message = JsonUtil.fromJson(jsonString);
-                Platform.runLater(() -> notifyListeners(message));
+                Platform.runLater(() -> notifyListener(message));
             }
         } catch (IOException e) {
             System.err.println("Disconnected from server: " + e.getMessage());
         }
     }
 
-    private void notifyListeners(Message message) {
+    private void notifyListener(Message message) {
         if (message == null) {
             return;
         }
-        for (Consumer<Message> listener : messageListeners) {
-            listener.accept(message);
+        if (messageListener != null) {
+            messageListener.accept(message);
         }
     }
 }

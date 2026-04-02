@@ -9,13 +9,13 @@
 <?import javafx.scene.layout.VBox?>
 <?import javafx.scene.text.Font?>
 
-<StackPane prefHeight="500.0" prefWidth="700.0" style="-fx-background-color: linear-gradient(to bottom right, #2193b0, #6dd5ed);" xmlns="http://javafx.com/javafx/25" xmlns:fx="http://javafx.com/fxml/1" fx:controller="net.auctionapp.client.controllers.LoginMenuController">
+<StackPane prefHeight="616.0" prefWidth="881.0" style="-fx-background-color: linear-gradient(to bottom right, #2193b0, #6dd5ed);" xmlns="http://javafx.com/javafx/25" xmlns:fx="http://javafx.com/fxml/1" fx:controller="net.auctionapp.client.controllers.LoginMenuController">
    <children>
 
-      <VBox alignment="CENTER" maxHeight="450.0" maxWidth="450.0" prefHeight="338.0" prefWidth="655.0" spacing="20.0" style="-fx-background-color: white; -fx-padding: 40; -fx-background-radius: 15; -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.15), 15, 0, 0, 5);">
+      <VBox alignment="CENTER" maxHeight="450.0" maxWidth="515.0" prefHeight="450.0" prefWidth="515.0" spacing="20.0" style="-fx-background-color: white; -fx-padding: 40; -fx-background-radius: 15; -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.15), 15, 0, 0, 5);">
          <children>
 
-            <Label prefHeight="54.0" prefWidth="506.0" text="             Login">
+            <Label alignment="CENTER" graphicTextGap="0.0" prefHeight="53.0" prefWidth="687.0" text="Login" textAlignment="CENTER">
                <font>
                   <Font name="System Bold" size="36.0" />
                </font>
@@ -24,9 +24,9 @@
                </VBox.margin>
             </Label>
 
-            <TextField fx:id="usernameField" prefHeight="40.0" prefWidth="200.0" promptText="Username" style="-fx-pref-height: 40px; -fx-background-radius: 8; -fx-border-radius: 8; -fx-border-color: #cccccc; -fx-font-size: 14px;" />
+            <TextField fx:id="usernameField" prefHeight="48.0" prefWidth="435.0" promptText="Username" style="-fx-pref-height: 40px; -fx-background-radius: 8; -fx-border-radius: 8; -fx-border-color: #cccccc; -fx-font-size: 14px;" />
 
-            <PasswordField fx:id="passwordField" prefHeight="40.0" prefWidth="200.0" promptText="Password" style="-fx-pref-height: 40px; -fx-background-radius: 8; -fx-border-radius: 8; -fx-border-color: #cccccc; -fx-font-size: 14px;" />
+            <PasswordField fx:id="passwordField" prefHeight="48.0" prefWidth="435.0" promptText="Password" style="-fx-pref-height: 40px; -fx-background-radius: 8; -fx-border-radius: 8; -fx-border-color: #cccccc; -fx-font-size: 14px;" />
 
             <Button fx:id="loginButton" mnemonicParsing="false" onAction="#onLoginButtonClicked" prefHeight="40.0" prefWidth="120.0" style="-fx-background-color: #2193b0; -fx-text-fill: white; -fx-font-size: 16px; -fx-font-weight: bold; -fx-pref-height: 45px; -fx-background-radius: 8; -fx-cursor: hand;" text="Login">
                <font>
@@ -36,10 +36,21 @@
                   <Insets top="10.0" />
                </VBox.margin>
             </Button>
-            <Label fx:id="statusLabel" prefHeight="18.0" prefWidth="260.0" style="-fx-text-fill: #555555;" text="" />
-            <Label onMouseClicked="#switchToRegister" prefHeight="18.0" prefWidth="198.0" style="-fx-text-fill: #2193b0; -fx-cursor: hand; -fx-underline: true;" text="Don't have an account? Register now" />
+            <Label onMouseClicked="#switchToRegister" prefHeight="39.0" prefWidth="234.0" style="-fx-text-fill: #2193b0; -fx-cursor: hand; -fx-underline: true;" text="Don't have an account? Register now">
+               <font>
+                  <Font size="14.0" />
+               </font>
+            </Label>
+            <Label fx:id="statusLabel" alignment="CENTER" prefHeight="34.0" prefWidth="549.0" style="-fx-text-fill: #555555;" textAlignment="CENTER">
+               <font>
+                  <Font size="18.0" />
+               </font>
+            </Label>
 
          </children>
+         <StackPane.margin>
+            <Insets top="10.0" />
+         </StackPane.margin>
       </VBox>
 
    </children>
