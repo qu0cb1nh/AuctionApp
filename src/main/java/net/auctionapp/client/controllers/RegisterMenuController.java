@@ -1,13 +1,31 @@
 package net.auctionapp.client.controllers;
 
 
+import javafx.application.Platform;
 import javafx.fxml.FXML;
+import javafx.fxml.Initializable;
+import javafx.scene.Node;
+import javafx.scene.control.Button;
+import javafx.scene.control.Label;
 import javafx.scene.control.PasswordField;
 import javafx.scene.control.TextField;
+import javafx.scene.input.MouseEvent;
+import net.auctionapp.client.ClientApp;
+import net.auctionapp.client.SceneNavigator;
+import net.auctionapp.common.messages.Message;
+import net.auctionapp.common.messages.MessageType;
+import net.auctionapp.common.messages.types.RegisterRequestMessage;
+import net.auctionapp.common.messages.types.RegisterResultMessage;
 
-public class RegisterMenuController {
+import java.net.URL;
+import java.util.ResourceBundle;
+import java.util.function.Consumer;
 
-    // Khai báo các biến tương ứng với các ô nhập dữ liệu trên giao diện
+public class RegisterMenuController implements Initializable {
+
+    private Consumer<Message> messageListener;
+
+    // Fields for the registration form.
     @FXML
     private TextField usernameField;
 
@@ -17,30 +35,64 @@ public class RegisterMenuController {
     @FXML
     private PasswordField confirmPasswordField;
 
-    // Hàm này sẽ chạy khi người dùng bấm nút "GET STARTED"
+    @FXML
+    private Button registerButton;
+
+    @FXML
+    private Label statusLabel;
+
+    @Override
+    public void initialize(URL url, ResourceBundle resourceBundle) {
+        messageListener = this::handleServerMessage;
+        ClientApp.getInstance().addMessageHandler(MessageType.REGISTER_SUCCESS, messageListener);
+        ClientApp.getInstance().addMessageHandler(MessageType.REGISTER_FAILURE, messageListener);
+    }
+
+    // Triggered when the user clicks "Register".
     @FXML
     public void handleRegister() {
-        // Lấy chữ mà người dùng vừa gõ vào
-        String username = usernameField.getText();
-        String password = passwordField.getText();
-        String confirmPassword = confirmPasswordField.getText();
+        // Read input values.
+        String username = usernameField.getText() == null ? "" : usernameField.getText().trim();
+        String password = passwordField.getText() == null ? "" : passwordField.getText();
+        String confirmPassword = confirmPasswordField.getText() == null ? "" : confirmPasswordField.getText();
 
-        // Kiểm tra xem người dùng có để trống ô nào không
+        // Ensure all fields are filled.
         if (username.isEmpty() || password.isEmpty() || confirmPassword.isEmpty()) {
-            System.out.println("Error: Please fill in all the information!");
-            return; // Dừng lại, không làm tiếp
-        }
-
-        // Kiểm tra xem 2 ô mật khẩu có giống nhau không
-        if (!password.equals(confirmPassword)) {
-            System.out.println("Error: Verification password does not match!");
+            statusLabel.setText("Please fill in all the information.");
             return;
         }
 
-        // Nếu qua hết các ải trên thì coi như hợp lệ
-        System.out.println("Congratulations! Account registration is in progress: " + username);
-        System.out.println("=> TODO: Chỗ này sau này sẽ gọi hàm lưu vào Database!");
+        // Verify the confirmation password.
+        if (!password.equals(confirmPassword)) {
+            statusLabel.setText("Verification password does not match.");
+            return;
+        }
 
-        // (Tùy chọn) Chuyển người dùng về lại màn hình Đăng nhập sau khi đăng ký xong
+        // Inputs look valid.
+        statusLabel.setText("Registering account...");
+        ClientApp.getInstance().getNetworkService().sendMessage(new RegisterRequestMessage(username, password));
+
+        // Optional: navigate back to the login screen after registration.
+    }
+
+    private void handleServerMessage(Message message) {
+        if (message == null) {
+            return;
+        }
+        if (message.getType() != MessageType.REGISTER_SUCCESS && message.getType() != MessageType.REGISTER_FAILURE) {
+            return;
+        }
+        RegisterResultMessage result = (RegisterResultMessage) message;
+        Platform.runLater(() -> statusLabel.setText(result.getMessage()));
+    }
+
+    @FXML
+    public void switchToLogin(MouseEvent event) {
+        if (messageListener != null) {
+            ClientApp.getInstance().removeMessageHandler(MessageType.REGISTER_SUCCESS, messageListener);
+            ClientApp.getInstance().removeMessageHandler(MessageType.REGISTER_FAILURE, messageListener);
+        }
+        SceneNavigator.switchScene((Node) event.getSource(),
+                "/net/auctionapp/client/views/LoginMenu.fxml");
     }
 }

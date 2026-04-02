@@ -1,42 +1,51 @@
 <?xml version="1.0" encoding="UTF-8"?>
 
-<?import javafx.geometry.*?>
-<?import javafx.scene.control.*?>
-<?import javafx.scene.layout.*?>
-<?import javafx.scene.text.*?>
+<?import javafx.geometry.Insets?>
+<?import javafx.scene.control.Button?>
+<?import javafx.scene.control.Label?>
+<?import javafx.scene.control.PasswordField?>
+<?import javafx.scene.control.TextField?>
+<?import javafx.scene.layout.StackPane?>
+<?import javafx.scene.layout.VBox?>
+<?import javafx.scene.text.Font?>
 
-<AnchorPane prefHeight="400.0" prefWidth="641.0" xmlns="http://javafx.com/javafx/17.0.12" xmlns:fx="http://javafx.com/fxml/1">
-    <children>
-        <VBox alignment="CENTER" layoutX="44.0" layoutY="30.0" prefHeight="340.0" prefWidth="552.0" spacing="15.0" style="-fx-background-color: #f4f4f4; -fx-padding: 20; -fx-background-radius: 10;">
-            <children>
-                <Label text="Create Account">
-                    <font>
-                        <Font name="System Bold" size="28.0" />
-                    </font>
-                    <VBox.margin>
-                        <Insets bottom="5.0" />
-                    </VBox.margin>
-                </Label>
-
-                <TextField prefHeight="40.0" prefWidth="200.0" promptText="Username" />
-                <PasswordField prefHeight="40.0" prefWidth="200.0" promptText="Password" />
-                <PasswordField prefHeight="40.0" prefWidth="200.0" promptText="Confirm Password" />
-
-                <Button mnemonicParsing="false" prefHeight="40.0" prefWidth="120.0" text="Register">
-                    <font>
-                        <Font size="16.0" />
-                    </font>
-                    <VBox.margin>
-                        <Insets top="10.0" />
-                    </VBox.margin>
-                </Button>
-
-                <Label style="-fx-cursor: hand;" text="Already have an account? Sign In" textFill="#555555" underline="true">
-                    <font>
-                        <Font size="13.0" />
-                    </font>
-                </Label>
-            </children>
-        </VBox>
-    </children>
-</AnchorPane>
+<StackPane prefHeight="616.0" prefWidth="881.0" style="-fx-background-color: linear-gradient(to bottom right, #2193b0, #6dd5ed);" xmlns="http://javafx.com/javafx/25" xmlns:fx="http://javafx.com/fxml/1" fx:controller="net.auctionapp.client.controllers.RegisterMenuController">
+   <children>
+      <VBox alignment="CENTER" maxHeight="480.0" maxWidth="515.0" prefHeight="480.0" prefWidth="515.0" spacing="20.0" style="-fx-background-color: white; -fx-padding: 40; -fx-background-radius: 15; -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.15), 15, 0, 0, 5);">
+         <children>
+            <Label alignment="CENTER" contentDisplay="TOP" prefHeight="23.0" prefWidth="505.0" text="Register">
+               <font>
+                  <Font name="System Bold" size="36.0" />
+               </font>
+               <VBox.margin>
+                  <Insets bottom="10.0" />
+               </VBox.margin>
+            </Label>
+            <TextField fx:id="usernameField" prefHeight="71.0" prefWidth="435.0" promptText="Username" style="-fx-pref-height: 40px; -fx-background-radius: 8; -fx-border-radius: 8; -fx-border-color: #cccccc; -fx-font-size: 14px;" />
+            <PasswordField fx:id="passwordField" prefHeight="40.0" prefWidth="200.0" promptText="Password" style="-fx-pref-height: 40px; -fx-background-radius: 8; -fx-border-radius: 8; -fx-border-color: #cccccc; -fx-font-size: 14px;" />
+            <PasswordField fx:id="confirmPasswordField" prefHeight="67.0" prefWidth="435.0" promptText="Confirm password" style="-fx-pref-height: 40px; -fx-background-radius: 8; -fx-border-radius: 8; -fx-border-color: #cccccc; -fx-font-size: 14px;" />
+            <Button fx:id="registerButton" mnemonicParsing="false" onAction="#handleRegister" prefHeight="40.0" prefWidth="120.0" style="-fx-background-color: #2193b0; -fx-text-fill: white; -fx-font-size: 16px; -fx-font-weight: bold; -fx-pref-height: 45px; -fx-background-radius: 8; -fx-cursor: hand;" text="Register">
+               <font>
+                  <Font size="16.0" />
+               </font>
+               <VBox.margin>
+                  <Insets top="10.0" />
+               </VBox.margin>
+            </Button>
+            <Label alignment="CENTER" onMouseClicked="#switchToLogin" prefHeight="39.0" prefWidth="234.0" style="-fx-text-fill: #2193b0; -fx-cursor: hand; -fx-underline: true;" text="Already have an account? Log in">
+               <font>
+                  <Font size="14.0" />
+               </font>
+            </Label>
+            <Label fx:id="statusLabel" alignment="CENTER" prefHeight="36.0" prefWidth="435.0" style="-fx-text-fill: #555555;" textAlignment="CENTER">
+               <font>
+                  <Font size="18.0" />
+               </font>
+            </Label>
+         </children>
+         <StackPane.margin>
+            <Insets top="10.0" />
+         </StackPane.margin>
+      </VBox>
+   </children>
+</StackPane>

@@ -2,6 +2,7 @@ package net.auctionapp.server;
 
 import net.auctionapp.common.messages.Message;
 import net.auctionapp.common.messages.types.LoginRequestMessage;
+import net.auctionapp.common.messages.types.RegisterRequestMessage;
 import net.auctionapp.common.utils.JsonUtil;
 import net.auctionapp.server.controllers.AuthController;
 import net.auctionapp.server.controllers.AuctionController;
@@ -94,6 +95,9 @@ public class ClientHandler implements Runnable {
         switch (message.getType()) {
             case LOGIN_REQUEST:
                 authController.handleLogin((LoginRequestMessage) message, this);
+                break;
+            case REGISTER_REQUEST:
+                authController.handleRegister((RegisterRequestMessage) message, this);
                 break;
             default:
                 auctionController.processMessage(message, this);
