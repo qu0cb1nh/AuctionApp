@@ -103,10 +103,6 @@ public final class NetworkService {
         }
 
         List<Consumer<Message>> handlers = messageHandlers.get(message.getType());
-        if (handlers == null) {
-            return;
-        }
-
         for (Consumer<Message> handler : handlers) {
             handler.accept(message);
         }
