@@ -1,0 +1,65 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.geometry.Insets?>
+<?import javafx.scene.control.Button?>
+<?import javafx.scene.control.ComboBox?>
+<?import javafx.scene.control.Label?>
+<?import javafx.scene.control.ScrollPane?>
+<?import javafx.scene.control.TextField?>
+<?import javafx.scene.image.Image?>
+<?import javafx.scene.image.ImageView?>
+<?import javafx.scene.layout.BorderPane?>
+<?import javafx.scene.layout.FlowPane?>
+<?import javafx.scene.layout.HBox?>
+<?import javafx.scene.layout.VBox?>
+<?import javafx.scene.text.Font?>
+
+<BorderPane prefHeight="600.0" prefWidth="900.0" xmlns="http://javafx.com/javafx/25" xmlns:fx="http://javafx.com/fxml/1">
+    <top>
+        <HBox alignment="CENTER_LEFT" prefHeight="70.0" prefWidth="900.0" spacing="20.0" style="-fx-background-color: #3bb3d1;" BorderPane.alignment="CENTER">
+            <children>
+                <Label text="Explore Auctions" textFill="WHITE">
+                    <font>
+                        <Font name="System Bold" size="24.0" />
+                    </font>
+                </Label>
+                <TextField prefHeight="35.0" prefWidth="250.0" promptText="Search for products..." style="-fx-background-radius: 15;" />
+                <ComboBox prefHeight="35.0" prefWidth="150.0" promptText="Filter by..." style="-fx-background-radius: 10;" />
+                <HBox HBox.hgrow="ALWAYS" />
+                <Button mnemonicParsing="false" prefHeight="35.0" prefWidth="100.0" style="-fx-background-color: white; -fx-text-fill: #3bb3d1; -fx-background-radius: 10; -fx-font-weight: bold;" text="Sign Out" />
+            </children>
+            <padding>
+                <Insets bottom="15.0" left="25.0" right="25.0" top="15.0" />
+            </padding>
+        </HBox>
+    </top>
+
+    <center>
+        <ScrollPane fitToWidth="true" style="-fx-background-color: #e9ecef;" BorderPane.alignment="CENTER">
+            <content>
+                <FlowPane hgap="20.0" style="-fx-padding: 20;" vgap="20.0">
+                    <children>
+                        <VBox alignment="TOP_CENTER" prefHeight="280.0" prefWidth="200.0" spacing="10.0" style="-fx-background-color: white; -fx-background-radius: 10; -fx-effect: dropshadow(three-pass-box, rgba(0,0,0,0.2), 10, 0, 0, 0);">
+                     <children>
+                        <ImageView fitHeight="150.0" fitWidth="200.0" pickOnBounds="true" preserveRatio="true" style="-fx-image: white;">
+                           <image>
+                              <Image url="@images/iphone.jpg" />
+                           </image>
+                        </ImageView>
+                        <Label text="Iphone 17 Pro Max">
+                           <font>
+                              <Font name="System Bold" size="12.0" />
+                           </font>
+                        </Label>
+                        <Label text="Current Bid: $1,199" textFill="#c13c21" />
+                        <Button mnemonicParsing="false" style="-fx-background-color: #3bb3d1; -fx-text-fill: white; -fx-background-radius: 5;" text="Bid now!" />
+                     </children>
+                     <padding>
+                        <Insets bottom="10.0" left="10.0" right="10.0" top="10.0" />
+                     </padding></VBox>
+                    </children>
+                </FlowPane>
+            </content>
+        </ScrollPane>
+    </center>
+</BorderPane>
