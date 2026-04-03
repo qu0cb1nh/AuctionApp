@@ -2,6 +2,7 @@ package net.auctionapp.client;
 
 import javafx.application.Platform;
 import net.auctionapp.common.messages.Message;
+import net.auctionapp.common.messages.MessageType;
 import net.auctionapp.common.utils.JsonUtil;
 
 import java.io.BufferedReader;
@@ -9,10 +10,14 @@ import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.PrintWriter;
 import java.net.Socket;
+import java.util.List;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.function.Consumer;
 
 public final class NetworkService {
-    private Consumer<Message> messageListener;
+    private final Map<MessageType, List<Consumer<Message>>> messageHandlers = new ConcurrentHashMap<>();
 
     private PrintWriter out;
     private Socket socket;
@@ -32,10 +37,6 @@ public final class NetworkService {
         }
     }
 
-    public boolean isConnected() {
-        return socket != null && socket.isConnected() && !socket.isClosed();
-    }
-
     public void sendMessage(Message message) {
         if (message == null) {
             System.err.println("Cannot send a null message.");
@@ -52,8 +53,25 @@ public final class NetworkService {
         }
     }
 
-    public void setMessageListener(java.util.function.Consumer<Message> messageListener) {
-        this.messageListener = messageListener;
+    public void addMessageHandler(MessageType type, Consumer<Message> handler) {
+        if (type == null || handler == null) {
+            return;
+        }
+
+        messageHandlers
+                .computeIfAbsent(type, key -> new CopyOnWriteArrayList<>())
+                .add(handler);
+    }
+
+    public void removeMessageHandler(MessageType type, Consumer<Message> handler) {
+        if (type == null || handler == null) {
+            return;
+        }
+
+        List<Consumer<Message>> handlers = messageHandlers.get(type);
+        if (handlers != null) {
+            handlers.remove(handler);
+        }
     }
 
     public void shutdown() {
@@ -72,19 +90,25 @@ public final class NetworkService {
             String jsonString;
             while ((jsonString = in.readLine()) != null) {
                 final Message message = JsonUtil.fromJson(jsonString);
-                Platform.runLater(() -> notifyListener(message));
+                Platform.runLater(() -> routeMessageToHandlers(message));
             }
         } catch (IOException e) {
             System.err.println("Disconnected from server: " + e.getMessage());
         }
     }
 
-    private void notifyListener(Message message) {
+    private void routeMessageToHandlers(Message message) {
         if (message == null) {
             return;
         }
-        if (messageListener != null) {
-            messageListener.accept(message);
+
+        List<Consumer<Message>> handlers = messageHandlers.get(message.getType());
+        if (handlers == null) {
+            return;
+        }
+
+        for (Consumer<Message> handler : handlers) {
+            handler.accept(message);
         }
     }
 }

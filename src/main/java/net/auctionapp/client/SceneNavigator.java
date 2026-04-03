@@ -1,7 +1,7 @@
 package net.auctionapp.client;
 
+import javafx.application.Platform;
 import javafx.fxml.FXMLLoader;
-import javafx.scene.Node;
 import javafx.scene.Parent;
 import javafx.scene.Scene;
 import javafx.stage.Stage;
@@ -9,14 +9,27 @@ import javafx.stage.Stage;
 import java.io.IOException;
 import java.net.URL;
 import java.util.Objects;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
 
 public final class SceneNavigator {
+    private static final ScheduledExecutorService scheduler = Executors.newSingleThreadScheduledExecutor(r -> {
+        Thread t = new Thread(r, "SceneNavigator-Scheduler");
+        t.setDaemon(true);
+        return t;
+    });
+
     private SceneNavigator() {
     }
 
-    public static void switchScene(Node source, String fxmlPath) {
-        Objects.requireNonNull(source, "source");
+    public static void switchScene(String fxmlPath) {
         Objects.requireNonNull(fxmlPath, "fxmlPath");
+
+        Stage stage = ClientApp.getPrimaryStage();
+        if (stage == null) {
+            throw new IllegalStateException("Primary stage is not initialized.");
+        }
 
         URL resource = SceneNavigator.class.getResource(fxmlPath);
         if (resource == null) {
@@ -24,18 +37,22 @@ public final class SceneNavigator {
         }
 
         Parent root = loadRoot(resource, fxmlPath);
-        Scene scene = source.getScene();
-        if (scene == null) {
-            throw new IllegalStateException("Cannot switch scene because the source node is not attached to a scene.");
+        Scene scene = stage.getScene();
+        if (scene != null) {
+            scene.setRoot(root);
+        } else {
+            stage.setScene(new Scene(root));
         }
-
-        Stage stage = (Stage) scene.getWindow();
-        if (stage == null) {
-            throw new IllegalStateException("Cannot switch scene because the window is not available.");
-        }
-
-        scene.setRoot(root);
         stage.show();
+    }
+
+    public static void switchSceneWithDelay(String fxmlPath, long delayMillis) {
+        Objects.requireNonNull(fxmlPath, "fxmlPath");
+        scheduler.schedule(
+                () -> Platform.runLater(() -> switchScene(fxmlPath)),
+                delayMillis,
+                TimeUnit.MILLISECONDS
+        );
     }
 
     private static Parent loadRoot(URL resource, String fxmlPath) {
