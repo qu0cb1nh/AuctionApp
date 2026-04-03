@@ -103,7 +103,7 @@ public class AuthController {
             RegisterResultMessage success = new RegisterResultMessage(
                     MessageType.REGISTER_SUCCESS,
                     canonicalUsername,
-                    "Registration successful. Please log in."
+                    "Registration successful. Redirecting..."
             );
             clientHandler.sendMessage(JsonUtil.toJson(success));
         } catch (SQLException e) {

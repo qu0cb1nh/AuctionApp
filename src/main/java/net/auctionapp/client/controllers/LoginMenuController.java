@@ -1,8 +1,5 @@
 package net.auctionapp.client.controllers;
 
-import javafx.application.Platform;
-import javafx.scene.Node;
-import javafx.scene.input.MouseEvent;
 import javafx.event.ActionEvent;
 import javafx.fxml.FXML;
 import javafx.fxml.Initializable;
@@ -10,6 +7,7 @@ import javafx.scene.control.Button;
 import javafx.scene.control.Label;
 import javafx.scene.control.PasswordField;
 import javafx.scene.control.TextField;
+import javafx.scene.input.MouseEvent;
 import net.auctionapp.client.ClientApp;
 import net.auctionapp.client.SceneNavigator;
 import net.auctionapp.common.messages.Message;
@@ -20,8 +18,12 @@ import net.auctionapp.common.messages.types.LoginResultMessage;
 import java.net.URL;
 import java.util.ResourceBundle;
 import java.util.function.Consumer;
+import java.util.regex.Pattern;
 
 public class LoginMenuController implements Initializable {
+
+    private static final Pattern VALID_USERNAME_PATTERN = Pattern.compile("^[a-zA-Z0-9_-]+$");
+    private static final Pattern VALID_PASSWORD_PATTERN = Pattern.compile("^[a-zA-Z0-9!@#$%^&*=+]+$");
 
     private Consumer<Message> messageListener;
 
@@ -51,28 +53,71 @@ public class LoginMenuController implements Initializable {
             return;
         }
 
+        // Validate username length.
+        if (username.length() < 3) {
+            statusLabel.setText("Username must be at least 3 characters");
+            return;
+        }
+        if (username.length() > 20) {
+            statusLabel.setText("Username must not exceed 20 characters");
+            return;
+        }
+
+        // Validate username starts with a letter.
+        if (!Character.isLetter(username.charAt(0))) {
+            statusLabel.setText("Username must start with a letter.");
+            return;
+        }
+
+        // Validate username characters.
+        if (!VALID_USERNAME_PATTERN.matcher(username).matches()) {
+            statusLabel.setText("Username can not contain invalid characters.");
+            return;
+        }
+
+        // Validate password length.
+        if (password.length() < 6) {
+            statusLabel.setText("Password must be at least 6 characters.");
+            return;
+        }
+        if (password.length() > 64) {
+            statusLabel.setText("Password must not exceed 64 characters.");
+            return;
+        }
+
+        // Validate password characters.
+        if (!VALID_PASSWORD_PATTERN.matcher(password).matches()) {
+            statusLabel.setText("Password can not contain invalid characters.");
+            return;
+        }
+
         statusLabel.setText("Signing in...");
         ClientApp.getInstance().getNetworkService().sendMessage(new LoginRequestMessage(username, password));
     }
 
     private void handleServerMessage(Message message) {
-        if (message == null) {
+        if (!(message instanceof LoginResultMessage result)) {
             return;
         }
-        if (message.getType() != MessageType.LOGIN_SUCCESS && message.getType() != MessageType.LOGIN_FAILURE) {
-            return;
+        statusLabel.setText(result.getMessage());
+
+        if (message.getType() == MessageType.LOGIN_SUCCESS) {
+            cleanupHandlers();
+            // TODO: Change to main dashboard view when available
+            SceneNavigator.switchSceneWithDelay("views/LoginMenu.fxml", 1500);
         }
-        LoginResultMessage result = (LoginResultMessage) message;
-        Platform.runLater(() -> statusLabel.setText(result.getMessage()));
     }
 
-    @FXML
-    public void switchToRegister(MouseEvent event) {
+    private void cleanupHandlers() {
         if (messageListener != null) {
             ClientApp.getInstance().removeMessageHandler(MessageType.LOGIN_SUCCESS, messageListener);
             ClientApp.getInstance().removeMessageHandler(MessageType.LOGIN_FAILURE, messageListener);
         }
-        SceneNavigator.switchScene((Node) event.getSource(),
-                "/net/auctionapp/client/views/RegisterMenu.fxml");
+    }
+
+    @FXML
+    public void switchToRegister(MouseEvent event) {
+        cleanupHandlers();
+        SceneNavigator.switchScene("views/RegisterMenu.fxml");
     }
 }
