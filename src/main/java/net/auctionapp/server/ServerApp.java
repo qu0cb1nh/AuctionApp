@@ -10,7 +10,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicBoolean;
 import net.auctionapp.common.utils.ConfigUtil;
-import net.auctionapp.common.utils.DatabaseUtil;
+import net.auctionapp.server.database.DatabaseManager;
 
 public class ServerApp {
 
@@ -25,7 +25,7 @@ public class ServerApp {
         Runtime.getRuntime().addShutdownHook(new Thread(ServerApp::shutdown)); // Shutdown on JVM exit (Ctrl+C, IDE stop, etc.)
 
         try {
-            DatabaseUtil.createConnectionPool(); // Initializes database connection pool
+            DatabaseManager.getInstance().createConnectionPool(); // Initializes database connection pool
 
             serverSocket = new ServerSocket(ConfigUtil.getServerPort());
             System.out.println("Auction server is running on port: " + ConfigUtil.getServerPort());
@@ -78,7 +78,7 @@ public class ServerApp {
         }
         clients.clear(); // Clear the client set (again, to be safe)
 
-        DatabaseUtil.closeConnectionPool();
+        DatabaseManager.getInstance().closeConnectionPool(); // Close database connection pool
         System.out.println("Server shutdown complete.");
     }
 

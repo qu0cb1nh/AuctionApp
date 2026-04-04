@@ -5,7 +5,7 @@ import net.auctionapp.common.messages.types.LoginRequestMessage;
 import net.auctionapp.common.messages.types.LoginResultMessage;
 import net.auctionapp.common.messages.types.RegisterRequestMessage;
 import net.auctionapp.common.messages.types.RegisterResultMessage;
-import net.auctionapp.common.utils.DatabaseUtil;
+import net.auctionapp.server.database.DatabaseManager;
 import net.auctionapp.common.utils.JsonUtil;
 import net.auctionapp.server.ClientHandler;
 import org.mindrot.jbcrypt.BCrypt;
@@ -39,7 +39,7 @@ public class AuthController {
             return;
         }
 
-        try (Connection connection = DatabaseUtil.getConnection();
+        try (Connection connection = DatabaseManager.getInstance().getConnection();
              PreparedStatement statement = connection.prepareStatement(LOGIN_QUERY)) {
 
             statement.setString(1, normalizedUsername);
@@ -81,7 +81,7 @@ public class AuthController {
             return;
         }
 
-        try (Connection connection = DatabaseUtil.getConnection()) {
+        try (Connection connection = DatabaseManager.getInstance().getConnection()) {
             if (usernameExists(connection, normalizedUsername)) {
                 sendRegisterFailure(clientHandler, "Username already exists.");
                 return;
