@@ -6,8 +6,11 @@ import java.net.SocketException;
 import java.net.Socket;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicBoolean;
 import net.auctionapp.common.utils.ConfigUtil;
+import net.auctionapp.common.utils.DatabaseUtil;
 
 public class ServerApp {
 
@@ -16,13 +19,16 @@ public class ServerApp {
     private static final AtomicBoolean running = new AtomicBoolean(true);
     private static ServerSocket serverSocket;
 
+    private static final ExecutorService clientThreadPool = Executors.newCachedThreadPool(); // Creates a thread pool for client handlers
+
     public static void main(String[] args) {
         Runtime.getRuntime().addShutdownHook(new Thread(ServerApp::shutdown)); // Shutdown on JVM exit (Ctrl+C, IDE stop, etc.)
 
         try {
+            DatabaseUtil.createConnectionPool(); // Initializes database connection pool
+
             serverSocket = new ServerSocket(ConfigUtil.getServerPort());
             System.out.println("Auction server is running on port: " + ConfigUtil.getServerPort());
-            System.out.println("Waiting for Bidders to connect...");
 
             while (running.get()) {
                 Socket clientSocket = serverSocket.accept(); // accept() method blocks until a connection is made to the socket
@@ -31,7 +37,7 @@ public class ServerApp {
                 // Each client will be handled by a separate thread
                 ClientHandler handler = new ClientHandler(clientSocket);
                 registerClient(handler);
-                new Thread(handler).start();
+                clientThreadPool.execute(handler);
             }
         } catch (SocketException e) {
             if (running.get()) {
@@ -71,6 +77,8 @@ public class ServerApp {
             client.closeConnection(); // disconnect all clients
         }
         clients.clear(); // Clear the client set (again, to be safe)
+
+        DatabaseUtil.closeConnectionPool();
         System.out.println("Server shutdown complete.");
     }
 
