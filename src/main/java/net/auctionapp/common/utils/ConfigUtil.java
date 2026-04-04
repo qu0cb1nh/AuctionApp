@@ -5,7 +5,9 @@ import io.github.cdimascio.dotenv.Dotenv;
 import java.io.InputStream;
 import java.util.Properties;
 
-public class ConfigUtil {
+public final class ConfigUtil {
+
+    private ConfigUtil() { }
 
     private static final Properties properties = new Properties();
     private static final Dotenv dotenv;

@@ -2,6 +2,7 @@ package net.auctionapp.common.utils;
 
 import com.google.gson.Gson;
 import com.google.gson.JsonObject;
+import com.mysql.cj.util.StringUtils;
 import net.auctionapp.common.messages.*;
 import net.auctionapp.common.messages.types.BidRequestMessage;
 import net.auctionapp.common.messages.types.ErrorMessage;
@@ -11,7 +12,9 @@ import net.auctionapp.common.messages.types.PriceUpdateMessage;
 import net.auctionapp.common.messages.types.RegisterRequestMessage;
 import net.auctionapp.common.messages.types.RegisterResultMessage;
 
-public class JsonUtil {
+public final class JsonUtil {
+
+    private JsonUtil() { }
 
     private static final Gson gson = new Gson();
 
