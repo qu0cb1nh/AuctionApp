@@ -104,7 +104,7 @@ public class LoginMenuController implements Initializable {
         if (message.getType() == MessageType.LOGIN_SUCCESS) {
             cleanupHandlers();
             // TODO: Change to main dashboard view when available
-            SceneNavigator.switchSceneWithDelay("views/LoginMenu.fxml", 1500);
+            SceneNavigator.switchSceneWithDelay("views/AuctionList.fxml", 1500);
         }
     }
 
