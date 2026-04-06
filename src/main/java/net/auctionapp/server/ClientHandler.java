@@ -100,7 +100,7 @@ public class ClientHandler implements Runnable {
                 authController.handleRegister((RegisterRequestMessage) message, this);
                 break;
             default:
-                auctionController.processMessage(message, this);
+                //auctionController.processMessage(message, this);
                 break;
         }
     }

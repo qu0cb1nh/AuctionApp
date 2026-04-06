@@ -17,8 +17,8 @@ import java.sql.SQLException;
 import java.util.Locale;
 
 public class AuthController {
-    private static final String LOGIN_QUERY = "SELECT username, password_hash, role FROM users WHERE LOWER(username) = ? LIMIT 1";
-    private static final String CHECK_USERNAME_QUERY = "SELECT 1 FROM users WHERE LOWER(username) = ? LIMIT 1";
+    private static final String LOGIN_QUERY = "SELECT username, password_hash, role FROM users WHERE username = ? LIMIT 1";
+    private static final String CHECK_USERNAME_QUERY = "SELECT 1 FROM users WHERE username = ? LIMIT 1";
     private static final String REGISTER_QUERY = "INSERT INTO users (username, password_hash, role) VALUES (?, ?, ?)";
     private static final String DEFAULT_ROLE = "user";
     private static final AuthController INSTANCE = new AuthController();
