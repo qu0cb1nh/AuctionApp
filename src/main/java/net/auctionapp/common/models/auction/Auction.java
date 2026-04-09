@@ -16,11 +16,11 @@ import java.util.concurrent.ConcurrentHashMap;
  */
 public class Auction extends Entity {
     private final String sellerId;
-    private final LocalDateTime startTime;
+    private LocalDateTime startTime;
     private LocalDateTime endTime;
     private final Item item;
-    private final BigDecimal startingPrice;
-    private final BigDecimal minimumBidIncrement;
+    private BigDecimal startingPrice;
+    private BigDecimal minimumBidIncrement;
     private BigDecimal currentPrice;
     private String leadingBidderId;
     private String winnerBidderId;
@@ -161,6 +161,39 @@ public class Auction extends Entity {
             endTime = endTime.plusSeconds(antiSnipingExtensionSeconds);
         }
 
+        return true;
+    }
+
+    public synchronized boolean updateListingDetails(
+            String title,
+            String description,
+            BigDecimal newStartingPrice,
+            BigDecimal newMinimumBidIncrement,
+            LocalDateTime newStartTime,
+            LocalDateTime newEndTime
+    ) {
+        refreshStatus(LocalDateTime.now());
+        if (status != AuctionStatus.OPEN) {
+            return false;
+        }
+        if (title == null || title.isBlank()
+                || description == null || description.isBlank()
+                || newStartingPrice == null || newStartingPrice.signum() < 0
+                || newMinimumBidIncrement == null || newMinimumBidIncrement.signum() <= 0
+                || newStartTime == null || newEndTime == null
+                || !newEndTime.isAfter(newStartTime)) {
+            return false;
+        }
+
+        item.updateDetails(title, description, newStartingPrice);
+        startingPrice = newStartingPrice;
+        minimumBidIncrement = newMinimumBidIncrement;
+        startTime = newStartTime;
+        endTime = newEndTime;
+        currentPrice = newStartingPrice;
+        leadingBidderId = null;
+        winnerBidderId = null;
+        bidHistory.clear();
         return true;
     }
 

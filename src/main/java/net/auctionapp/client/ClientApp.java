@@ -15,6 +15,8 @@ public class ClientApp extends Application {
     private static ClientApp instance;
     private static Stage primaryStage;
     private final NetworkService networkService;
+    private String currentUsername;
+    private String currentRole;
 
     public ClientApp() {
         instance = this;
@@ -31,6 +33,19 @@ public class ClientApp extends Application {
 
     public NetworkService getNetworkService() {
         return networkService;
+    }
+
+    public String getCurrentUsername() {
+        return currentUsername;
+    }
+
+    public String getCurrentRole() {
+        return currentRole;
+    }
+
+    public void setCurrentUser(String username, String role) {
+        this.currentUsername = username;
+        this.currentRole = role;
     }
 
     public static void main(String[] args) {

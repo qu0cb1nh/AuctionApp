@@ -1,12 +1,27 @@
 package net.auctionapp.server;
 
 import net.auctionapp.common.messages.Message;
+import net.auctionapp.common.messages.MessageType;
+import net.auctionapp.common.messages.types.AuctionDetailsResponseMessage;
+import net.auctionapp.common.messages.types.AuctionEndedMessage;
+import net.auctionapp.common.messages.types.AuctionListResponseMessage;
 import net.auctionapp.common.messages.types.LoginRequestMessage;
+import net.auctionapp.common.messages.types.BidRequestMessage;
+import net.auctionapp.common.messages.types.BidResultMessage;
+import net.auctionapp.common.messages.types.CreateItemRequestMessage;
+import net.auctionapp.common.messages.types.ErrorMessage;
+import net.auctionapp.common.messages.types.GetAuctionDetailsRequestMessage;
+import net.auctionapp.common.messages.types.GetAuctionListRequestMessage;
+import net.auctionapp.common.messages.types.PriceUpdateMessage;
 import net.auctionapp.common.messages.types.RegisterRequestMessage;
+import net.auctionapp.common.models.items.*;
 import net.auctionapp.common.utils.JsonUtil;
-import net.auctionapp.server.controllers.AuthController;
-import net.auctionapp.server.controllers.AuctionController;
+import net.auctionapp.server.exceptions.AuctionAppException;
+import net.auctionapp.server.managers.AuthManager;
+import net.auctionapp.server.managers.AuctionManager;
+import net.auctionapp.common.models.auction.Auction;
 
+import java.math.BigDecimal;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
@@ -18,14 +33,16 @@ public class ClientHandler implements Runnable {
     private final Socket socket;
     private PrintWriter out;
     private BufferedReader in;
-    private final AuctionController auctionController;
-    private final AuthController authController;
+    private final AuctionManager auctionManager;
+    private final AuthManager authManager;
     private final AtomicBoolean closed = new AtomicBoolean(false);
+    private String authenticatedUsername;
+    private String authenticatedRole;
 
     public ClientHandler(Socket socket) {
         this.socket = socket;
-        this.auctionController = AuctionController.getInstance();
-        this.authController = AuthController.getInstance();
+        this.auctionManager = AuctionManager.getInstance();
+        this.authManager = AuthManager.getInstance();
     }
 
     @Override
@@ -91,18 +108,153 @@ public class ClientHandler implements Runnable {
         return true;
     }
 
+    public void authenticate(String username, String role) {
+        this.authenticatedUsername = username;
+        this.authenticatedRole = role;
+    }
+
     private void handleMessagesFromClient(Message message) {
+        broadcastEndedAuctions();
         switch (message.getType()) {
             case LOGIN_REQUEST:
-                authController.handleLogin((LoginRequestMessage) message, this);
+                authManager.handleLogin((LoginRequestMessage) message, this);
                 break;
             case REGISTER_REQUEST:
-                authController.handleRegister((RegisterRequestMessage) message, this);
+                authManager.handleRegister((RegisterRequestMessage) message, this);
+                break;
+            case GET_AUCTION_LIST_REQUEST:
+                handleGetAuctionList((GetAuctionListRequestMessage) message);
+                break;
+            case GET_AUCTION_DETAILS_REQUEST:
+                handleGetAuctionDetails((GetAuctionDetailsRequestMessage) message);
+                break;
+            case CREATE_ITEM_REQUEST:
+                handleCreateItem((CreateItemRequestMessage) message);
+                break;
+            case BID_REQUEST:
+                handleBidRequest((BidRequestMessage) message);
                 break;
             default:
-                //auctionController.processMessage(message, this);
+                sendMessage(JsonUtil.toJson(new ErrorMessage("Unsupported message type.")));
                 break;
         }
+    }
+
+    private void handleGetAuctionList(GetAuctionListRequestMessage message) {
+        sendMessage(JsonUtil.toJson(new AuctionListResponseMessage(auctionManager.getAuctionSummaries())));
+    }
+
+    private void handleGetAuctionDetails(GetAuctionDetailsRequestMessage message) {
+        try {
+            Auction auction = auctionManager.getAuctionById(message.getAuctionId())
+                    .orElseThrow(() -> new AuctionAppException("Auction not found."));
+            AuctionDetailsResponseMessage response = new AuctionDetailsResponseMessage(
+                    auction.getId(),
+                    auction.getSellerId(),
+                    auction.getItem().getTitle(),
+                    auction.getItem().getDescription(),
+                    auction.getStartingPrice(),
+                    auction.getCurrentPrice(),
+                    auction.getMinimumNextBid(),
+                    auction.getStatus(),
+                    auction.getLeadingBidderId(),
+                    auction.getWinnerBidderId(),
+                    auction.getStartTime(),
+                    auction.getEndTime(),
+                    auctionManager.getBidViews(auction.getId())
+            );
+            sendMessage(JsonUtil.toJson(response));
+        } catch (AuctionAppException e) {
+            sendMessage(JsonUtil.toJson(new ErrorMessage(e.getMessage())));
+        }
+    }
+
+    private void handleCreateItem(CreateItemRequestMessage message) {
+        try {
+            ensureAuthenticated();
+            Item item = createItemFromRequest(message);
+            Auction auction = auctionManager.createAuction(
+                    authenticatedUsername.toLowerCase(),
+                    item,
+                    message.getStartingPrice(),
+                    message.getMinimumBidIncrement(),
+                    message.getStartTime(),
+                    message.getEndTime()
+            );
+            handleGetAuctionDetails(new GetAuctionDetailsRequestMessage(auction.getId()));
+        } catch (AuctionAppException e) {
+            sendMessage(JsonUtil.toJson(new ErrorMessage(e.getMessage())));
+        }
+    }
+
+    private void handleBidRequest(BidRequestMessage message) {
+        try {
+            ensureAuthenticated();
+            Auction auction = auctionManager.getAuctionById(message.getItemId())
+                    .orElseThrow(() -> new AuctionAppException("Auction not found."));
+            auctionManager.submitBid(
+                    auction.getId(),
+                    authenticatedUsername.toLowerCase(),
+                    BigDecimal.valueOf(message.getPrice())
+            );
+            Auction updatedAuction = auctionManager.getAuctionById(auction.getId())
+                    .orElseThrow(() -> new AuctionAppException("Auction not found."));
+            sendMessage(JsonUtil.toJson(new BidResultMessage(
+                    MessageType.BID_ACCEPTED,
+                    updatedAuction.getId(),
+                    updatedAuction.getCurrentPrice(),
+                    updatedAuction.getLeadingBidderId(),
+                    "Bid accepted."
+            )));
+            ServerApp.broadcast(JsonUtil.toJson(new PriceUpdateMessage(
+                    updatedAuction.getId(),
+                    updatedAuction.getCurrentPrice().doubleValue(),
+                    updatedAuction.getLeadingBidderId()
+            )));
+            broadcastEndedAuctions();
+        } catch (AuctionAppException e) {
+            sendMessage(JsonUtil.toJson(new BidResultMessage(
+                    MessageType.BID_REJECTED,
+                    message.getItemId(),
+                    null,
+                    null,
+                    e.getMessage()
+            )));
+        }
+    }
+
+    private void broadcastEndedAuctions() {
+        for (Auction auction : auctionManager.collectNewlyEndedAuctions()) {
+            ServerApp.broadcast(JsonUtil.toJson(new AuctionEndedMessage(
+                    auction.getId(),
+                    auction.getWinnerBidderId(),
+                    auction.getCurrentPrice()
+            )));
+        }
+    }
+
+    private void ensureAuthenticated() {
+        if (authenticatedUsername == null || authenticatedRole == null) {
+            throw new AuctionAppException("You must log in before using auction features.");
+        }
+    }
+
+    private Item createItemFromRequest(CreateItemRequestMessage message) {
+        ItemType type = message.getItemType();
+        ItemFactory factory;
+        switch (type) {
+            case ART -> {
+                factory = new ArtFactory();
+            }
+            case ELECTRONICS -> {
+                factory = new ElectronicsFactory();
+            }
+            case VEHICLE ->  {
+                 factory = new VehicleFactory();
+            }
+            default -> throw new AuctionAppException("Unsupported item type.");
+        }
+        return factory.createItem(message);
     }
 
     @Override
