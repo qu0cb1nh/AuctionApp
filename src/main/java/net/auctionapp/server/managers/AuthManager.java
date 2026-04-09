@@ -9,8 +9,9 @@ import net.auctionapp.common.exceptions.ValidationException;
 import net.auctionapp.common.utils.CredentialUtil;
 import net.auctionapp.common.utils.JsonUtil;
 import net.auctionapp.server.ClientHandler;
-import net.auctionapp.server.database.DatabaseManager;
 import org.mindrot.jbcrypt.BCrypt;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.sql.Connection;
 import java.sql.PreparedStatement;
@@ -19,6 +20,7 @@ import java.sql.SQLException;
 import java.util.Locale;
 
 public class AuthManager {
+    private static final Logger logger = LoggerFactory.getLogger(AuthManager.class);
     private static final String LOGIN_QUERY = "SELECT username, password_hash, role FROM users WHERE lower(username) = ? LIMIT 1";
     private static final String CHECK_USERNAME_QUERY = "SELECT 1 FROM users WHERE lower(username) = ? LIMIT 1";
     private static final String REGISTER_QUERY = "INSERT INTO users (username, password_hash, role) VALUES (?, ?, ?)";
@@ -71,10 +73,11 @@ public class AuthManager {
                 );
                 clientHandler.authenticate(username, role);
                 clientHandler.sendMessage(JsonUtil.toJson(success));
+                logger.info("User '{}' logged in successfully.", username);
             }
         } catch (SQLException e) {
             sendLoginFailure(clientHandler, "Cannot connect to authentication database.");
-            System.err.println("Login query failed: " + e.getMessage());
+            logger.error("Login query failed for user '{}': {}", normalizedUsername, e.getMessage());
         }
     }
 
@@ -117,9 +120,10 @@ public class AuthManager {
                     "Registration successful. Redirecting..."
             );
             clientHandler.sendMessage(JsonUtil.toJson(success));
+            logger.info("New user '{}' registered successfully.", username);
         } catch (SQLException e) {
             sendRegisterFailure(clientHandler, "Registration failed due to a database error.");
-            System.err.println("Registration query failed: " + e.getMessage());
+            logger.error("Registration query failed for user '{}': {}", username, e.getMessage());
         }
     }
 

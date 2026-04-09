@@ -20,6 +20,8 @@ import net.auctionapp.server.exceptions.AuctionAppException;
 import net.auctionapp.server.managers.AuthManager;
 import net.auctionapp.server.managers.AuctionManager;
 import net.auctionapp.common.models.auction.Auction;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.math.BigDecimal;
 import java.io.BufferedReader;
@@ -30,6 +32,7 @@ import java.net.Socket;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 public class ClientHandler implements Runnable {
+    private static final Logger logger = LoggerFactory.getLogger(ClientHandler.class);
     private final Socket socket;
     private PrintWriter out;
     private BufferedReader in;
@@ -50,24 +53,28 @@ public class ClientHandler implements Runnable {
         try {
             in = new BufferedReader(new InputStreamReader(socket.getInputStream()));
             out = new PrintWriter(socket.getOutputStream(), true);
+            logger.info("Client connected from {}", socket.getInetAddress());
 
             String jsonString;
             while ((jsonString = in.readLine()) != null) {
-                System.out.println("Received JSON from client " + socket.getInetAddress() + ": " + jsonString);
+                logger.debug("Received from {}: {}", socket.getInetAddress(), jsonString);
 
                 try {
                     Message message = JsonUtil.fromJson(jsonString);
                     if (message == null) {
+                        logger.warn("Received null message after JSON deserialization from {}", socket.getInetAddress());
                         continue;
                     }
 
                     handleMessagesFromClient(message);
                 } catch (Exception e) {
-                    System.err.println("Error processing JSON from client: " + e.getMessage());
+                    logger.error("Error processing message from {}: {}", socket.getInetAddress(), jsonString, e);
+                    sendMessage(JsonUtil.toJson(new ErrorMessage("Error processing your request: " + e.getMessage())));
                 }
             }
         } catch (IOException e) {
-            System.out.println("A bidder at " + socket.getInetAddress() + " has disconnected.");
+            // This is expected when a client disconnects, so we log it at INFO level.
+            logger.info("Client at {} disconnected.", socket.getInetAddress());
         } finally {
             closeConnection();
         }
@@ -77,11 +84,11 @@ public class ClientHandler implements Runnable {
         if (!closed.compareAndSet(false, true)) {
             return;
         }
-
+        logger.info("Closing connection for client {}", socket.getInetAddress());
         try {
             socket.close();
         } catch (IOException e) {
-            // Ignore close errors during disconnect/shutdown.
+            logger.warn("Error while closing socket for {}: {}", socket.getInetAddress(), e.getMessage());
         } finally {
             ServerApp.unregisterClient(this);
         }
@@ -95,16 +102,18 @@ public class ClientHandler implements Runnable {
      */
     public boolean sendMessage(String jsonMessage) {
         if (closed.get() || out == null || socket.isClosed()) {
+            logger.warn("Attempted to send message to a closed client {}.", socket.getInetAddress());
             closeConnection();
             return false;
         }
 
         out.println(jsonMessage);
         if (out.checkError()) {
+            logger.error("PrintWriter error for client {}. Closing connection.", socket.getInetAddress());
             closeConnection();
             return false;
         }
-
+        logger.debug("Sent to {}: {}", socket.getInetAddress(), jsonMessage);
         return true;
     }
 
@@ -135,6 +144,7 @@ public class ClientHandler implements Runnable {
                 handleBidRequest((BidRequestMessage) message);
                 break;
             default:
+                logger.warn("Received unsupported message type: {} from {}", message.getType(), socket.getInetAddress());
                 sendMessage(JsonUtil.toJson(new ErrorMessage("Unsupported message type.")));
                 break;
         }
