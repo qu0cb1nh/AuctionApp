@@ -1,13 +1,15 @@
-package net.auctionapp.server.controllers;
+package net.auctionapp.server.managers;
 
 import net.auctionapp.common.messages.MessageType;
 import net.auctionapp.common.messages.types.LoginRequestMessage;
 import net.auctionapp.common.messages.types.LoginResultMessage;
 import net.auctionapp.common.messages.types.RegisterRequestMessage;
 import net.auctionapp.common.messages.types.RegisterResultMessage;
-import net.auctionapp.server.database.DatabaseManager;
+import net.auctionapp.common.exceptions.ValidationException;
+import net.auctionapp.common.utils.CredentialUtil;
 import net.auctionapp.common.utils.JsonUtil;
 import net.auctionapp.server.ClientHandler;
+import net.auctionapp.server.database.DatabaseManager;
 import org.mindrot.jbcrypt.BCrypt;
 
 import java.sql.Connection;
@@ -16,26 +18,29 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.Locale;
 
-public class AuthController {
-    private static final String LOGIN_QUERY = "SELECT username, password_hash, role FROM users WHERE username = ? LIMIT 1";
-    private static final String CHECK_USERNAME_QUERY = "SELECT 1 FROM users WHERE username = ? LIMIT 1";
+public class AuthManager {
+    private static final String LOGIN_QUERY = "SELECT username, password_hash, role FROM users WHERE lower(username) = ? LIMIT 1";
+    private static final String CHECK_USERNAME_QUERY = "SELECT 1 FROM users WHERE lower(username) = ? LIMIT 1";
     private static final String REGISTER_QUERY = "INSERT INTO users (username, password_hash, role) VALUES (?, ?, ?)";
     private static final String DEFAULT_ROLE = "user";
-    private static final AuthController INSTANCE = new AuthController();
+    private static final AuthManager INSTANCE = new AuthManager();
+    private final UserManager userManager = UserManager.getInstance();
 
-    private AuthController() {
+    private AuthManager() {
     }
 
-    public static AuthController getInstance() {
+    public static AuthManager getInstance() {
         return INSTANCE;
     }
 
     public void handleLogin(LoginRequestMessage request, ClientHandler clientHandler) {
         String normalizedUsername = normalizeUsername(request.getUsername());
-        String rawPassword = request.getPassword();
+        String password = request.getPassword();
 
-        if (normalizedUsername.isEmpty() || rawPassword == null || rawPassword.isEmpty()) {
-            sendLoginFailure(clientHandler, "Username and password are required.");
+        try {
+            CredentialUtil.validateLogin(request.getUsername(), password);
+        } catch (ValidationException e) {
+            sendLoginFailure(clientHandler, e.getMessage());
             return;
         }
 
@@ -45,24 +50,26 @@ public class AuthController {
             statement.setString(1, normalizedUsername);
             try (ResultSet resultSet = statement.executeQuery()) {
                 if (!resultSet.next()) {
-                    sendLoginFailure(clientHandler, "Invalid username or password.");
+                    sendLoginFailure(clientHandler, "Wrong username.");
                     return;
                 }
 
                 String storedHash = resultSet.getString("password_hash");
-                if (!BCrypt.checkpw(rawPassword, storedHash)) {
-                    sendLoginFailure(clientHandler, "Invalid username or password.");
+                if (!BCrypt.checkpw(password, storedHash)) {
+                    sendLoginFailure(clientHandler, "Wrong password.");
                     return;
                 }
 
-                String canonicalUsername = resultSet.getString("username");
+                String username = resultSet.getString("username");
                 String role = resultSet.getString("role");
+                userManager.syncAccountFromDatabase(username, storedHash, role);
                 LoginResultMessage success = new LoginResultMessage(
                         MessageType.LOGIN_SUCCESS,
-                        canonicalUsername,
+                        username,
                         role,
                         "Login successful."
                 );
+                clientHandler.authenticate(username, role);
                 clientHandler.sendMessage(JsonUtil.toJson(success));
             }
         } catch (SQLException e) {
@@ -73,11 +80,13 @@ public class AuthController {
 
     public void handleRegister(RegisterRequestMessage request, ClientHandler clientHandler) {
         String normalizedUsername = normalizeUsername(request.getUsername());
-        String rawPassword = request.getPassword();
-        String canonicalUsername = request.getUsername() == null ? "" : request.getUsername().trim();
+        String password = request.getPassword();
+        String username = request.getUsername() == null ? "" : request.getUsername().trim();
 
-        if (normalizedUsername.isEmpty() || rawPassword == null || rawPassword.isEmpty()) {
-            sendRegisterFailure(clientHandler, "Username and password are required.");
+        try {
+            CredentialUtil.validateRegistration(username, password, password);
+        } catch (ValidationException e) {
+            sendRegisterFailure(clientHandler, e.getMessage());
             return;
         }
 
@@ -87,9 +96,9 @@ public class AuthController {
                 return;
             }
 
-            String passwordHash = BCrypt.hashpw(rawPassword, BCrypt.gensalt());
+            String passwordHash = BCrypt.hashpw(password, BCrypt.gensalt());
             try (PreparedStatement statement = connection.prepareStatement(REGISTER_QUERY)) {
-                statement.setString(1, canonicalUsername);
+                statement.setString(1, username);
                 statement.setString(2, passwordHash);
                 statement.setString(3, DEFAULT_ROLE);
 
@@ -100,9 +109,11 @@ public class AuthController {
                 }
             }
 
+            userManager.syncAccountFromDatabase(username, passwordHash, DEFAULT_ROLE);
+
             RegisterResultMessage success = new RegisterResultMessage(
                     MessageType.REGISTER_SUCCESS,
-                    canonicalUsername,
+                    username,
                     "Registration successful. Redirecting..."
             );
             clientHandler.sendMessage(JsonUtil.toJson(success));

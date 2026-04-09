@@ -1,33 +1,23 @@
 Bài Tập Lớn: Phát triển hệ thống đấu giá trực tuyến
 
-Môn học: Lập trình nâng cao
-
-Trường: Đại học Công nghệ
-1. Giới thiệu chung
-
-Bài tập lớn này nhằm củng cố và mở rộng kiến thức về lập trình nâng cao thông qua việc xây dựng một hệ thống đấu giá trực tuyến. Sinh viên cần áp dụng các nguyên lý lập trình hướng đối tượng (OOP) kết hợp với các kỹ thuật nâng cao để tạo ra một hệ thống có cấu trúc rõ ràng, dễ bảo trì.
-Quy định thực hiện:
-
-    Nhóm: 3-4 người/nhóm.
-
-    Công cụ: Được phép sử dụng Google, GitHub, AI, v.v..
-
-    Quản lý mã nguồn: Phải commit thường xuyên lên GitHub để chứng minh tiến độ.
-
-    Yêu cầu hiểu biết: Nếu thành viên không giải thích được mã nguồn, toàn bộ nhóm sẽ bị 0 điểm.
-
 2. Mô tả hệ thống
+Hệ thống cho phép nhiều người dùng tham gia cạnh tranh giá để mua sản phẩm trong một khoảng thời gian xác định.
 
-Hệ thống cho phép nhiều người dùng tham gia cạnh tranh giá để mua sản phẩm trong một khoảng thời gian xác định (mô hình tương tự eBay Auctions).
 3. Các yêu cầu cụ thể
 
 3.1 Chức năng bắt buộc
 
-    Quản lý người dùng: Đăng ký/đăng nhập với các vai trò: Bidder, Seller, Admin.
+    Quản lý người dùng: 
+      - Đăng ký/đăng nhập tài khoản (username, password, không cần email/phone).
+      - Các vai trò: Bidder (người đấu giá), Seller (người bán), Admin (quản trị viên)
+      - Giải thích về vai trò: Một người dùng hoàn toàn có thể vừa bán (seller) vừa đấu giá (bidder). Tuy nhiên, trong thiết kế hệ thống, việc phân biệt Seller và Bidder là để thể hiện vai trò (role) trong từng ngữ cảnh hoạt động. Khi user đăng sản phẩm thì đóng vai seller, khi đặt giá thì đóng vai bidder. Cách phân biệt này giúp hệ thống dễ xây dựng và kiểm soát các quy tắc nghiệp vụ, ví dụ như không cho phép seller đấu giá chính sản phẩm của mình (tránh trường hợp seller tăng giá ảo cho sp).
 
-    Quản lý sản phẩm: Thêm/sửa/xóa sản phẩm với thông tin tên, mô tả, giá khởi điểm, giá hiện tại, thời gian bắt đầu & kết thúc.
+    Quản lý sản phẩm: Thêm/sửa/xóa sản phẩm với thông tin tên, mô tả, giá khởi điểm, giá hiện tại cao nhất, thời gian bắt đầu & kết thúc.
 
-    Tham gia đấu giá: Đặt giá cao hơn giá hiện tại, kiểm tra tính hợp lệ và cập nhật người dẫn đầu theo thời gian thực.
+    Tham gia đấu giá cho phép người dùng đặt giá và theo dõi diễn biến của phiên đấu giá theo thời gian thực, đồng thời đảm bảo mọi giá đấu đều tuân thủ các quy tắc hợp lệ:
+        - Giá đấu phải cao hơn giá hiện tại ít nhất một khoảng increment (ví dụ: 10.000 VND).
+        - Kiểm tra tính hợp lệ của giá đấu
+        - Cập nhật người dẫn đầu phiên đấu giá
 
     Kết thúc phiên: Tự động đóng phiên khi hết giờ, xác định người thắng và chuyển trạng thái (OPEN → RUNNING → FINISHED → PAID / CANCELED).
 

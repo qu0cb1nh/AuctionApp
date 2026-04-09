@@ -9,20 +9,18 @@ import javafx.scene.control.TextField;
 import javafx.scene.input.MouseEvent;
 import net.auctionapp.client.ClientApp;
 import net.auctionapp.client.SceneNavigator;
+import net.auctionapp.common.exceptions.ValidationException;
 import net.auctionapp.common.messages.Message;
 import net.auctionapp.common.messages.MessageType;
 import net.auctionapp.common.messages.types.RegisterRequestMessage;
 import net.auctionapp.common.messages.types.RegisterResultMessage;
+import net.auctionapp.common.utils.CredentialUtil;
 
 import java.net.URL;
 import java.util.ResourceBundle;
 import java.util.function.Consumer;
-import java.util.regex.Pattern;
 
 public class RegisterMenuController implements Initializable {
-
-    private static final Pattern VALID_USERNAME_PATTERN = Pattern.compile("^[a-zA-Z0-9_-]+$");
-    private static final Pattern VALID_PASSWORD_PATTERN = Pattern.compile("^[a-zA-Z0-9!@#$%^&*=+]+$");
 
     private Consumer<Message> messageListener;
 
@@ -52,62 +50,17 @@ public class RegisterMenuController implements Initializable {
     // Triggered when the user clicks "Register".
     @FXML
     public void handleRegister() {
-        // Read input values.
         String username = usernameField.getText() == null ? "" : usernameField.getText().trim();
         String password = passwordField.getText() == null ? "" : passwordField.getText();
         String confirmPassword = confirmPasswordField.getText() == null ? "" : confirmPasswordField.getText();
 
-        // Ensure all fields are filled.
-        if (username.isEmpty() || password.isEmpty() || confirmPassword.isEmpty()) {
-            statusLabel.setText("Please fill in all the information.");
+        try {
+            CredentialUtil.validateRegistration(username, password, confirmPassword);
+        } catch (ValidationException e) {
+            statusLabel.setText(e.getMessage());
             return;
         }
 
-        // Validate username length.
-        if (username.length() < 3) {
-            statusLabel.setText("Username must be at least 3 characters");
-            return;
-        }
-        if (username.length() > 20) {
-            statusLabel.setText("Username must not exceed 20 characters");
-            return;
-        }
-
-        // Validate username starts with a letter.
-        if (!Character.isLetter(username.charAt(0))) {
-            statusLabel.setText("Username must start with a letter.");
-            return;
-        }
-
-        // Validate username characters.
-        if (!VALID_USERNAME_PATTERN.matcher(username).matches()) {
-            statusLabel.setText("Username can not contain invalid characters.");
-            return;
-        }
-
-        // Verify the confirmation password.
-        if (!password.equals(confirmPassword)) {
-            statusLabel.setText("Verification password does not match.");
-            return;
-        }
-
-        // Validate password length.
-        if (password.length() < 6) {
-            statusLabel.setText("Password must be at least 6 characters.");
-            return;
-        }
-        if (password.length() > 64) {
-            statusLabel.setText("Password must not exceed 64 characters.");
-            return;
-        }
-
-        // Validate password characters.
-        if (!VALID_PASSWORD_PATTERN.matcher(password).matches()) {
-            statusLabel.setText("Password can not contain invalid characters.");
-            return;
-        }
-
-        // Inputs look valid.
         statusLabel.setText("Registering account...");
         ClientApp.getInstance().getNetworkService().sendMessage(new RegisterRequestMessage(username, password));
     }

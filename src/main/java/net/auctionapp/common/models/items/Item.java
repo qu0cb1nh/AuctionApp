@@ -5,9 +5,9 @@ import net.auctionapp.common.models.Entity;
 import java.math.BigDecimal;
 
 public abstract class Item extends Entity {
-    private final String title;
-    private final String description;
-    private final BigDecimal basePrice;
+    private String title;
+    private String description;
+    private BigDecimal basePrice;
 
     public Item(String id,String title, String description, BigDecimal basePrice) {
         super(id);
@@ -26,5 +26,11 @@ public abstract class Item extends Entity {
 
     public BigDecimal getBasePrice() {
         return basePrice;
+    }
+
+    public void updateDetails(String title, String description, BigDecimal basePrice) {
+        this.title = title;
+        this.description = description;
+        this.basePrice = basePrice;
     }
 }
