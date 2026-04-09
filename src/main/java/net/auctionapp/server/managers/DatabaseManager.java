@@ -1,4 +1,4 @@
-package net.auctionapp.server.database;
+package net.auctionapp.server.managers;
 
 import com.zaxxer.hikari.HikariConfig;
 import com.zaxxer.hikari.HikariDataSource;
