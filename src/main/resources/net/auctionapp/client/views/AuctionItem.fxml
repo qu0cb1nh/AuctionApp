@@ -1,0 +1,104 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.geometry.Insets?>
+<?import javafx.scene.chart.CategoryAxis?>
+<?import javafx.scene.chart.LineChart?>
+<?import javafx.scene.chart.NumberAxis?>
+<?import javafx.scene.control.Button?>
+<?import javafx.scene.control.Label?>
+<?import javafx.scene.control.Separator?>
+<?import javafx.scene.control.TextField?>
+<?import javafx.scene.image.Image?>
+<?import javafx.scene.image.ImageView?>
+<?import javafx.scene.layout.BorderPane?>
+<?import javafx.scene.layout.HBox?>
+<?import javafx.scene.layout.Region?>
+<?import javafx.scene.layout.VBox?>
+
+<BorderPane prefHeight="768.0" prefWidth="1024.0" style="-fx-background-color: #f4f4f4;" xmlns="http://javafx.com/javafx/25" xmlns:fx="http://javafx.com/fxml/1" fx:controller="net.auctionapp.client.controllers.AuctionItemController">
+
+    <top>
+        <HBox alignment="CENTER_LEFT" prefHeight="60.0" prefWidth="1024.0" style="-fx-background-color: #3bb3c3;" BorderPane.alignment="CENTER">
+            <padding>
+                <Insets bottom="20.0" left="40.0" right="40.0" top="20.0" />
+            </padding>
+            <children>
+                <Label style="-fx-font-size: 28px; -fx-font-weight: bold; -fx-text-fill: white;" text="Auction Details" />
+                <Region HBox.hgrow="ALWAYS" />
+                <Button mnemonicParsing="false" onAction="#handleBack" style="-fx-background-color: white; -fx-text-fill: #3bb3c3; -fx-background-radius: 20px; -fx-padding: 8px 25px; -fx-font-weight: bold; -fx-cursor: hand;" text="Back" />
+            </children>
+        </HBox>
+    </top>
+
+    <center>
+        <HBox spacing="40.0" BorderPane.alignment="CENTER">
+            <padding>
+                <Insets bottom="40.0" left="40.0" right="40.0" top="40.0" />
+            </padding>
+            <children>
+
+                <VBox alignment="TOP_CENTER" prefWidth="350.0" style="-fx-background-color: white; -fx-background-radius: 15px; -fx-effect: dropshadow(three-pass-box, rgba(0,0,0,0.1), 10, 0, 0, 0);">
+                    <padding>
+                        <Insets bottom="20.0" left="20.0" right="20.0" top="20.0" />
+                    </padding>
+                    <children>
+                        <ImageView fx:id="productImageView" fitHeight="369.0" fitWidth="300.0" pickOnBounds="true" preserveRatio="true">
+                     <image>
+                        <Image url="@images/iphone.jpg" />
+                     </image></ImageView>
+                    </children>
+                </VBox>
+
+                <VBox spacing="15.0" HBox.hgrow="ALWAYS">
+                    <children>
+                        <Label fx:id="productNameLabel" style="-fx-font-size: 32px; -fx-font-weight: bold; -fx-text-fill: #333333;" text="Iphone 17 Pro Max" />
+                        <Label fx:id="descriptionLabel" style="-fx-font-size: 15px; -fx-text-fill: #666666;" text="Brand new, factory-sealed. 1TB model in Desert Titanium. Official manufacturer's warranty included." wrapText="true" />
+
+                        <Separator prefWidth="200.0" />
+
+                        <HBox alignment="CENTER_LEFT" spacing="15.0">
+                            <children>
+                                <Label style="-fx-font-size: 18px; -fx-text-fill: #333333;" text="Current Bid:" />
+                                <Label fx:id="currentBidLabel" style="-fx-font-size: 24px; -fx-font-weight: bold; -fx-text-fill: #d9534f;" text="\$1,199" />
+                            </children>
+                        </HBox>
+                        <HBox alignment="CENTER_LEFT" spacing="15.0">
+                            <children>
+                                <Label style="-fx-font-size: 16px; -fx-text-fill: #333333;" text="Ends in:" />
+                                <Label fx:id="timeRemainingLabel" style="-fx-font-size: 16px; -fx-font-weight: bold; -fx-text-fill: #333333;" text="02:15:30" />
+                            </children>
+                        </HBox>
+
+                        <Separator prefWidth="200.0" />
+
+                        <Label style="-fx-font-size: 18px; -fx-font-weight: bold; -fx-text-fill: #333333;" text="Place Your Bid" />
+                        <HBox alignment="CENTER_LEFT" spacing="15.0">
+                            <children>
+                                <TextField fx:id="bidAmountField" prefWidth="250.0" promptText="Enter higher amount..." style="-fx-background-radius: 20px; -fx-padding: 10px 15px; -fx-font-size: 14px;" />
+                                <Button fx:id="placeBidButton" mnemonicParsing="false" onAction="#handlePlaceBid" style="-fx-background-color: #3bb3c3; -fx-text-fill: white; -fx-background-radius: 20px; -fx-padding: 10px 30px; -fx-font-weight: bold; -fx-cursor: hand;" text="Bid now!" />
+                            </children>
+                        </HBox>
+                        <Label fx:id="messageLabel" style="-fx-font-size: 13px; -fx-text-fill: #888888;" text="Must be higher than the current bid." />
+
+                        <VBox prefHeight="250.0" VBox.vgrow="ALWAYS">
+                            <VBox.margin>
+                                <Insets top="20.0" />
+                            </VBox.margin>
+                            <children>
+                                <LineChart fx:id="priceHistoryChart" title="Realtime Price Curve">
+                                    <xAxis>
+                                        <CategoryAxis label="Time" side="BOTTOM" />
+                                    </xAxis>
+                                    <yAxis>
+                                        <NumberAxis label="Price ($)" side="LEFT" />
+                                    </yAxis>
+                                </LineChart>
+                            </children>
+                        </VBox>
+
+                    </children>
+                </VBox>
+            </children>
+        </HBox>
+    </center>
+</BorderPane>
