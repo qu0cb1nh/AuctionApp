@@ -10,10 +10,12 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicBoolean;
 import net.auctionapp.common.utils.ConfigUtil;
-import net.auctionapp.server.database.DatabaseManager;
+import net.auctionapp.server.managers.DatabaseManager;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class ServerApp {
-
+    private static final Logger logger = LoggerFactory.getLogger(ServerApp.class);
     // Thread-safe set for all connected clients.
     private static final Set<ClientHandler> clients = ConcurrentHashMap.newKeySet();
     private static final AtomicBoolean running = new AtomicBoolean(true);
@@ -28,11 +30,11 @@ public class ServerApp {
             DatabaseManager.getInstance().createConnectionPool(); // Initializes database connection pool
 
             serverSocket = new ServerSocket(ConfigUtil.getServerPort());
-            System.out.println("Auction server is running on port: " + ConfigUtil.getServerPort());
+            logger.info("Auction server is running on port: {}", ConfigUtil.getServerPort());
 
             while (running.get()) {
                 Socket clientSocket = serverSocket.accept(); // accept() method blocks until a connection is made to the socket
-                System.out.println("New client connected: " + clientSocket.getInetAddress());
+                logger.info("New client connected: {}", clientSocket.getInetAddress());
 
                 // Each client will be handled by a separate thread
                 ClientHandler handler = new ClientHandler(clientSocket);
@@ -41,10 +43,12 @@ public class ServerApp {
             }
         } catch (SocketException e) {
             if (running.get()) {
-                System.err.println("Server socket error: " + e.getMessage());
+                logger.error("Server socket error: {}", e.getMessage());
+            } else {
+                logger.info("Server socket closed as part of shutdown.");
             }
         } catch (IOException e) {
-            e.printStackTrace();
+            logger.error("An I/O error occurred in the main server loop", e);
         } finally {
             shutdown();
         }
@@ -52,11 +56,12 @@ public class ServerApp {
 
     public static void registerClient(ClientHandler clientHandler) {
         clients.add(clientHandler);
+        logger.info("Client registered. Current number of clients: {}", clients.size());
     }
 
     public static void unregisterClient(ClientHandler clientHandler) {
         if (clients.remove(clientHandler)) {
-            System.out.println("Client removed. Current number of clients: " + clients.size());
+            logger.info("Client unregistered. Current number of clients: {}", clients.size());
         }
     }
 
@@ -64,12 +69,13 @@ public class ServerApp {
         if (!running.compareAndSet(true, false)) {
             return;
         }
+        logger.info("Server shutdown initiated...");
 
         if (serverSocket != null && !serverSocket.isClosed()) {
             try {
                 serverSocket.close(); // close the server socket
             } catch (IOException e) {
-                System.err.println("Failed to close server socket: " + e.getMessage());
+                logger.error("Failed to close server socket", e);
             }
         }
 
@@ -79,15 +85,16 @@ public class ServerApp {
         clients.clear(); // Clear the client set (again, to be safe)
 
         DatabaseManager.getInstance().closeConnectionPool(); // Close database connection pool
-        System.out.println("Server shutdown complete.");
+        logger.info("Server shutdown complete.");
     }
 
     // Method to broadcast a new price message to ALL clients (Realtime Update)
     public static void broadcast(String message) {
+        logger.debug("Broadcasting message to {} clients: {}", clients.size(), message);
         for (ClientHandler client : clients) {
             if (!client.sendMessage(message)) {
                 // sendMessage already closes and unregisters this client.
-                System.out.println("Skipped disconnected client during broadcast.");
+                logger.warn("Skipped a disconnected client during broadcast.");
             }
         }
     }
