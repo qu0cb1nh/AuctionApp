@@ -66,7 +66,7 @@ public class LoginMenuController implements Initializable {
         if (message.getType() == MessageType.LOGIN_SUCCESS) {
             ClientApp.getInstance().setCurrentUser(result.getUsername(), result.getRole());
             cleanupHandlers();
-            SceneNavigator.switchScene("views/AuctionList.fxml");
+            SceneNavigator.switchScene("views/MainMenu.fxml");
         }
     }
 
