@@ -45,6 +45,7 @@ public class MainMenuController implements Initializable {
     @FXML
     public void handleMyBids(ActionEvent event) {
         SceneNavigator.switchScene("views/MyBids.fxml");
+        statusLabel.setText("My Bids screen is not available yet.");
     }
 
     @FXML
@@ -72,3 +73,4 @@ public class MainMenuController implements Initializable {
         return role.toUpperCase(Locale.ROOT);
     }
 }
+
