@@ -1,18 +1,17 @@
 package net.auctionapp.server.managers;
 
+import net.auctionapp.common.messages.MessageType;
+import net.auctionapp.common.messages.types.*;
 import net.auctionapp.common.models.auction.Auction;
 import net.auctionapp.common.models.auction.BidTransaction;
 import net.auctionapp.common.models.auction.AuctionStatus;
-import net.auctionapp.common.models.items.Item;
+import net.auctionapp.common.models.items.*;
 import net.auctionapp.common.models.users.User;
 import net.auctionapp.common.models.users.UserRole;
-import net.auctionapp.common.messages.types.AuctionSummary;
-import net.auctionapp.common.messages.types.BidView;
-import net.auctionapp.server.exceptions.AuthorizationException;
-import net.auctionapp.server.exceptions.InvalidAuctionStateException;
-import net.auctionapp.server.exceptions.InvalidBidException;
-import net.auctionapp.server.exceptions.NotFoundException;
-import net.auctionapp.server.exceptions.ValidationException;
+import net.auctionapp.common.utils.JsonUtil;
+import net.auctionapp.server.ClientHandler;
+import net.auctionapp.server.ServerApp;
+import net.auctionapp.server.exceptions.*;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
@@ -33,7 +32,7 @@ public final class AuctionManager {
     private static AuctionManager instance;
 
     private final ConcurrentMap<String, Auction> auctions = new ConcurrentHashMap<>();
-    private final ConcurrentSkipListSet announcedEndedAuctionIds = new ConcurrentSkipListSet<>();
+    private final ConcurrentSkipListSet<String> announcedEndedAuctionIds = new ConcurrentSkipListSet<>();
     private final UserManager userManager;
 
     private AuctionManager() {
@@ -46,6 +45,104 @@ public final class AuctionManager {
         }
         return instance;
     }
+
+    // --- Message Handling Logic ---
+
+    public void handleGetAuctionList(ClientHandler handler) {
+        handler.sendMessage(JsonUtil.toJson(new AuctionListResponseMessage(getAuctionSummaries())));
+    }
+
+    public void handleGetAuctionDetails(GetAuctionDetailsRequestMessage message, ClientHandler handler) {
+        try {
+            Auction auction = getAuctionById(message.getAuctionId())
+                    .orElseThrow(() -> new AuctionAppException("Auction not found."));
+            AuctionDetailsResponseMessage response = new AuctionDetailsResponseMessage(
+                    auction.getId(),
+                    auction.getSellerId(),
+                    auction.getItem().getTitle(),
+                    auction.getItem().getDescription(),
+                    auction.getStartingPrice(),
+                    auction.getCurrentPrice(),
+                    auction.getMinimumNextBid(),
+                    auction.getStatus(),
+                    auction.getLeadingBidderId(),
+                    auction.getWinnerBidderId(),
+                    auction.getStartTime(),
+                    auction.getEndTime(),
+                    getBidViews(auction.getId())
+            );
+            handler.sendMessage(JsonUtil.toJson(response));
+        } catch (AuctionAppException e) {
+            handler.sendMessage(JsonUtil.toJson(new ErrorMessage(e.getMessage())));
+        }
+    }
+
+    public void handleCreateItem(CreateItemRequestMessage message, ClientHandler handler) {
+        try {
+            handler.ensureAuthenticated();
+            Item item = createItemFromRequest(message);
+            Auction auction = createAuction(
+                    handler.getAuthenticatedId().toLowerCase(),
+                    item,
+                    message.getStartingPrice(),
+                    message.getMinimumBidIncrement(),
+                    message.getStartTime(),
+                    message.getEndTime()
+            );
+            // After creating, send the new auction's details back to the creator
+            handleGetAuctionDetails(new GetAuctionDetailsRequestMessage(auction.getId()), handler);
+        } catch (AuctionAppException e) {
+            handler.sendMessage(JsonUtil.toJson(new ErrorMessage(e.getMessage())));
+        }
+    }
+
+    public void handleBidRequest(BidRequestMessage message, ClientHandler handler) {
+        try {
+            handler.ensureAuthenticated();
+            Auction auction = getAuctionById(message.getItemId())
+                    .orElseThrow(() -> new AuctionAppException("Auction not found."));
+            submitBid(
+                    auction.getId(),
+                    handler.getAuthenticatedId().toLowerCase(),
+                    BigDecimal.valueOf(message.getPrice())
+            );
+            Auction updatedAuction = getAuctionById(auction.getId())
+                    .orElseThrow(() -> new AuctionAppException("Auction not found."));
+            handler.sendMessage(JsonUtil.toJson(new BidResultMessage(
+                    MessageType.BID_ACCEPTED,
+                    updatedAuction.getId(),
+                    updatedAuction.getCurrentPrice(),
+                    updatedAuction.getLeadingBidderId(),
+                    "Bid accepted."
+            )));
+            ServerApp.broadcast(JsonUtil.toJson(new PriceUpdateMessage(
+                    updatedAuction.getId(),
+                    updatedAuction.getCurrentPrice().doubleValue(),
+                    updatedAuction.getLeadingBidderId()
+            )));
+            broadcastEndedAuctions();
+        } catch (AuctionAppException e) {
+            handler.sendMessage(JsonUtil.toJson(new BidResultMessage(
+                    MessageType.BID_REJECTED,
+                    message.getItemId(),
+                    null,
+                    null,
+                    e.getMessage()
+            )));
+        }
+    }
+
+    public void broadcastEndedAuctions() {
+        for (Auction auction : collectNewlyEndedAuctions()) {
+            ServerApp.broadcast(JsonUtil.toJson(new AuctionEndedMessage(
+                    auction.getId(),
+                    auction.getWinnerBidderId(),
+                    auction.getCurrentPrice()
+            )));
+        }
+    }
+
+    // --- Core Business Logic ---
 
     public List<Auction> getAllAuctions() {
         refreshAuctionStatuses();
@@ -263,6 +360,25 @@ public final class AuctionManager {
             }
         }
         return endedAuctions;
+    }
+
+    private Item createItemFromRequest(CreateItemRequestMessage message) {
+        ItemType type = message.getItemType();
+        ItemFactory factory;
+        switch (type) {
+            case ART:
+                factory = new ArtFactory();
+                break;
+            case ELECTRONICS:
+                factory = new ElectronicsFactory();
+                break;
+            case VEHICLE:
+                factory = new VehicleFactory();
+                break;
+            default:
+                throw new AuctionAppException("Unsupported item type.");
+        }
+        return factory.createItem(message);
     }
 
     private Auction requireAuction(String auctionId) {
