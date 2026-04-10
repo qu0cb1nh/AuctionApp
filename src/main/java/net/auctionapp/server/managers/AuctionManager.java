@@ -4,6 +4,8 @@ import net.auctionapp.common.models.auction.Auction;
 import net.auctionapp.common.models.auction.BidTransaction;
 import net.auctionapp.common.models.auction.AuctionStatus;
 import net.auctionapp.common.models.items.Item;
+import net.auctionapp.common.models.users.User;
+import net.auctionapp.common.models.users.UserRole;
 import net.auctionapp.common.messages.types.AuctionSummary;
 import net.auctionapp.common.messages.types.BidView;
 import net.auctionapp.server.exceptions.AuthorizationException;
@@ -92,8 +94,8 @@ public final class AuctionManager {
     ) {
         validateAuctionDraft(item, startingPrice, minimumBidIncrement, startTime, endTime);
 
-        userManager.requireAccountById(sellerId);
-        userManager.requireSellerProfile(sellerId);
+        userManager.requireUserById(sellerId);
+        User seller = userManager.requireSeller(sellerId);
 
         Auction auction = new Auction(
                 UUID.randomUUID().toString(),
@@ -106,7 +108,6 @@ public final class AuctionManager {
         );
 
         auctions.put(auction.getId(), auction);
-        userManager.requireSellerProfile(sellerId).addAuction(auction);
         return auction;
     }
 
@@ -146,9 +147,9 @@ public final class AuctionManager {
 
     public void deleteAuction(String actorId, String auctionId) {
         Auction auction = requireAuction(auctionId);
-        UserManager.AccountRecord actor = userManager.requireAccountById(actorId);
+        User actor = userManager.requireUserById(actorId);
 
-        boolean canDelete = actor.admin() || Objects.equals(actor.id(), auction.getSellerId());
+        boolean canDelete = actor.hasRole(UserRole.ADMIN) || Objects.equals(actor.getId(), auction.getSellerId());
         if (!canDelete) {
             throw new AuthorizationException("Only the seller or an admin can delete an auction.");
         }
@@ -173,8 +174,8 @@ public final class AuctionManager {
 
     public BidTransaction submitBid(String auctionId, String bidderId, BigDecimal amount) {
         Auction auction = requireAuction(auctionId);
-        userManager.requireAccountById(bidderId);
-        var domainBidder = userManager.requireBidderProfile(bidderId);
+        userManager.requireUserById(bidderId);
+        User bidder = userManager.requireBidder(bidderId);
         if (amount == null || amount.signum() <= 0) {
             throw new ValidationException("Bid amount must be greater than zero.");
         }
@@ -201,8 +202,6 @@ public final class AuctionManager {
         if (!auction.placeBid(bid, LocalDateTime.now())) {
             throw new InvalidBidException("Bid was rejected.");
         }
-
-        domainBidder.addBidToHistory(bid);
         return bid;
     }
 
@@ -222,9 +221,9 @@ public final class AuctionManager {
 
     public Auction cancelAuction(String actorId, String auctionId) {
         Auction auction = requireAuction(auctionId);
-        UserManager.AccountRecord actor = userManager.requireAccountById(actorId);
+        User actor = userManager.requireUserById(actorId);
 
-        boolean canCancel = actor.admin() || Objects.equals(actor.id(), auction.getSellerId());
+        boolean canCancel = actor.hasRole(UserRole.ADMIN) || Objects.equals(actor.getId(), auction.getSellerId());
         if (!canCancel) {
             throw new AuthorizationException("Only the seller or an admin can cancel an auction.");
         }
@@ -275,7 +274,7 @@ public final class AuctionManager {
     }
 
     private void ensureSellerOwnsAuction(String sellerId, Auction auction) {
-        userManager.requireSellerProfile(sellerId);
+        userManager.requireSeller(sellerId);
         if (!Objects.equals(sellerId, auction.getSellerId())) {
             throw new AuthorizationException("Only the owning seller can modify this auction.");
         }

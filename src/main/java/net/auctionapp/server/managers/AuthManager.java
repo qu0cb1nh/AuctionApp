@@ -6,33 +6,38 @@ import net.auctionapp.common.messages.types.LoginResultMessage;
 import net.auctionapp.common.messages.types.RegisterRequestMessage;
 import net.auctionapp.common.messages.types.RegisterResultMessage;
 import net.auctionapp.common.exceptions.ValidationException;
+import net.auctionapp.common.models.users.User;
+import net.auctionapp.common.models.users.UserRole;
 import net.auctionapp.common.utils.CredentialUtil;
 import net.auctionapp.common.utils.JsonUtil;
 import net.auctionapp.server.ClientHandler;
+import net.auctionapp.server.dao.UserDao;
+import net.auctionapp.server.exceptions.DatabaseException;
 import org.mindrot.jbcrypt.BCrypt;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.sql.Connection;
-import java.sql.PreparedStatement;
-import java.sql.ResultSet;
-import java.sql.SQLException;
+import java.util.EnumSet;
 import java.util.Locale;
+import java.util.Optional;
 
 public class AuthManager {
     private static final Logger logger = LoggerFactory.getLogger(AuthManager.class);
-    private static final String LOGIN_QUERY = "SELECT username, password_hash, role FROM users WHERE lower(username) = ? LIMIT 1";
-    private static final String CHECK_USERNAME_QUERY = "SELECT 1 FROM users WHERE lower(username) = ? LIMIT 1";
-    private static final String REGISTER_QUERY = "INSERT INTO users (username, password_hash, role) VALUES (?, ?, ?)";
-    private static final String DEFAULT_ROLE = "user";
     private static final AuthManager INSTANCE = new AuthManager();
+
+    private volatile UserDao userDao;
     private final UserManager userManager = UserManager.getInstance();
+    private final SessionManager sessionManager = SessionManager.getInstance();
 
     private AuthManager() {
     }
 
     public static AuthManager getInstance() {
         return INSTANCE;
+    }
+
+    public void setUserDao(UserDao userDao) {
+        this.userDao = userDao;
     }
 
     public void handleLogin(LoginRequestMessage request, ClientHandler clientHandler) {
@@ -46,38 +51,34 @@ public class AuthManager {
             return;
         }
 
-        try (Connection connection = DatabaseManager.getInstance().getConnection();
-             PreparedStatement statement = connection.prepareStatement(LOGIN_QUERY)) {
-
-            statement.setString(1, normalizedUsername);
-            try (ResultSet resultSet = statement.executeQuery()) {
-                if (!resultSet.next()) {
-                    sendLoginFailure(clientHandler, "Wrong username.");
-                    return;
-                }
-
-                String storedHash = resultSet.getString("password_hash");
-                if (!BCrypt.checkpw(password, storedHash)) {
-                    sendLoginFailure(clientHandler, "Wrong password.");
-                    return;
-                }
-
-                String username = resultSet.getString("username");
-                String role = resultSet.getString("role");
-                userManager.syncAccountFromDatabase(username, storedHash, role);
-                LoginResultMessage success = new LoginResultMessage(
-                        MessageType.LOGIN_SUCCESS,
-                        username,
-                        role,
-                        "Login successful."
-                );
-                clientHandler.authenticate(username, role);
-                clientHandler.sendMessage(JsonUtil.toJson(success));
-                logger.info("User '{}' logged in successfully.", username);
+        try {
+            Optional<User> storedUser = requireUserDao().findByUsername(normalizedUsername);
+            if (storedUser.isEmpty()) {
+                sendLoginFailure(clientHandler, "Wrong username.");
+                return;
             }
-        } catch (SQLException e) {
+
+            User user = storedUser.get();
+            if (!BCrypt.checkpw(password, user.getPasswordHash())) {
+                sendLoginFailure(clientHandler, "Wrong password.");
+                return;
+            }
+
+            userManager.syncAccountFromDatabase(user);
+            String clientRole = toClientRole(user);
+            LoginResultMessage success = new LoginResultMessage(
+                    MessageType.LOGIN_SUCCESS,
+                    user.getUsername(),
+                    clientRole,
+                    "Login successful."
+            );
+            clientHandler.authenticate(user.getId(), clientRole);
+            sessionManager.bindSession(user.getId(), user.getUsername(), clientRole, clientHandler);
+            clientHandler.sendMessage(JsonUtil.toJson(success));
+            logger.info("User '{}' logged in successfully.", user.getUsername());
+        } catch (DatabaseException e) {
             sendLoginFailure(clientHandler, "Cannot connect to authentication database.");
-            logger.error("Login query failed for user '{}': {}", normalizedUsername, e.getMessage());
+            logger.error("Login query failed for user '{}': {}", normalizedUsername, e.getMessage(), e);
         }
     }
 
@@ -93,26 +94,26 @@ public class AuthManager {
             return;
         }
 
-        try (Connection connection = DatabaseManager.getInstance().getConnection()) {
-            if (usernameExists(connection, normalizedUsername)) {
+        try {
+            UserDao dao = requireUserDao();
+            if (dao.findByUsername(normalizedUsername).isPresent()) {
                 sendRegisterFailure(clientHandler, "Username already exists.");
                 return;
             }
 
             String passwordHash = BCrypt.hashpw(password, BCrypt.gensalt());
-            try (PreparedStatement statement = connection.prepareStatement(REGISTER_QUERY)) {
-                statement.setString(1, username);
-                statement.setString(2, passwordHash);
-                statement.setString(3, DEFAULT_ROLE);
-
-                int inserted = statement.executeUpdate();
-                if (inserted != 1) {
-                    sendRegisterFailure(clientHandler, "Registration could not be completed.");
-                    return;
-                }
+            User user = new User(
+                    normalizedUsername,
+                    username,
+                    passwordHash,
+                    EnumSet.of(UserRole.SELLER, UserRole.BIDDER)
+            );
+            if (!dao.createUser(user)) {
+                sendRegisterFailure(clientHandler, "Registration could not be completed.");
+                return;
             }
 
-            userManager.syncAccountFromDatabase(username, passwordHash, DEFAULT_ROLE);
+            userManager.syncAccountFromDatabase(user);
 
             RegisterResultMessage success = new RegisterResultMessage(
                     MessageType.REGISTER_SUCCESS,
@@ -121,9 +122,9 @@ public class AuthManager {
             );
             clientHandler.sendMessage(JsonUtil.toJson(success));
             logger.info("New user '{}' registered successfully.", username);
-        } catch (SQLException e) {
+        } catch (DatabaseException e) {
             sendRegisterFailure(clientHandler, "Registration failed due to a database error.");
-            logger.error("Registration query failed for user '{}': {}", username, e.getMessage());
+            logger.error("Registration query failed for user '{}': {}", username, e.getMessage(), e);
         }
     }
 
@@ -137,19 +138,21 @@ public class AuthManager {
         clientHandler.sendMessage(JsonUtil.toJson(failure));
     }
 
-    private boolean usernameExists(Connection connection, String normalizedUsername) throws SQLException {
-        try (PreparedStatement statement = connection.prepareStatement(CHECK_USERNAME_QUERY)) {
-            statement.setString(1, normalizedUsername);
-            try (ResultSet resultSet = statement.executeQuery()) {
-                return resultSet.next();
-            }
-        }
-    }
-
     private String normalizeUsername(String username) {
         if (username == null) {
             return "";
         }
         return username.trim().toLowerCase(Locale.ROOT);
+    }
+
+    private UserDao requireUserDao() {
+        if (userDao == null) {
+            throw new IllegalStateException("User DAO has not been configured.");
+        }
+        return userDao;
+    }
+
+    private String toClientRole(User user) {
+        return user.hasRole(UserRole.ADMIN) ? "admin" : "user";
     }
 }
