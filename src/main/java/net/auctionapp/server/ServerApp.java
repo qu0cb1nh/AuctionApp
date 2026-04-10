@@ -10,7 +10,10 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicBoolean;
 import net.auctionapp.common.utils.ConfigUtil;
+import net.auctionapp.server.dao.JdbcUserDao;
+import net.auctionapp.server.managers.AuthManager;
 import net.auctionapp.server.managers.DatabaseManager;
+import net.auctionapp.server.managers.SessionManager;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -28,6 +31,7 @@ public class ServerApp {
 
         try {
             DatabaseManager.getInstance().createConnectionPool(); // Initializes database connection pool
+            AuthManager.getInstance().setUserDao(new JdbcUserDao());
 
             serverSocket = new ServerSocket(ConfigUtil.getServerPort());
             logger.info("Auction server is running on port: {}", ConfigUtil.getServerPort());
@@ -83,6 +87,7 @@ public class ServerApp {
             client.closeConnection(); // disconnect all clients
         }
         clients.clear(); // Clear the client set (again, to be safe)
+        SessionManager.getInstance().clear();
 
         DatabaseManager.getInstance().closeConnectionPool(); // Close database connection pool
         logger.info("Server shutdown complete.");
