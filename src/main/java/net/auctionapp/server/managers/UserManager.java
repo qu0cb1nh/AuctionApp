@@ -1,13 +1,13 @@
 package net.auctionapp.server.managers;
 
-import net.auctionapp.common.models.users.Admin;
-import net.auctionapp.common.models.users.Bidder;
-import net.auctionapp.common.models.users.Seller;
+import net.auctionapp.common.models.users.User;
+import net.auctionapp.common.models.users.UserRole;
 import net.auctionapp.server.exceptions.AuthenticationException;
 import net.auctionapp.server.exceptions.NotFoundException;
 import net.auctionapp.server.exceptions.ValidationException;
 import org.mindrot.jbcrypt.BCrypt;
 
+import java.util.EnumSet;
 import java.util.Locale;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
@@ -16,10 +16,7 @@ import java.util.concurrent.ConcurrentMap;
 public final class UserManager {
     private static UserManager instance;
 
-    private final ConcurrentMap<String, AccountRecord> accountsById = new ConcurrentHashMap<>();
-    private final ConcurrentMap<String, Seller> sellerProfilesById = new ConcurrentHashMap<>();
-    private final ConcurrentMap<String, Bidder> bidderProfilesById = new ConcurrentHashMap<>();
-    private final ConcurrentMap<String, Admin> adminProfilesById = new ConcurrentHashMap<>();
+    private final ConcurrentMap<String, User> usersById = new ConcurrentHashMap<>();
 
     private UserManager() {
     }
@@ -31,83 +28,92 @@ public final class UserManager {
         return instance;
     }
 
-    public AccountRecord registerUser(String username, String rawPassword) {
+    public User registerUser(String username, String rawPassword) {
         String normalizedUsername = normalizeUsername(username);
         validateCredentials(normalizedUsername, rawPassword);
-        return saveAccount(normalizedUsername, username.trim(), BCrypt.hashpw(rawPassword, BCrypt.gensalt()), false, false);
+        return saveUser(
+                normalizedUsername,
+                username.trim(),
+                BCrypt.hashpw(rawPassword, BCrypt.gensalt()),
+                EnumSet.of(UserRole.SELLER, UserRole.BIDDER),
+                false
+        );
     }
 
-    public AccountRecord registerAdmin(String username, String rawPassword) {
+    public User registerAdmin(String username, String rawPassword) {
         String normalizedUsername = normalizeUsername(username);
         validateCredentials(normalizedUsername, rawPassword);
-        return saveAccount(normalizedUsername, username.trim(), BCrypt.hashpw(rawPassword, BCrypt.gensalt()), true, false);
+        return saveUser(
+                normalizedUsername,
+                username.trim(),
+                BCrypt.hashpw(rawPassword, BCrypt.gensalt()),
+                EnumSet.of(UserRole.ADMIN, UserRole.SELLER, UserRole.BIDDER),
+                false
+        );
     }
 
-    public AccountRecord syncAccountFromDatabase(String username, String passwordHash, String databaseRole) {
-        String normalizedUsername = normalizeUsername(username);
-        if (normalizedUsername.isEmpty() || passwordHash == null || passwordHash.isBlank()) {
+    public User syncAccountFromDatabase(User user) {
+        if (user == null
+                || normalizeUsername(user.getUsername()).isEmpty()
+                || user.getPasswordHash() == null
+                || user.getPasswordHash().isBlank()) {
             throw new ValidationException("Database account data is invalid.");
         }
-
-        boolean admin = "admin".equalsIgnoreCase(databaseRole);
-        return saveAccount(normalizedUsername, username.trim(), passwordHash, admin, true);
+        return saveUser(user.getId(), user.getUsername().trim(), user.getPasswordHash(), user.getRoles(), true);
     }
 
-    public AccountRecord login(String username, String rawPassword) {
+    public User login(String username, String rawPassword) {
         String accountId = normalizeUsername(username);
         if (accountId.isEmpty() || rawPassword == null || rawPassword.isEmpty()) {
             throw new AuthenticationException("Username and password are required.");
         }
 
-        AccountRecord account = accountsById.get(accountId);
-        if (account == null || !BCrypt.checkpw(rawPassword, account.passwordHash())) {
+        User user = usersById.get(accountId);
+        if (user == null || !BCrypt.checkpw(rawPassword, user.getPasswordHash())) {
             throw new AuthenticationException("Invalid username or password.");
         }
 
-        return account;
+        return user;
     }
 
-    public Optional<AccountRecord> getAccountById(String userId) {
-        return Optional.ofNullable(accountsById.get(userId));
+    public Optional<User> getUserById(String userId) {
+        return Optional.ofNullable(usersById.get(userId));
     }
 
-    public AccountRecord requireAccountById(String userId) {
-        AccountRecord account = accountsById.get(userId);
-        if (account == null) {
+    public User requireUserById(String userId) {
+        User user = usersById.get(userId);
+        if (user == null) {
             throw new NotFoundException("User not found.");
         }
-        return account;
+        return user;
     }
 
-    public Optional<AccountRecord> getAccountByUsername(String username) {
-        return Optional.ofNullable(accountsById.get(normalizeUsername(username)));
+    public Optional<User> getUserByUsername(String username) {
+        return Optional.ofNullable(usersById.get(normalizeUsername(username)));
     }
 
-    public Seller requireSellerProfile(String userId) {
-        Seller seller = sellerProfilesById.get(userId);
-        if (seller == null) {
+    public User requireSeller(String userId) {
+        User user = requireUserById(userId);
+        if (!user.hasRole(UserRole.SELLER)) {
             throw new ValidationException("This account cannot act as a seller.");
         }
-        return seller;
+        return user;
     }
 
-    public Bidder requireBidderProfile(String userId) {
-        Bidder bidder = bidderProfilesById.get(userId);
-        if (bidder == null) {
+    public User requireBidder(String userId) {
+        User user = requireUserById(userId);
+        if (!user.hasRole(UserRole.BIDDER)) {
             throw new ValidationException("This account cannot act as a bidder.");
         }
-        return bidder;
+        return user;
     }
 
     public boolean isAdmin(String userId) {
-        return adminProfilesById.containsKey(userId);
+        return requireUserById(userId).hasRole(UserRole.ADMIN);
     }
 
     public void clear() {
-        accountsById.clear();
-        sellerProfilesById.clear();
-        bidderProfilesById.clear();
-        adminProfilesById.clear();
+        usersById.clear();
     }
 
     private void validateCredentials(String normalizedUsername, String rawPassword) {
@@ -126,32 +132,20 @@ public final class UserManager {
         return username.trim().toLowerCase(Locale.ROOT);
     }
 
-    private AccountRecord saveAccount(
-            String accountId,
+    private User saveUser(
+            String userId,
             String username,
             String passwordHash,
-            boolean admin,
+            java.util.Set<UserRole> roles,
             boolean overwriteExisting
     ) {
-        AccountRecord account = new AccountRecord(accountId, username, passwordHash, admin);
+        User user = new User(userId, username, passwordHash, roles);
 
-        if (!overwriteExisting && accountsById.containsKey(accountId)) {
+        if (!overwriteExisting && usersById.containsKey(userId)) {
             throw new ValidationException("Username already exists.");
         }
 
-        accountsById.put(accountId, account);
-        sellerProfilesById.put(accountId, new Seller(accountId, username, passwordHash));
-        bidderProfilesById.put(accountId, new Bidder(accountId, username, passwordHash));
-
-        if (admin) {
-            adminProfilesById.put(accountId, new Admin(accountId, username, passwordHash));
-        } else {
-            adminProfilesById.remove(accountId);
-        }
-
-        return account;
-    }
-
-    public record AccountRecord(String id, String username, String passwordHash, boolean admin) {
+        usersById.put(userId, user);
+        return user;
     }
 }

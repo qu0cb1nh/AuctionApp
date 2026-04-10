@@ -19,6 +19,7 @@ import net.auctionapp.common.utils.JsonUtil;
 import net.auctionapp.server.exceptions.AuctionAppException;
 import net.auctionapp.server.managers.AuthManager;
 import net.auctionapp.server.managers.AuctionManager;
+import net.auctionapp.server.managers.SessionManager;
 import net.auctionapp.common.models.auction.Auction;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -38,14 +39,16 @@ public class ClientHandler implements Runnable {
     private BufferedReader in;
     private final AuctionManager auctionManager;
     private final AuthManager authManager;
+    private final SessionManager sessionManager;
     private final AtomicBoolean closed = new AtomicBoolean(false);
-    private String authenticatedUsername;
+    private String authenticatedUserId;
     private String authenticatedRole;
 
     public ClientHandler(Socket socket) {
         this.socket = socket;
         this.auctionManager = AuctionManager.getInstance();
         this.authManager = AuthManager.getInstance();
+        this.sessionManager = SessionManager.getInstance();
     }
 
     @Override
@@ -90,6 +93,7 @@ public class ClientHandler implements Runnable {
         } catch (IOException e) {
             logger.warn("Error while closing socket for {}: {}", socket.getInetAddress(), e.getMessage());
         } finally {
+            sessionManager.unbindSession(this);
             ServerApp.unregisterClient(this);
         }
     }
@@ -117,8 +121,8 @@ public class ClientHandler implements Runnable {
         return true;
     }
 
-    public void authenticate(String username, String role) {
-        this.authenticatedUsername = username;
+    public void authenticate(String userId, String role) {
+        this.authenticatedUserId = userId;
         this.authenticatedRole = role;
     }
 
@@ -184,7 +188,7 @@ public class ClientHandler implements Runnable {
             ensureAuthenticated();
             Item item = createItemFromRequest(message);
             Auction auction = auctionManager.createAuction(
-                    authenticatedUsername.toLowerCase(),
+                    authenticatedUserId,
                     item,
                     message.getStartingPrice(),
                     message.getMinimumBidIncrement(),
@@ -204,7 +208,7 @@ public class ClientHandler implements Runnable {
                     .orElseThrow(() -> new AuctionAppException("Auction not found."));
             auctionManager.submitBid(
                     auction.getId(),
-                    authenticatedUsername.toLowerCase(),
+                    authenticatedUserId,
                     BigDecimal.valueOf(message.getPrice())
             );
             Auction updatedAuction = auctionManager.getAuctionById(auction.getId())
@@ -244,7 +248,7 @@ public class ClientHandler implements Runnable {
     }
 
     private void ensureAuthenticated() {
-        if (authenticatedUsername == null || authenticatedRole == null) {
+        if (authenticatedUserId == null || authenticatedRole == null) {
             throw new AuctionAppException("You must log in before using auction features.");
         }
     }
