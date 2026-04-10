@@ -1,5 +1,6 @@
 package net.auctionapp.client.controllers;
-
+import javafx.event.ActionEvent;
+import javafx.fxml.FXML;
 import javafx.event.ActionEvent;
 import javafx.fxml.FXML;
 import javafx.fxml.FXMLLoader;
@@ -20,5 +21,14 @@ public class AuctionListController {
     @FXML
     public void handleViewItem(ActionEvent event) {
         SceneNavigator.switchScene("views/AuctionItem.fxml");
+    }
+    @FXML
+    public void handleSignOut(ActionEvent event) {
+        SceneNavigator.switchScene("views/LoginMenu.fxml");
+    }
+
+    @FXML
+    public void handleBackToMainMenu(ActionEvent event) {
+        SceneNavigator.switchScene("views/MainMenu.fxml");
     }
 }
