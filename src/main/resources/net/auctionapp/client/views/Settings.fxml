@@ -1,0 +1,88 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.geometry.Insets?>
+<?import javafx.scene.control.Button?>
+<?import javafx.scene.control.CheckBox?>
+<?import javafx.scene.control.ComboBox?>
+<?import javafx.scene.control.Label?>
+<?import javafx.scene.control.Separator?>
+<?import javafx.scene.control.Spinner?>
+<?import javafx.scene.control.TextField?>
+<?import javafx.scene.layout.BorderPane?>
+<?import javafx.scene.layout.ColumnConstraints?>
+<?import javafx.scene.layout.GridPane?>
+<?import javafx.scene.layout.HBox?>
+<?import javafx.scene.layout.Region?>
+<?import javafx.scene.layout.VBox?>
+<?import javafx.scene.text.Font?>
+
+<BorderPane prefHeight="650.0" prefWidth="980.0" style="-fx-background-color: #f2f5f9;" xmlns="http://javafx.com/javafx/25" xmlns:fx="http://javafx.com/fxml/1" fx:controller="net.auctionapp.client.controllers.SettingsController">
+    <top>
+        <HBox alignment="CENTER_LEFT" spacing="14.0" style="-fx-background-color: linear-gradient(to right, #243447 0%, #2f4f69 70%, #3bb3c3 100%);" BorderPane.alignment="CENTER">
+            <padding>
+                <Insets bottom="18.0" left="30.0" right="30.0" top="18.0" />
+            </padding>
+            <children>
+                <Label text="Settings" textFill="WHITE">
+                    <font>
+                        <Font name="System Bold" size="30.0" />
+                    </font>
+                </Label>
+                <Region HBox.hgrow="ALWAYS" />
+                <Button mnemonicParsing="false" onAction="#handleBack" prefHeight="38.0" prefWidth="100.0" style="-fx-background-color: white; -fx-text-fill: #274057; -fx-background-radius: 18px; -fx-font-weight: bold; -fx-cursor: hand;" text="Back" />
+            </children>
+        </HBox>
+    </top>
+    <center>
+        <VBox spacing="14.0" BorderPane.alignment="CENTER">
+            <padding>
+                <Insets bottom="28.0" left="30.0" right="30.0" top="24.0" />
+            </padding>
+            <children>
+                <Label style="-fx-font-size: 14px; -fx-text-fill: #4a5f73;" text="Configure your application preferences." />
+
+                <VBox spacing="14.0" style="-fx-background-color: white; -fx-background-radius: 14px; -fx-border-color: #d4e1ee; -fx-border-radius: 14px; -fx-padding: 18px;">
+                    <children>
+                        <Label style="-fx-font-size: 18px; -fx-font-weight: 700; -fx-text-fill: #2f4f69;" text="General Preferences" />
+
+                        <GridPane hgap="14.0" vgap="12.0">
+                            <columnConstraints>
+                                <ColumnConstraints prefWidth="180.0" />
+                                <ColumnConstraints hgrow="ALWAYS" />
+                            </columnConstraints>
+                            <children>
+                                <Label text="Display Name" GridPane.columnIndex="0" GridPane.rowIndex="0" />
+                                <TextField fx:id="displayNameField" promptText="Enter display name" GridPane.columnIndex="1" GridPane.rowIndex="0" />
+
+                                <Label text="Currency" GridPane.columnIndex="0" GridPane.rowIndex="1" />
+                                <ComboBox fx:id="currencyComboBox" prefWidth="220.0" GridPane.columnIndex="1" GridPane.rowIndex="1" />
+
+                                <Label text="Theme" GridPane.columnIndex="0" GridPane.rowIndex="2" />
+                                <ComboBox fx:id="themeComboBox" prefWidth="220.0" GridPane.columnIndex="1" GridPane.rowIndex="2" />
+
+                                <Label text="Auto Refresh" GridPane.columnIndex="0" GridPane.rowIndex="3" />
+                                <Spinner fx:id="autoRefreshSpinner" editable="true" prefWidth="120.0" GridPane.columnIndex="1" GridPane.rowIndex="3" />
+
+                                <Label text="Notifications" GridPane.columnIndex="0" GridPane.rowIndex="4" />
+                                <CheckBox fx:id="notificationsCheckBox" text="Enable auction notifications" GridPane.columnIndex="1" GridPane.rowIndex="4" />
+                            </children>
+                        </GridPane>
+
+                        <Separator />
+
+                        <HBox alignment="CENTER_RIGHT" spacing="10.0">
+                            <children>
+                                <Region HBox.hgrow="ALWAYS" />
+                                <Button mnemonicParsing="false" onAction="#handleResetDefaults" style="-fx-background-color: white; -fx-text-fill: #2f4f69; -fx-border-color: #2f4f69; -fx-border-radius: 10px; -fx-background-radius: 10px; -fx-font-weight: bold; -fx-cursor: hand;" text="Reset Defaults" />
+                                <Button mnemonicParsing="false" onAction="#handleSaveSettings" style="-fx-background-color: #2f4f69; -fx-text-fill: white; -fx-background-radius: 10px; -fx-font-weight: bold; -fx-cursor: hand;" text="Save Settings" />
+                            </children>
+                        </HBox>
+                    </children>
+                </VBox>
+
+                <Label fx:id="statusLabel" style="-fx-font-size: 12px; -fx-font-weight: 600; -fx-text-fill: #cc8400;" text="Ready." wrapText="true" />
+            </children>
+        </VBox>
+    </center>
+</BorderPane>
+
