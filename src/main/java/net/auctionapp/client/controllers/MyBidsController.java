@@ -7,7 +7,9 @@ import javafx.collections.ObservableList;
 import javafx.event.ActionEvent;
 import javafx.fxml.FXML;
 import javafx.fxml.Initializable;
+import javafx.scene.control.Button;
 import javafx.scene.control.Label;
+import javafx.scene.control.TableCell;
 import javafx.scene.control.TableColumn;
 import javafx.scene.control.TableView;
 import net.auctionapp.client.SceneNavigator;
@@ -21,32 +23,56 @@ public class MyBidsController implements Initializable {
     private static final DateTimeFormatter DATE_TIME_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm");
 
     @FXML
-    private TableView<BidRow> bidsTable;
+    private TableView<BidRow> activeTable;
     @FXML
-    private TableColumn<BidRow, String> auctionTitleColumn;
+    private TableColumn<BidRow, String> activeAuctionColumn;
     @FXML
-    private TableColumn<BidRow, String> yourBidColumn;
+    private TableColumn<BidRow, String> activeYourBidColumn;
     @FXML
-    private TableColumn<BidRow, String> currentBidColumn;
+    private TableColumn<BidRow, String> activeHighestBidColumn;
     @FXML
-    private TableColumn<BidRow, String> statusColumn;
+    private TableColumn<BidRow, String> activeCountdownColumn;
     @FXML
-    private TableColumn<BidRow, String> endTimeColumn;
+    private TableColumn<BidRow, Void> activeActionColumn;
 
     @FXML
-    private Label totalBidsLabel;
+    private TableView<BidRow> wonTable;
     @FXML
-    private Label leadingLabel;
+    private TableColumn<BidRow, String> wonAuctionColumn;
+    @FXML
+    private TableColumn<BidRow, String> wonBidColumn;
+    @FXML
+    private TableColumn<BidRow, String> wonPaymentColumn;
+    @FXML
+    private TableColumn<BidRow, String> wonDeadlineColumn;
+    @FXML
+    private TableColumn<BidRow, Void> wonActionColumn;
+
+    @FXML
+    private TableView<BidRow> lostTable;
+    @FXML
+    private TableColumn<BidRow, String> lostAuctionColumn;
+    @FXML
+    private TableColumn<BidRow, String> lostYourBidColumn;
+    @FXML
+    private TableColumn<BidRow, String> lostFinalPriceColumn;
+    @FXML
+    private TableColumn<BidRow, String> lostEndTimeColumn;
+    @FXML
+    private TableColumn<BidRow, Void> lostActionColumn;
+
+    @FXML
+    private Label activeLabel;
     @FXML
     private Label wonLabel;
     @FXML
-    private Label outbidLabel;
+    private Label lostLabel;
     @FXML
     private Label statusLabel;
 
     @Override
     public void initialize(URL location, ResourceBundle resources) {
-        configureTable();
+        configureTables();
         loadPlaceholderBids();
     }
 
@@ -61,77 +87,114 @@ public class MyBidsController implements Initializable {
         statusLabel.setText("Data refreshed at " + LocalDateTime.now().format(DATE_TIME_FORMATTER) + ".");
     }
 
-    private void configureTable() {
-        auctionTitleColumn.setCellValueFactory(cell -> cell.getValue().auctionTitleProperty());
-        yourBidColumn.setCellValueFactory(cell -> cell.getValue().yourBidProperty());
-        currentBidColumn.setCellValueFactory(cell -> cell.getValue().currentBidProperty());
-        statusColumn.setCellValueFactory(cell -> cell.getValue().statusProperty());
-        endTimeColumn.setCellValueFactory(cell -> cell.getValue().endTimeProperty());
+    private void configureTables() {
+        activeAuctionColumn.setCellValueFactory(cell -> cell.getValue().col1Property());
+        activeYourBidColumn.setCellValueFactory(cell -> cell.getValue().col2Property());
+        activeHighestBidColumn.setCellValueFactory(cell -> cell.getValue().col3Property());
+        activeCountdownColumn.setCellValueFactory(cell -> cell.getValue().col4Property());
+        configureActionColumn(activeActionColumn, "Bid Higher", "Open auction details for: ");
+
+        wonAuctionColumn.setCellValueFactory(cell -> cell.getValue().col1Property());
+        wonBidColumn.setCellValueFactory(cell -> cell.getValue().col2Property());
+        wonPaymentColumn.setCellValueFactory(cell -> cell.getValue().col3Property());
+        wonDeadlineColumn.setCellValueFactory(cell -> cell.getValue().col4Property());
+        configureActionColumn(wonActionColumn, "Pay Now", "Open payment page for: ");
+
+        lostAuctionColumn.setCellValueFactory(cell -> cell.getValue().col1Property());
+        lostYourBidColumn.setCellValueFactory(cell -> cell.getValue().col2Property());
+        lostFinalPriceColumn.setCellValueFactory(cell -> cell.getValue().col3Property());
+        lostEndTimeColumn.setCellValueFactory(cell -> cell.getValue().col4Property());
+        configureActionColumn(lostActionColumn, "View Similar", "Search similar auctions for: ");
+
+        activeTable.setPlaceholder(new Label("No active bids."));
+        wonTable.setPlaceholder(new Label("No won auctions."));
+        lostTable.setPlaceholder(new Label("No lost auctions."));
+    }
+
+    private void configureActionColumn(TableColumn<BidRow, Void> column, String buttonText, String messagePrefix) {
+        column.setCellFactory(ignored -> new TableCell<>() {
+            private final Button actionButton = createActionButton(buttonText);
+
+            {
+                actionButton.setOnAction(event -> {
+                    BidRow row = getTableView().getItems().get(getIndex());
+                    statusLabel.setText(messagePrefix + row.getCol1());
+                });
+            }
+
+            @Override
+            protected void updateItem(Void item, boolean empty) {
+                super.updateItem(item, empty);
+                setGraphic(empty ? null : actionButton);
+            }
+        });
+    }
+
+    private Button createActionButton(String text) {
+        Button button = new Button(text);
+        button.setStyle("-fx-background-color: #2f4f69; -fx-text-fill: white; -fx-background-radius: 14px; -fx-cursor: hand; -fx-font-size: 12px;");
+        return button;
     }
 
     private void loadPlaceholderBids() {
-        ObservableList<BidRow> rows = FXCollections.observableArrayList(
-                new BidRow("Iphone 17 Pro Max 1TB", "$1,220", "$1,230", "OUTBID", "2026-04-12 21:00"),
-                new BidRow("Vintage Camera Collection", "$840", "$840", "LEADING", "2026-04-11 18:30"),
-                new BidRow("Abstract Art Painting", "$520", "$520", "WON", "2026-04-09 20:00"),
-                new BidRow("Gaming Laptop RTX", "$1,410", "$1,425", "OUTBID", "2026-04-10 23:15")
+        ObservableList<BidRow> activeRows = FXCollections.observableArrayList(
+                new BidRow("Iphone 17 Pro Max 1TB", "$1,220", "$1,240", "00:18:25"),
+                new BidRow("Vintage Camera Collection", "$840", "$840", "01:42:10"),
+                new BidRow("Gaming Laptop RTX", "$1,410", "$1,425", "00:52:02")
         );
 
-        bidsTable.setItems(rows);
-        bidsTable.setPlaceholder(new Label("No bids found."));
-        updateStats(rows);
-        statusLabel.setText(rows.isEmpty() ? "You have no bids yet." : "Loaded " + rows.size() + " bid entries.");
-    }
+        ObservableList<BidRow> wonRows = FXCollections.observableArrayList(
+                new BidRow("Abstract Art Painting", "$520", "Pending payment", "2026-04-12 22:00"),
+                new BidRow("Limited Sneaker Set", "$310", "Pending payment", "2026-04-13 09:30")
+        );
 
-    private void updateStats(ObservableList<BidRow> rows) {
-        long leadingCount = rows.stream().filter(row -> "LEADING".equals(row.getStatus())).count();
-        long wonCount = rows.stream().filter(row -> "WON".equals(row.getStatus())).count();
-        long outbidCount = rows.stream().filter(row -> "OUTBID".equals(row.getStatus())).count();
+        ObservableList<BidRow> lostRows = FXCollections.observableArrayList(
+                new BidRow("Mechanical Keyboard Pro", "$180", "$195", "2026-04-10 21:00"),
+                new BidRow("Smartwatch Ultra", "$430", "$460", "2026-04-09 20:45")
+        );
 
-        totalBidsLabel.setText(String.valueOf(rows.size()));
-        leadingLabel.setText(String.valueOf(leadingCount));
-        wonLabel.setText(String.valueOf(wonCount));
-        outbidLabel.setText(String.valueOf(outbidCount));
+        activeTable.setItems(activeRows);
+        wonTable.setItems(wonRows);
+        lostTable.setItems(lostRows);
+
+        activeLabel.setText(String.valueOf(activeRows.size()));
+        wonLabel.setText(String.valueOf(wonRows.size()));
+        lostLabel.setText(String.valueOf(lostRows.size()));
+
+        statusLabel.setText("Loaded " + (activeRows.size() + wonRows.size() + lostRows.size()) + " bid records.");
     }
 
     public static class BidRow {
-        private final StringProperty auctionTitle;
-        private final StringProperty yourBid;
-        private final StringProperty currentBid;
-        private final StringProperty status;
-        private final StringProperty endTime;
+        private final StringProperty col1;
+        private final StringProperty col2;
+        private final StringProperty col3;
+        private final StringProperty col4;
 
-        public BidRow(String auctionTitle, String yourBid, String currentBid, String status, String endTime) {
-            this.auctionTitle = new SimpleStringProperty(auctionTitle);
-            this.yourBid = new SimpleStringProperty(yourBid);
-            this.currentBid = new SimpleStringProperty(currentBid);
-            this.status = new SimpleStringProperty(status);
-            this.endTime = new SimpleStringProperty(endTime);
+        public BidRow(String col1, String col2, String col3, String col4) {
+            this.col1 = new SimpleStringProperty(col1);
+            this.col2 = new SimpleStringProperty(col2);
+            this.col3 = new SimpleStringProperty(col3);
+            this.col4 = new SimpleStringProperty(col4);
         }
 
-        public StringProperty auctionTitleProperty() {
-            return auctionTitle;
+        public StringProperty col1Property() {
+            return col1;
         }
 
-        public StringProperty yourBidProperty() {
-            return yourBid;
+        public StringProperty col2Property() {
+            return col2;
         }
 
-        public StringProperty currentBidProperty() {
-            return currentBid;
+        public StringProperty col3Property() {
+            return col3;
         }
 
-        public StringProperty statusProperty() {
-            return status;
+        public StringProperty col4Property() {
+            return col4;
         }
 
-        public StringProperty endTimeProperty() {
-            return endTime;
-        }
-
-        public String getStatus() {
-            return status.get();
+        public String getCol1() {
+            return col1.get();
         }
     }
 }
-
