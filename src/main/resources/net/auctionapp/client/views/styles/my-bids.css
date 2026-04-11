@@ -1,0 +1,155 @@
+.my-bids-root {
+    -fx-background-color: linear-gradient(to bottom, #f2f5f9 0%, #eef2f7 100%);
+}
+
+.page-header {
+    -fx-background-color: linear-gradient(to right, #243447 0%, #2f4f69 70%, #3bb3c3 100%);
+    -fx-effect: dropshadow(gaussian, rgba(20, 31, 45, 0.22), 16, 0.2, 0, 3);
+}
+
+.header-title {
+    -fx-font-size: 30px;
+    -fx-font-weight: 800;
+    -fx-text-fill: white;
+}
+
+.header-subtitle {
+    -fx-font-size: 13px;
+    -fx-text-fill: rgba(255, 255, 255, 0.9);
+}
+
+.back-button {
+    -fx-background-color: white;
+    -fx-text-fill: #274057;
+    -fx-background-radius: 18px;
+    -fx-padding: 8px 18px;
+    -fx-font-weight: 700;
+    -fx-cursor: hand;
+}
+
+.back-button:hover {
+    -fx-background-color: #f5f8fb;
+}
+
+.icon-button {
+    -fx-background-color: rgba(255, 255, 255, 0.22);
+    -fx-background-radius: 19px;
+    -fx-cursor: hand;
+}
+
+.icon-button:hover {
+    -fx-background-color: rgba(255, 255, 255, 0.32);
+}
+
+.metric-card {
+    -fx-padding: 14px;
+    -fx-background-radius: 14px;
+    -fx-effect: dropshadow(gaussian, rgba(0, 0, 0, 0.1), 12, 0.1, 0, 2);
+}
+
+.metric-card.total {
+    -fx-background-color: linear-gradient(to bottom right, #ffffff, #f3f7fd);
+    -fx-border-color: #d5e3f2;
+    -fx-border-width: 1px;
+    -fx-border-radius: 14px;
+}
+
+.metric-card.leading {
+    -fx-background-color: linear-gradient(to bottom right, #f6fff8, #e8f8ed);
+    -fx-border-color: #bfe7c8;
+    -fx-border-width: 1px;
+    -fx-border-radius: 14px;
+}
+
+.metric-card.won {
+    -fx-background-color: linear-gradient(to bottom right, #f6ffff, #e7f7f9);
+    -fx-border-color: #b9e8ee;
+    -fx-border-width: 1px;
+    -fx-border-radius: 14px;
+}
+
+.metric-card.outbid {
+    -fx-background-color: linear-gradient(to bottom right, #fff8f7, #fdeceb);
+    -fx-border-color: #f2c9c5;
+    -fx-border-width: 1px;
+    -fx-border-radius: 14px;
+}
+
+.metric-title {
+    -fx-font-size: 12px;
+    -fx-text-fill: #596d82;
+    -fx-font-weight: 600;
+}
+
+.metric-value {
+    -fx-font-size: 30px;
+    -fx-font-weight: 800;
+    -fx-text-fill: #223448;
+}
+
+.content-card {
+    -fx-background-color: white;
+    -fx-background-radius: 14px;
+    -fx-border-color: #dce6f0;
+    -fx-border-radius: 14px;
+    -fx-border-width: 1px;
+    -fx-effect: dropshadow(gaussian, rgba(18, 29, 42, 0.08), 16, 0.1, 0, 2);
+}
+
+.section-title {
+    -fx-font-size: 18px;
+    -fx-font-weight: 800;
+    -fx-text-fill: #24384d;
+}
+
+.table-refresh-button {
+    -fx-background-color: #edf8fa;
+    -fx-background-radius: 17px;
+    -fx-cursor: hand;
+}
+
+.table-refresh-button:hover {
+    -fx-background-color: #ddf1f4;
+}
+
+.bids-table {
+    -fx-background-color: transparent;
+    -fx-border-color: #dde5ee;
+    -fx-border-radius: 10px;
+    -fx-background-radius: 10px;
+}
+
+.bids-table .column-header-background {
+    -fx-background-color: linear-gradient(to bottom, #f8fbff, #edf3fa);
+    -fx-background-radius: 10px 10px 0 0;
+}
+
+.bids-table .column-header,
+.bids-table .filler {
+    -fx-size: 38px;
+    -fx-border-color: transparent transparent #d8e2ec transparent;
+}
+
+.bids-table .column-header .label {
+    -fx-text-fill: #4a6077;
+    -fx-font-weight: 700;
+}
+
+.bids-table .table-row-cell {
+    -fx-cell-size: 42px;
+    -fx-border-color: transparent transparent #f0f4f8 transparent;
+}
+
+.bids-table .table-row-cell:odd {
+    -fx-background-color: #fbfcfe;
+}
+
+.bids-table .table-row-cell:selected {
+    -fx-background-color: #e4f4f8;
+}
+
+.status-text {
+    -fx-font-size: 12px;
+    -fx-text-fill: #637991;
+}
+
