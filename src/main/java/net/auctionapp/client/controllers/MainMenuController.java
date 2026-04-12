@@ -58,6 +58,11 @@ public class MainMenuController implements Initializable {
     }
 
     @FXML
+    public void handleNotifications(ActionEvent event) {
+        SceneNavigator.switchScene("views/Notifications.fxml");
+    }
+
+    @FXML
     public void handleLogout(ActionEvent event) {
         if (ClientApp.getInstance() != null) {
             ClientApp.getInstance().setCurrentUser(null, null);
