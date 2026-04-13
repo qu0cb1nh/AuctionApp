@@ -1,79 +1,46 @@
 package net.auctionapp.client.controllers;
 
-import javafx.beans.property.SimpleStringProperty;
-import javafx.beans.property.StringProperty;
-import javafx.collections.FXCollections;
-import javafx.collections.ObservableList;
 import javafx.event.ActionEvent;
 import javafx.fxml.FXML;
 import javafx.fxml.Initializable;
 import javafx.scene.control.Button;
+import javafx.scene.control.ComboBox;
 import javafx.scene.control.Label;
-import javafx.scene.control.TableCell;
-import javafx.scene.control.TableColumn;
-import javafx.scene.control.TableView;
+import javafx.scene.control.TextField;
+import javafx.scene.image.Image;
+import javafx.scene.image.ImageView;
+import javafx.scene.layout.FlowPane;
+import javafx.scene.layout.HBox;
+import javafx.scene.layout.VBox;
+import net.auctionapp.client.ClientApp;
 import net.auctionapp.client.SceneNavigator;
 
 import java.net.URL;
-import java.time.LocalDateTime;
-import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.List;
+import java.util.Locale;
 import java.util.ResourceBundle;
+import java.util.stream.Collectors;
 
 public class MyBidsController implements Initializable {
-    private static final DateTimeFormatter DATE_TIME_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm");
-
     @FXML
-    private TableView<BidRow> activeTable;
+    private FlowPane bidFlowPane;
     @FXML
-    private TableColumn<BidRow, String> activeAuctionColumn;
+    private TextField searchField;
     @FXML
-    private TableColumn<BidRow, String> activeYourBidColumn;
-    @FXML
-    private TableColumn<BidRow, String> activeHighestBidColumn;
-    @FXML
-    private TableColumn<BidRow, String> activeCountdownColumn;
-    @FXML
-    private TableColumn<BidRow, Void> activeActionColumn;
-
-    @FXML
-    private TableView<BidRow> wonTable;
-    @FXML
-    private TableColumn<BidRow, String> wonAuctionColumn;
-    @FXML
-    private TableColumn<BidRow, String> wonBidColumn;
-    @FXML
-    private TableColumn<BidRow, String> wonPaymentColumn;
-    @FXML
-    private TableColumn<BidRow, String> wonDeadlineColumn;
-    @FXML
-    private TableColumn<BidRow, Void> wonActionColumn;
-
-    @FXML
-    private TableView<BidRow> lostTable;
-    @FXML
-    private TableColumn<BidRow, String> lostAuctionColumn;
-    @FXML
-    private TableColumn<BidRow, String> lostYourBidColumn;
-    @FXML
-    private TableColumn<BidRow, String> lostFinalPriceColumn;
-    @FXML
-    private TableColumn<BidRow, String> lostEndTimeColumn;
-    @FXML
-    private TableColumn<BidRow, Void> lostActionColumn;
-
-    @FXML
-    private Label activeLabel;
-    @FXML
-    private Label wonLabel;
-    @FXML
-    private Label lostLabel;
+    private ComboBox<String> statusFilterComboBox;
     @FXML
     private Label statusLabel;
 
+    private final List<BidCard> allUserBids = new ArrayList<>();
+
     @Override
     public void initialize(URL location, ResourceBundle resources) {
-        configureTables();
-        loadPlaceholderBids();
+        statusFilterComboBox.getItems().setAll("All", "RUNNING", "FINISHED", "OUTBID");
+        statusFilterComboBox.getSelectionModel().selectFirst();
+        loadMyBids();
+        applyFilters();
     }
 
     @FXML
@@ -82,119 +49,133 @@ public class MyBidsController implements Initializable {
     }
 
     @FXML
+    public void handleSignOut(ActionEvent event) {
+        if (ClientApp.getInstance() != null) {
+            ClientApp.getInstance().setCurrentUser(null, null);
+        }
+        SceneNavigator.switchScene("views/LoginMenu.fxml");
+    }
+
+    @FXML
     public void handleRefresh(ActionEvent event) {
-        loadPlaceholderBids();
-        statusLabel.setText("Data refreshed at " + LocalDateTime.now().format(DATE_TIME_FORMATTER) + ".");
+        loadMyBids();
+        applyFilters();
     }
 
-    private void configureTables() {
-        activeAuctionColumn.setCellValueFactory(cell -> cell.getValue().col1Property());
-        activeYourBidColumn.setCellValueFactory(cell -> cell.getValue().col2Property());
-        activeHighestBidColumn.setCellValueFactory(cell -> cell.getValue().col3Property());
-        activeCountdownColumn.setCellValueFactory(cell -> cell.getValue().col4Property());
-        configureActionColumn(activeActionColumn, "Bid Higher", "Open auction details for: ");
-
-        wonAuctionColumn.setCellValueFactory(cell -> cell.getValue().col1Property());
-        wonBidColumn.setCellValueFactory(cell -> cell.getValue().col2Property());
-        wonPaymentColumn.setCellValueFactory(cell -> cell.getValue().col3Property());
-        wonDeadlineColumn.setCellValueFactory(cell -> cell.getValue().col4Property());
-        configureActionColumn(wonActionColumn, "Pay Now", "Open payment page for: ");
-
-        lostAuctionColumn.setCellValueFactory(cell -> cell.getValue().col1Property());
-        lostYourBidColumn.setCellValueFactory(cell -> cell.getValue().col2Property());
-        lostFinalPriceColumn.setCellValueFactory(cell -> cell.getValue().col3Property());
-        lostEndTimeColumn.setCellValueFactory(cell -> cell.getValue().col4Property());
-        configureActionColumn(lostActionColumn, "View Similar", "Search similar auctions for: ");
-
-        activeTable.setPlaceholder(new Label("No active bids."));
-        wonTable.setPlaceholder(new Label("No won auctions."));
-        lostTable.setPlaceholder(new Label("No lost auctions."));
+    @FXML
+    public void handleFilterChanged() {
+        applyFilters();
     }
 
-    private void configureActionColumn(TableColumn<BidRow, Void> column, String buttonText, String messagePrefix) {
-        column.setCellFactory(ignored -> new TableCell<>() {
-            private final Button actionButton = createActionButton(buttonText);
+    private void loadMyBids() {
+        String currentUser = resolveCurrentUsername();
+        List<BidCard> demoBids = buildDemoBids();
 
-            {
-                actionButton.setOnAction(event -> {
-                    BidRow row = getTableView().getItems().get(getIndex());
-                    statusLabel.setText(messagePrefix + row.getCol1());
-                });
-            }
+        allUserBids.clear();
+        allUserBids.addAll(
+                demoBids.stream()
+                        .filter(bid -> bid.bidderUsername().equalsIgnoreCase(currentUser))
+                        .sorted(Comparator.comparing(BidCard::auctionTitle))
+                        .toList()
+        );
+    }
 
-            @Override
-            protected void updateItem(Void item, boolean empty) {
-                super.updateItem(item, empty);
-                setGraphic(empty ? null : actionButton);
-            }
+    private void applyFilters() {
+        String search = searchField.getText() == null ? "" : searchField.getText().trim().toLowerCase(Locale.ROOT);
+        String selectedStatus = statusFilterComboBox.getSelectionModel().getSelectedItem();
+
+        List<BidCard> filtered = allUserBids.stream()
+                .filter(bid -> search.isBlank() || bid.auctionTitle().toLowerCase(Locale.ROOT).contains(search))
+                .filter(bid -> selectedStatus == null || "All".equals(selectedStatus) || bid.status().equalsIgnoreCase(selectedStatus))
+                .collect(Collectors.toList());
+
+        renderBidCards(filtered);
+        statusLabel.setText("Showing " + filtered.size() + " bids.");
+    }
+
+    private void renderBidCards(List<BidCard> bids) {
+        bidFlowPane.getChildren().clear();
+        if (bids.isEmpty()) {
+            Label emptyLabel = new Label("No bids found for your account.");
+            emptyLabel.setStyle("-fx-font-size: 14px; -fx-font-weight: bold; -fx-text-fill: #4a5f73;");
+            bidFlowPane.getChildren().add(emptyLabel);
+            return;
+        }
+
+        for (BidCard bid : bids) {
+            bidFlowPane.getChildren().add(createBidCard(bid));
+        }
+    }
+
+    private VBox createBidCard(BidCard bid) {
+        VBox card = new VBox(8);
+        card.setPrefSize(200, 280);
+        card.setStyle("-fx-background-color: white; -fx-background-radius: 10; "
+                + "-fx-effect: dropshadow(three-pass-box, rgba(0,0,0,0.2), 10, 0, 0, 0); "
+                + "-fx-padding: 10;");
+
+        ImageView imageView = createItemImage(bid.imagePath());
+
+        Label title = new Label(bid.auctionTitle());
+        title.setWrapText(true);
+        title.setStyle("-fx-font-weight: bold; -fx-font-size: 13px;");
+
+        Label yourBid = new Label("Your Bid: " + bid.yourBid());
+        Label highestBid = new Label("Highest Bid: " + bid.highestBid());
+        Label endTime = new Label("End Time: " + bid.endTime());
+        Label status = new Label("Status: " + bid.status());
+        status.setStyle("-fx-text-fill: #c13c21; -fx-font-weight: bold;");
+
+        Button viewButton = new Button("Bid now!");
+        viewButton.setStyle("-fx-background-color: #3bb3d1; -fx-text-fill: white; -fx-background-radius: 5;");
+        viewButton.setOnAction(event -> {
+            statusLabel.setText("Opening auction: " + bid.auctionTitle());
+            SceneNavigator.switchScene("views/AuctionItem.fxml");
         });
+
+        HBox buttonRow = new HBox(viewButton);
+        buttonRow.setStyle("-fx-alignment: center-right;");
+
+        card.getChildren().addAll(imageView, title, yourBid, highestBid, endTime, status, buttonRow);
+        return card;
     }
 
-    private Button createActionButton(String text) {
-        Button button = new Button(text);
-        button.setStyle("-fx-background-color: #2f4f69; -fx-text-fill: white; -fx-background-radius: 14px; -fx-cursor: hand; -fx-font-size: 12px;");
-        return button;
+    private ImageView createItemImage(String imagePath) {
+        ImageView imageView = new ImageView();
+        imageView.setFitHeight(150);
+        imageView.setFitWidth(200);
+        imageView.setPreserveRatio(true);
+        imageView.setPickOnBounds(true);
+
+        String resolvedPath = (imagePath == null || imagePath.isBlank()) ? "images/iphone.jpg" : imagePath;
+        URL url = getClass().getResource("/net/auctionapp/client/views/" + resolvedPath);
+        if (url == null) {
+            url = getClass().getResource("/net/auctionapp/client/views/images/iphone.jpg");
+        }
+        if (url != null) {
+            imageView.setImage(new Image(url.toExternalForm()));
+        }
+        return imageView;
     }
 
-    private void loadPlaceholderBids() {
-        ObservableList<BidRow> activeRows = FXCollections.observableArrayList(
-                new BidRow("Iphone 17 Pro Max 1TB", "$1,220", "$1,240", "00:18:25"),
-                new BidRow("Vintage Camera Collection", "$840", "$840", "01:42:10"),
-                new BidRow("Gaming Laptop RTX", "$1,410", "$1,425", "00:52:02")
+    private List<BidCard> buildDemoBids() {
+        return List.of(
+                new BidCard("admin", "Iphone 17 Pro Max 1TB", "$1,220", "$1,240", "2026-04-14 18:00", "RUNNING", "images/iphone.jpg"),
+                new BidCard("admin", "Gaming Laptop RTX", "$1,410", "$1,425", "2026-04-13 23:00", "OUTBID", "images/iphone.jpg"),
+                new BidCard("admin", "Vintage Camera Collection", "$840", "$840", "2026-04-14 10:00", "RUNNING", "images/iphone.jpg"),
+                new BidCard("bidderA", "Electric Scooter Pro", "$620", "$650", "2026-04-12 20:30", "FINISHED", "images/iphone.jpg")
         );
-
-        ObservableList<BidRow> wonRows = FXCollections.observableArrayList(
-                new BidRow("Abstract Art Painting", "$520", "Pending payment", "2026-04-12 22:00"),
-                new BidRow("Limited Sneaker Set", "$310", "Pending payment", "2026-04-13 09:30")
-        );
-
-        ObservableList<BidRow> lostRows = FXCollections.observableArrayList(
-                new BidRow("Mechanical Keyboard Pro", "$180", "$195", "2026-04-10 21:00"),
-                new BidRow("Smartwatch Ultra", "$430", "$460", "2026-04-09 20:45")
-        );
-
-        activeTable.setItems(activeRows);
-        wonTable.setItems(wonRows);
-        lostTable.setItems(lostRows);
-
-        activeLabel.setText(String.valueOf(activeRows.size()));
-        wonLabel.setText(String.valueOf(wonRows.size()));
-        lostLabel.setText(String.valueOf(lostRows.size()));
-
-        statusLabel.setText("Loaded " + (activeRows.size() + wonRows.size() + lostRows.size()) + " bid records.");
     }
 
-    public static class BidRow {
-        private final StringProperty col1;
-        private final StringProperty col2;
-        private final StringProperty col3;
-        private final StringProperty col4;
-
-        public BidRow(String col1, String col2, String col3, String col4) {
-            this.col1 = new SimpleStringProperty(col1);
-            this.col2 = new SimpleStringProperty(col2);
-            this.col3 = new SimpleStringProperty(col3);
-            this.col4 = new SimpleStringProperty(col4);
+    private String resolveCurrentUsername() {
+        if (ClientApp.getInstance() == null || ClientApp.getInstance().getCurrentUsername() == null
+                || ClientApp.getInstance().getCurrentUsername().isBlank()) {
+            return "admin";
         }
+        return ClientApp.getInstance().getCurrentUsername();
+    }
 
-        public StringProperty col1Property() {
-            return col1;
-        }
-
-        public StringProperty col2Property() {
-            return col2;
-        }
-
-        public StringProperty col3Property() {
-            return col3;
-        }
-
-        public StringProperty col4Property() {
-            return col4;
-        }
-
-        public String getCol1() {
-            return col1.get();
-        }
+    private record BidCard(String bidderUsername, String auctionTitle, String yourBid,
+                           String highestBid, String endTime, String status, String imagePath) {
     }
 }
