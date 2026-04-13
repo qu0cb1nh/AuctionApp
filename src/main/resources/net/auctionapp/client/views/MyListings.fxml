@@ -16,7 +16,7 @@
             <children>
                 <Label text="My Listings" textFill="WHITE" style="-fx-font-size: 24px; -fx-font-weight: bold;" />
                 <Button mnemonicParsing="false" onAction="#handleBack" prefHeight="35.0" prefWidth="90.0" style="-fx-background-color: white; -fx-text-fill: #3bb3d1; -fx-background-radius: 10; -fx-font-weight: bold;" text="Back" />
-                <TextField fx:id="searchField" onKeyReleased="#handleFilterChanged" prefHeight="35.0" prefWidth="250.0" promptText="Search my listings..." style="-fx-background-radius: 15;" />
+                <TextField fx:id="searchField" onKeyReleased="#handleFilterChanged" prefHeight="35.0" prefWidth="250.0" promptText="Search my listings" style="-fx-background-radius: 15;" />
                 <ComboBox fx:id="statusFilterComboBox" onAction="#handleFilterChanged" prefHeight="35.0" prefWidth="170.0" promptText="Filter status" style="-fx-background-radius: 10;" />
                 <HBox HBox.hgrow="ALWAYS" />
                 <Button mnemonicParsing="false" onAction="#handleRefresh" prefHeight="35.0" prefWidth="100.0" style="-fx-background-color: white; -fx-text-fill: #3bb3d1; -fx-background-radius: 10; -fx-font-weight: bold;" text="Refresh" />
