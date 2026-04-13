@@ -2,119 +2,41 @@
 
 <?import javafx.geometry.Insets?>
 <?import javafx.scene.control.Button?>
+<?import javafx.scene.control.ComboBox?>
 <?import javafx.scene.control.Label?>
-<?import javafx.scene.control.Separator?>
-<?import javafx.scene.control.Tab?>
-<?import javafx.scene.control.TabPane?>
-<?import javafx.scene.control.TableColumn?>
-<?import javafx.scene.control.TableView?>
+<?import javafx.scene.control.ScrollPane?>
+<?import javafx.scene.control.TextField?>
 <?import javafx.scene.layout.BorderPane?>
+<?import javafx.scene.layout.FlowPane?>
 <?import javafx.scene.layout.HBox?>
-<?import javafx.scene.layout.Region?>
-<?import javafx.scene.layout.VBox?>
-<?import javafx.scene.shape.SVGPath?>
 
-<BorderPane prefHeight="768.0" prefWidth="1024.0" style="-fx-background-color: #f2f5f9;" xmlns="http://javafx.com/javafx/25" xmlns:fx="http://javafx.com/fxml/1" fx:controller="net.auctionapp.client.controllers.MyBidsController">
+<BorderPane prefHeight="600.0" prefWidth="900.0" xmlns="http://javafx.com/javafx/25" xmlns:fx="http://javafx.com/fxml/1" fx:controller="net.auctionapp.client.controllers.MyBidsController">
     <top>
-        <HBox alignment="CENTER_LEFT" spacing="12.0" style="-fx-background-color: linear-gradient(to right, #243447 0%, #2f4f69 70%, #3bb3c3 100%);" BorderPane.alignment="CENTER">
-            <padding>
-                <Insets bottom="18.0" left="36.0" right="36.0" top="18.0" />
-            </padding>
+        <HBox alignment="CENTER_LEFT" prefHeight="70.0" prefWidth="900.0" spacing="20.0" style="-fx-background-color: #3bb3d1;" BorderPane.alignment="CENTER">
             <children>
-                <VBox spacing="4.0">
-                    <children>
-                        <Label style="-fx-font-family: 'Bahnschrift SemiBold', 'Segoe UI Semibold', 'Segoe UI', sans-serif; -fx-font-size: 32px; -fx-font-weight: 800; -fx-letter-spacing: 0.6px; -fx-text-fill: white;" text="My Bids" />
-                        <Label style="-fx-font-family: 'Calibri', 'Segoe UI', sans-serif; -fx-font-size: 13px; -fx-font-weight: 500; -fx-text-fill: #b8e7ff;" text="Track your active bids, won auctions, and ended auctions in one place." wrapText="true" />
-                    </children>
-                </VBox>
-                <Region HBox.hgrow="ALWAYS" />
-                <Button mnemonicParsing="false" onAction="#handleRefresh" prefHeight="38.0" prefWidth="38.0" style="-fx-background-color: rgba(255,255,255,0.24); -fx-background-radius: 19px; -fx-cursor: hand;" text="">
-                    <graphic>
-                        <SVGPath content="M9.6 2a7.6 7.6 0 0 1 6.58 3.8L18 4v5.6h-5.6l1.94-1.94A5.6 5.6 0 1 0 15.2 13h2A7.6 7.6 0 1 1 9.6 2z" fill="WHITE" scaleX="1.05" scaleY="1.05" />
-                    </graphic>
-                </Button>
-                <Button mnemonicParsing="false" onAction="#handleBack" style="-fx-background-color: white; -fx-text-fill: #274057; -fx-background-radius: 18px; -fx-padding: 8px 18px; -fx-font-weight: bold; -fx-cursor: hand;" text="Back" />
+                <Label text="My Bids" textFill="WHITE" style="-fx-font-size: 24px; -fx-font-weight: bold;" />
+                <Button mnemonicParsing="false" onAction="#handleBack" prefHeight="35.0" prefWidth="90.0" style="-fx-background-color: white; -fx-text-fill: #3bb3d1; -fx-background-radius: 10; -fx-font-weight: bold;" text="Back" />
+                <TextField fx:id="searchField" onKeyReleased="#handleFilterChanged" prefHeight="35.0" prefWidth="250.0" promptText="Search my bids..." style="-fx-background-radius: 15;" />
+                <ComboBox fx:id="statusFilterComboBox" onAction="#handleFilterChanged" prefHeight="35.0" prefWidth="170.0" promptText="Filter status" style="-fx-background-radius: 10;" />
+                <HBox HBox.hgrow="ALWAYS" />
+                <Button mnemonicParsing="false" onAction="#handleRefresh" prefHeight="35.0" prefWidth="100.0" style="-fx-background-color: white; -fx-text-fill: #3bb3d1; -fx-background-radius: 10; -fx-font-weight: bold;" text="Refresh" />
+                <Button mnemonicParsing="false" onAction="#handleSignOut" prefHeight="35.0" prefWidth="100.0" style="-fx-background-color: white; -fx-text-fill: #3bb3d1; -fx-background-radius: 10; -fx-font-weight: bold;" text="Sign Out" />
             </children>
+            <padding>
+                <Insets bottom="15.0" left="25.0" right="25.0" top="15.0" />
+            </padding>
         </HBox>
     </top>
 
     <center>
-        <VBox spacing="16.0" BorderPane.alignment="CENTER">
-            <padding>
-                <Insets bottom="28.0" left="36.0" right="36.0" top="24.0" />
-            </padding>
-            <children>
-                <HBox spacing="14.0">
-                    <children>
-                        <VBox prefWidth="300.0" spacing="5.0" style="-fx-background-color: white; -fx-padding: 14px; -fx-background-radius: 14px; -fx-border-color: #d5e3f2; -fx-border-radius: 14px;">
-                            <children>
-                                <Label style="-fx-font-family: 'Bahnschrift SemiBold', 'Segoe UI Semibold', 'Segoe UI', sans-serif; -fx-font-size: 11px; -fx-font-weight: 700; -fx-letter-spacing: 0.8px; -fx-text-fill: #596d82;" text="ACTIVE BIDS" />
-                                <Label fx:id="activeLabel" style="-fx-font-family: 'Bahnschrift', 'Segoe UI', sans-serif; -fx-font-size: 28px; -fx-font-weight: 800; -fx-text-fill: #0fa958;" text="0" />
-                            </children>
-                        </VBox>
-                        <VBox prefWidth="300.0" spacing="5.0" style="-fx-background-color: #f6ffff; -fx-padding: 14px; -fx-background-radius: 14px; -fx-border-color: #b9e8ee; -fx-border-radius: 14px;">
-                            <children>
-                                <Label style="-fx-font-family: 'Bahnschrift SemiBold', 'Segoe UI Semibold', 'Segoe UI', sans-serif; -fx-font-size: 11px; -fx-font-weight: 700; -fx-letter-spacing: 0.8px; -fx-text-fill: #596d82;" text="WON AUCTIONS" />
-                                <Label fx:id="wonLabel" style="-fx-font-family: 'Bahnschrift', 'Segoe UI', sans-serif; -fx-font-size: 28px; -fx-font-weight: 800; -fx-text-fill: #00b8d9;" text="0" />
-                            </children>
-                        </VBox>
-                        <VBox prefWidth="300.0" spacing="5.0" style="-fx-background-color: #fff8f7; -fx-padding: 14px; -fx-background-radius: 14px; -fx-border-color: #f2c9c5; -fx-border-radius: 14px;">
-                            <children>
-                                <Label style="-fx-font-family: 'Bahnschrift SemiBold', 'Segoe UI Semibold', 'Segoe UI', sans-serif; -fx-font-size: 11px; -fx-font-weight: 700; -fx-letter-spacing: 0.8px; -fx-text-fill: #596d82;" text="LOST AUCTIONS" />
-                                <Label fx:id="lostLabel" style="-fx-font-family: 'Bahnschrift', 'Segoe UI', sans-serif; -fx-font-size: 28px; -fx-font-weight: 800; -fx-text-fill: #e53935;" text="0" />
-                            </children>
-                        </VBox>
-                    </children>
-                </HBox>
-
-                <Separator />
-
-                <TabPane tabClosingPolicy="UNAVAILABLE" VBox.vgrow="ALWAYS">
-                    <tabs>
-                        <Tab text="Active">
-                            <content>
-                                <TableView fx:id="activeTable" prefHeight="480.0" style="-fx-background-color: white; -fx-border-color: #d7e4ef; -fx-border-radius: 12px;" VBox.vgrow="ALWAYS">
-                                    <columns>
-                                        <TableColumn fx:id="activeAuctionColumn" prefWidth="270.0" text="Auction" />
-                                        <TableColumn fx:id="activeYourBidColumn" prefWidth="140.0" text="Your Bid" />
-                                        <TableColumn fx:id="activeHighestBidColumn" prefWidth="140.0" text="Highest Bid" />
-                                        <TableColumn fx:id="activeCountdownColumn" prefWidth="160.0" text="Countdown" />
-                                        <TableColumn fx:id="activeActionColumn" prefWidth="170.0" text="Action" />
-                                    </columns>
-                                </TableView>
-                            </content>
-                        </Tab>
-                        <Tab text="Won">
-                            <content>
-                                <TableView fx:id="wonTable" prefHeight="480.0" style="-fx-background-color: white; -fx-border-color: #d7e4ef; -fx-border-radius: 12px;" VBox.vgrow="ALWAYS">
-                                    <columns>
-                                        <TableColumn fx:id="wonAuctionColumn" prefWidth="280.0" text="Auction" />
-                                        <TableColumn fx:id="wonBidColumn" prefWidth="140.0" text="Winning Bid" />
-                                        <TableColumn fx:id="wonPaymentColumn" prefWidth="220.0" text="Payment" />
-                                        <TableColumn fx:id="wonDeadlineColumn" prefWidth="170.0" text="Payment Due" />
-                                        <TableColumn fx:id="wonActionColumn" prefWidth="170.0" text="Action" />
-                                    </columns>
-                                </TableView>
-                            </content>
-                        </Tab>
-                        <Tab text="Lost">
-                            <content>
-                                <TableView fx:id="lostTable" prefHeight="480.0" style="-fx-background-color: white; -fx-border-color: #d7e4ef; -fx-border-radius: 12px;" VBox.vgrow="ALWAYS">
-                                    <columns>
-                                        <TableColumn fx:id="lostAuctionColumn" prefWidth="280.0" text="Auction" />
-                                        <TableColumn fx:id="lostYourBidColumn" prefWidth="140.0" text="Your Bid" />
-                                        <TableColumn fx:id="lostFinalPriceColumn" prefWidth="150.0" text="Final Price" />
-                                        <TableColumn fx:id="lostEndTimeColumn" prefWidth="190.0" text="Ended At" />
-                                        <TableColumn fx:id="lostActionColumn" prefWidth="170.0" text="Action" />
-                                    </columns>
-                                </TableView>
-                            </content>
-                        </Tab>
-                    </tabs>
-                </TabPane>
-
-                <Label fx:id="statusLabel" style="-fx-font-family: 'Calibri', 'Segoe UI', sans-serif; -fx-font-size: 12px; -fx-font-weight: 600; -fx-text-fill: #cc8400;" text="Ready." wrapText="true" />
-            </children>
-        </VBox>
+        <ScrollPane fitToWidth="true" style="-fx-background-color: #e9ecef;" BorderPane.alignment="CENTER">
+            <content>
+                <FlowPane fx:id="bidFlowPane" hgap="20.0" style="-fx-padding: 20;" vgap="20.0" />
+            </content>
+        </ScrollPane>
     </center>
+
+    <bottom>
+        <Label fx:id="statusLabel" style="-fx-padding: 8 24 12 24; -fx-text-fill: #3f5569; -fx-font-size: 12px; -fx-font-weight: bold;" text="Ready." />
+    </bottom>
 </BorderPane>
