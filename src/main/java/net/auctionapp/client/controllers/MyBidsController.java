@@ -48,6 +48,14 @@ public class MyBidsController implements Initializable {
     @Override
     public void initialize(URL location, ResourceBundle resources) {
         statusFilterComboBox.getItems().setAll("All", "RUNNING", "WON", "LOST");
+    @FXML
+    private Label statusLabel;
+
+    private final List<BidCard> allUserBids = new ArrayList<>();
+
+    @Override
+    public void initialize(URL location, ResourceBundle resources) {
+        statusFilterComboBox.getItems().setAll("All", "RUNNING", "FINISHED", "OUTBID");
         statusFilterComboBox.getSelectionModel().selectFirst();
         loadMyBids();
         applyFilters();
@@ -89,6 +97,14 @@ public class MyBidsController implements Initializable {
                 .toList());
 
         updateCounters();
+
+        allUserBids.clear();
+        allUserBids.addAll(
+                demoBids.stream()
+                        .filter(bid -> bid.bidderUsername().equalsIgnoreCase(currentUser))
+                        .sorted(Comparator.comparing(BidCard::auctionTitle))
+                        .toList()
+        );
     }
 
     private void applyFilters() {
@@ -99,6 +115,9 @@ public class MyBidsController implements Initializable {
                 .filter(bid -> search.isBlank() || bid.title().toLowerCase(Locale.ROOT).contains(search))
                 .filter(bid -> selectedStatus == null || "All".equals(selectedStatus)
                         || bid.status().equalsIgnoreCase(selectedStatus))
+        List<BidCard> filtered = allUserBids.stream()
+                .filter(bid -> search.isBlank() || bid.auctionTitle().toLowerCase(Locale.ROOT).contains(search))
+                .filter(bid -> selectedStatus == null || "All".equals(selectedStatus) || bid.status().equalsIgnoreCase(selectedStatus))
                 .collect(Collectors.toList());
 
         renderBidCards(filtered);
@@ -182,6 +201,40 @@ public class MyBidsController implements Initializable {
         return "Bid Now";
     }
 
+
+    private VBox createBidCard(BidCard bid) {
+        VBox card = new VBox(8);
+        card.setPrefSize(200, 280);
+        card.setStyle("-fx-background-color: white; -fx-background-radius: 10; "
+                + "-fx-effect: dropshadow(three-pass-box, rgba(0,0,0,0.2), 10, 0, 0, 0); "
+                + "-fx-padding: 10;");
+
+        ImageView imageView = createItemImage(bid.imagePath());
+
+        Label title = new Label(bid.auctionTitle());
+        title.setWrapText(true);
+        title.setStyle("-fx-font-weight: bold; -fx-font-size: 13px;");
+
+        Label yourBid = new Label("Your Bid: " + bid.yourBid());
+        Label highestBid = new Label("Highest Bid: " + bid.highestBid());
+        Label endTime = new Label("End Time: " + bid.endTime());
+        Label status = new Label("Status: " + bid.status());
+        status.setStyle("-fx-text-fill: #c13c21; -fx-font-weight: bold;");
+
+        Button viewButton = new Button("Bid now!");
+        viewButton.setStyle("-fx-background-color: #3bb3d1; -fx-text-fill: white; -fx-background-radius: 5;");
+        viewButton.setOnAction(event -> {
+            statusLabel.setText("Opening auction: " + bid.auctionTitle());
+            SceneNavigator.switchScene("views/AuctionItem.fxml");
+        });
+
+        HBox buttonRow = new HBox(viewButton);
+        buttonRow.setStyle("-fx-alignment: center-right;");
+
+        card.getChildren().addAll(imageView, title, yourBid, highestBid, endTime, status, buttonRow);
+        return card;
+    }
+
     private ImageView createItemImage(String imagePath) {
         ImageView imageView = new ImageView();
         imageView.setFitHeight(150);
@@ -198,6 +251,15 @@ public class MyBidsController implements Initializable {
             imageView.setImage(new Image(url.toExternalForm()));
         }
         return imageView;
+    }
+
+    private List<BidCard> buildDemoBids() {
+        return List.of(
+                new BidCard("admin", "Iphone 17 Pro Max 1TB", "$1,220", "$1,240", "2026-04-14 18:00", "RUNNING", "images/iphone.jpg"),
+                new BidCard("admin", "Gaming Laptop RTX", "$1,410", "$1,425", "2026-04-13 23:00", "OUTBID", "images/iphone.jpg"),
+                new BidCard("admin", "Vintage Camera Collection", "$840", "$840", "2026-04-14 10:00", "RUNNING", "images/iphone.jpg"),
+                new BidCard("bidderA", "Electric Scooter Pro", "$620", "$650", "2026-04-12 20:30", "FINISHED", "images/iphone.jpg")
+        );
     }
 
     private String resolveCurrentUsername() {
@@ -227,5 +289,7 @@ public class MyBidsController implements Initializable {
             String status,
             String imagePath
     ) {
+    private record BidCard(String bidderUsername, String auctionTitle, String yourBid,
+                           String highestBid, String endTime, String status, String imagePath) {
     }
 }
