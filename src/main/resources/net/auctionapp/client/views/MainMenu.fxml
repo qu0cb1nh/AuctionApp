@@ -88,6 +88,7 @@
                            </image>
                         </ImageView>
                      </graphic></Button>
+                        <Button maxWidth="1.7976931348623157E308" mnemonicParsing="false" onAction="#handleNotifications" prefHeight="48.0" style="-fx-background-color: #ffffff; -fx-text-fill: #3bb3c3; -fx-border-color: #3bb3c3; -fx-border-radius: 12px; -fx-background-radius: 12px; -fx-font-size: 16px; -fx-font-weight: bold; -fx-cursor: hand;" text="Notifications" />
 
                         <Label fx:id="statusLabel" style="-fx-font-size: 13px; -fx-text-fill: #666666;" wrapText="true" />
                     </children>
