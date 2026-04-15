@@ -9,7 +9,7 @@
 <?import javafx.scene.layout.VBox?>
 <?import javafx.scene.text.Font?>
 
-<StackPane prefHeight="616.0" prefWidth="881.0" style="-fx-background-color: linear-gradient(to bottom right, #2193b0, #6dd5ed);" xmlns="http://javafx.com/javafx/25" xmlns:fx="http://javafx.com/fxml/1" fx:controller="net.auctionapp.client.controllers.RegisterMenuController">
+<StackPane prefHeight="616.0" prefWidth="881.0" style="-fx-background-color: white ;" xmlns="http://javafx.com/javafx/25" xmlns:fx="http://javafx.com/fxml/1" fx:controller="net.auctionapp.client.controllers.RegisterMenuController">
    <children>
       <VBox alignment="CENTER" maxHeight="480.0" maxWidth="515.0" prefHeight="480.0" prefWidth="515.0" spacing="20.0" style="-fx-background-color: white; -fx-padding: 40; -fx-background-radius: 15; -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.15), 15, 0, 0, 5);">
          <children>
