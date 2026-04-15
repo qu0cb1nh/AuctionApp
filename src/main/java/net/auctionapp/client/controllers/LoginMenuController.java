@@ -1,5 +1,7 @@
 package net.auctionapp.client.controllers;
 
+import javafx.animation.FadeTransition;
+import javafx.animation.PauseTransition;
 import javafx.event.ActionEvent;
 import javafx.fxml.FXML;
 import javafx.fxml.Initializable;
@@ -8,6 +10,7 @@ import javafx.scene.control.Label;
 import javafx.scene.control.PasswordField;
 import javafx.scene.control.TextField;
 import javafx.scene.input.MouseEvent;
+import javafx.util.Duration;
 import net.auctionapp.client.ClientApp;
 import net.auctionapp.client.SceneNavigator;
 import net.auctionapp.common.exceptions.ValidationException;
@@ -25,13 +28,6 @@ public class LoginMenuController implements Initializable {
 
     private Consumer<Message> messageListener;
 
-    @Override
-    public void initialize(URL url, ResourceBundle resourceBundle) {
-        messageListener = this::handleServerMessage;
-        ClientApp.getInstance().addMessageHandler(MessageType.LOGIN_SUCCESS, messageListener);
-        ClientApp.getInstance().addMessageHandler(MessageType.LOGIN_FAILURE, messageListener);
-    }
-
     @FXML
     private Button loginButton;
     @FXML
@@ -40,6 +36,28 @@ public class LoginMenuController implements Initializable {
     private PasswordField passwordField;
     @FXML
     private Label statusLabel;
+    @FXML
+    private Label chatBubble;
+
+    @Override
+    public void initialize(URL url, ResourceBundle resourceBundle) {
+        messageListener = this::handleServerMessage;
+        ClientApp.getInstance().addMessageHandler(MessageType.LOGIN_SUCCESS, messageListener);
+        ClientApp.getInstance().addMessageHandler(MessageType.LOGIN_FAILURE, messageListener);
+    }
+
+    private void assistantSpeak(String message, String color) {
+        chatBubble.setText(message);
+        chatBubble.setStyle(chatBubble.getStyle() + "-fx-text-fill: " + color + ";");
+        chatBubble.setVisible(true);
+        FadeTransition ft = new FadeTransition(Duration.millis(300), chatBubble);
+        ft.setFromValue(0);
+        ft.setToValue(1);
+        ft.play();
+        PauseTransition pause = new PauseTransition(Duration.seconds(3));
+        pause.setOnFinished(e -> chatBubble.setVisible(false));
+        pause.play();
+    }
 
     @FXML
     protected void onLoginButtonClicked(ActionEvent event) {
@@ -50,6 +68,7 @@ public class LoginMenuController implements Initializable {
             CredentialUtil.validateLogin(username, password);
         } catch (ValidationException e) {
             statusLabel.setText(e.getMessage());
+            assistantSpeak("Check your input, please!", "#e67e22");
             return;
         }
 
@@ -61,12 +80,20 @@ public class LoginMenuController implements Initializable {
         if (!(message instanceof LoginResultMessage result)) {
             return;
         }
+
         statusLabel.setText(result.getMessage());
 
         if (message.getType() == MessageType.LOGIN_SUCCESS) {
+            assistantSpeak("Login successfully! Have fun bidding.", "#27ae60");
+
             ClientApp.getInstance().setCurrentUser(result.getUsername(), result.getRole());
             cleanupHandlers();
-            SceneNavigator.switchScene("views/MainMenu.fxml");
+            PauseTransition delay = new PauseTransition(Duration.seconds(1.2));
+            delay.setOnFinished(e -> SceneNavigator.switchScene("views/MainMenu.fxml"));
+            delay.play();
+
+        } else if (message.getType() == MessageType.LOGIN_FAILURE) {
+            assistantSpeak("Wrong username or password. Try again owo", "#e74c3c");
         }
     }
 
