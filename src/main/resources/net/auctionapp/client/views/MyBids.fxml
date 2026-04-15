@@ -10,6 +10,35 @@
 <?import javafx.scene.layout.FlowPane?>
 <?import javafx.scene.layout.HBox?>
 
+<BorderPane prefHeight="720.0" prefWidth="1024.0" style="-fx-background-color: #f2f5f9;"
+            xmlns="http://javafx.com/javafx/25" xmlns:fx="http://javafx.com/fxml/1"
+            fx:controller="net.auctionapp.client.controllers.MyBidsController">
+    <top>
+        <HBox alignment="CENTER_LEFT" spacing="12.0" style="-fx-background-color: #3bb3d1;" BorderPane.alignment="CENTER">
+            <padding>
+                <Insets bottom="15.0" left="25.0" right="25.0" top="15.0" />
+            </padding>
+            <children>
+                <Label style="-fx-font-family: 'System Bold'; -fx-font-size: 24px; -fx-text-fill: white;" text="My Bids" />
+                <Button mnemonicParsing="false" onAction="#handleBack" prefHeight="35.0" prefWidth="90.0"
+                        style="-fx-background-color: white; -fx-text-fill: #3bb3d1; -fx-background-radius: 10; -fx-font-weight: bold;"
+                        text="Back" />
+                <TextField fx:id="searchField" onKeyReleased="#handleFilterChanged" prefHeight="35.0" prefWidth="250.0"
+                           promptText="Search my bids..." style="-fx-background-radius: 15;" />
+                <ComboBox fx:id="statusFilterComboBox" onAction="#handleFilterChanged" prefHeight="35.0" prefWidth="150.0"
+                          promptText="Filter status" style="-fx-background-radius: 10;" />
+                <Region HBox.hgrow="ALWAYS" />
+                <Button mnemonicParsing="false" onAction="#handleRefresh" prefHeight="38.0" prefWidth="38.0"
+                        style="-fx-background-color: rgba(255,255,255,0.24); -fx-background-radius: 19px; -fx-cursor: hand;"
+                        text="">
+                    <graphic>
+                        <SVGPath content="M9.6 2a7.6 7.6 0 0 1 6.58 3.8L18 4v5.6h-5.6l1.94-1.94A5.6 5.6 0 1 0 15.2 13h2A7.6 7.6 0 1 1 9.6 2z"
+                                 fill="WHITE" scaleX="1.05" scaleY="1.05" />
+                    </graphic>
+                </Button>
+                <Button mnemonicParsing="false" onAction="#handleSignOut" prefHeight="35.0" prefWidth="100.0"
+                        style="-fx-background-color: white; -fx-text-fill: #3bb3d1; -fx-background-radius: 10; -fx-font-weight: bold;"
+                        text="Sign Out" />
 <BorderPane prefHeight="600.0" prefWidth="900.0" xmlns="http://javafx.com/javafx/25" xmlns:fx="http://javafx.com/fxml/1" fx:controller="net.auctionapp.client.controllers.MyBidsController">
     <top>
         <HBox alignment="CENTER_LEFT" prefHeight="70.0" prefWidth="900.0" spacing="20.0" style="-fx-background-color: #3bb3d1;" BorderPane.alignment="CENTER">
@@ -29,6 +58,46 @@
     </top>
 
     <center>
+        <VBox spacing="14.0" BorderPane.alignment="CENTER">
+            <padding>
+                <Insets bottom="20.0" left="25.0" right="25.0" top="20.0" />
+            </padding>
+            <children>
+                <HBox spacing="12.0">
+                    <children>
+                        <VBox prefWidth="312.0" spacing="4.0"
+                              style="-fx-background-color: white; -fx-padding: 12px; -fx-background-radius: 12px; -fx-border-color: #d5e3f2; -fx-border-radius: 12px;">
+                            <children>
+                                <Label style="-fx-font-size: 11px; -fx-font-weight: bold; -fx-text-fill: #596d82;" text="RUNNING BIDS" />
+                                <Label fx:id="activeLabel" style="-fx-font-size: 28px; -fx-font-weight: bold; -fx-text-fill: #0fa958;" text="0" />
+                            </children>
+                        </VBox>
+                        <VBox prefWidth="312.0" spacing="4.0"
+                              style="-fx-background-color: #f6ffff; -fx-padding: 12px; -fx-background-radius: 12px; -fx-border-color: #b9e8ee; -fx-border-radius: 12px;">
+                            <children>
+                                <Label style="-fx-font-size: 11px; -fx-font-weight: bold; -fx-text-fill: #596d82;" text="WON BIDS" />
+                                <Label fx:id="wonLabel" style="-fx-font-size: 28px; -fx-font-weight: bold; -fx-text-fill: #00b8d9;" text="0" />
+                            </children>
+                        </VBox>
+                        <VBox prefWidth="312.0" spacing="4.0"
+                              style="-fx-background-color: #fff8f7; -fx-padding: 12px; -fx-background-radius: 12px; -fx-border-color: #f2c9c5; -fx-border-radius: 12px;">
+                            <children>
+                                <Label style="-fx-font-size: 11px; -fx-font-weight: bold; -fx-text-fill: #596d82;" text="LOST BIDS" />
+                                <Label fx:id="lostLabel" style="-fx-font-size: 28px; -fx-font-weight: bold; -fx-text-fill: #e53935;" text="0" />
+                            </children>
+                        </VBox>
+                    </children>
+                </HBox>
+
+                <ScrollPane fitToWidth="true" style="-fx-background-color: #e9ecef; -fx-background-insets: 0;" VBox.vgrow="ALWAYS">
+                    <content>
+                        <FlowPane fx:id="bidFlowPane" hgap="20.0" style="-fx-padding: 20;" vgap="20.0" />
+                    </content>
+                </ScrollPane>
+
+                <Label fx:id="statusLabel" style="-fx-font-size: 12px; -fx-font-weight: bold; -fx-text-fill: #cc8400;" text="Ready." wrapText="true" />
+            </children>
+        </VBox>
         <ScrollPane fitToWidth="true" style="-fx-background-color: #e9ecef;" BorderPane.alignment="CENTER">
             <content>
                 <FlowPane fx:id="bidFlowPane" hgap="20.0" style="-fx-padding: 20;" vgap="20.0" />

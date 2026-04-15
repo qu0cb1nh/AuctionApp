@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.geometry.Insets?>
+<?import javafx.scene.control.Button?>
+<?import javafx.scene.control.ComboBox?>
+<?import javafx.scene.control.Label?>
+<?import javafx.scene.control.ScrollPane?>
+<?import javafx.scene.control.TextField?>
+<?import javafx.scene.layout.BorderPane?>
+<?import javafx.scene.layout.FlowPane?>
+<?import javafx.scene.layout.HBox?>
+
+<BorderPane prefHeight="600.0" prefWidth="900.0" xmlns="http://javafx.com/javafx/25" xmlns:fx="http://javafx.com/fxml/1" fx:controller="net.auctionapp.client.controllers.MyListingsController">
+    <top>
+        <HBox alignment="CENTER_LEFT" prefHeight="70.0" prefWidth="900.0" spacing="20.0" style="-fx-background-color: #3bb3d1;" BorderPane.alignment="CENTER">
+            <children>
+                <Label text="My Listings" textFill="WHITE" style="-fx-font-size: 24px; -fx-font-weight: bold;" />
+                <Button mnemonicParsing="false" onAction="#handleBack" prefHeight="35.0" prefWidth="90.0" style="-fx-background-color: white; -fx-text-fill: #3bb3d1; -fx-background-radius: 10; -fx-font-weight: bold;" text="Back" />
+                <TextField fx:id="searchField" onKeyReleased="#handleFilterChanged" prefHeight="35.0" prefWidth="250.0" promptText="Search my listings" style="-fx-background-radius: 15;" />
+                <ComboBox fx:id="statusFilterComboBox" onAction="#handleFilterChanged" prefHeight="35.0" prefWidth="170.0" promptText="Filter status" style="-fx-background-radius: 10;" />
+                <HBox HBox.hgrow="ALWAYS" />
+                <Button mnemonicParsing="false" onAction="#handleRefresh" prefHeight="35.0" prefWidth="100.0" style="-fx-background-color: white; -fx-text-fill: #3bb3d1; -fx-background-radius: 10; -fx-font-weight: bold;" text="Refresh" />
+                <Button mnemonicParsing="false" onAction="#handleSignOut" prefHeight="35.0" prefWidth="100.0" style="-fx-background-color: white; -fx-text-fill: #3bb3d1; -fx-background-radius: 10; -fx-font-weight: bold;" text="Sign Out" />
+            </children>
+            <padding>
+                <Insets bottom="15.0" left="25.0" right="25.0" top="15.0" />
+            </padding>
+        </HBox>
+    </top>
+
+    <center>
+        <ScrollPane fitToWidth="true" style="-fx-background-color: #e9ecef;" BorderPane.alignment="CENTER">
+            <content>
+                <FlowPane fx:id="listingFlowPane" hgap="20.0" style="-fx-padding: 20;" vgap="20.0" />
+            </content>
+        </ScrollPane>
+    </center>
+
+    <bottom>
+        <Label fx:id="statusLabel" style="-fx-padding: 8 24 12 24; -fx-text-fill: #3f5569; -fx-font-size: 12px; -fx-font-weight: bold;" text="Ready." />
+    </bottom>
+</BorderPane>
+

@@ -49,7 +49,7 @@ public class MainMenuController implements Initializable {
 
     @FXML
     public void handleMyListings(ActionEvent event) {
-        statusLabel.setText("My Listings screen is not available yet.");
+        SceneNavigator.switchScene("views/MyListings.fxml");
     }
 
     @FXML
