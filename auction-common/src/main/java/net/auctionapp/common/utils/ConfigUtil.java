@@ -9,8 +9,8 @@ public final class ConfigUtil {
 
     private ConfigUtil() { }
 
-    private static final Properties properties = new Properties();
-    private static final Dotenv dotenv;
+    private static final Properties PROPERTIES = new Properties();
+    private static final Dotenv DOTENV;
 
     static {
         // Load dotenv with explicit directory
@@ -23,14 +23,14 @@ public final class ConfigUtil {
         } catch (Exception e) {
             System.err.println("DEBUG: Failed to load .env: " + e.getMessage());
         }
-        dotenv = tempDotenv;
+        DOTENV = tempDotenv;
         
         // Load application.properties
         try (InputStream input = ConfigUtil.class.getClassLoader().getResourceAsStream("application.properties")) {
             if (input == null) {
                 System.out.println("application.properties was not found on the classpath.");
             } else {
-                properties.load(input);
+                PROPERTIES.load(input);
             }
         } catch (Exception e) {
             System.err.println("DEBUG: Failed to load application.properties: " + e.getMessage());
@@ -38,12 +38,12 @@ public final class ConfigUtil {
     }
 
     public static int getServerPort() {
-        String portStr = properties.getProperty("server.port", "5000");
+        String portStr = PROPERTIES.getProperty("server.port", "5000");
         return Integer.parseInt(portStr);
     }
 
     public static String getServerHost() {
-        return properties.getProperty("server.host", "localhost");
+        return PROPERTIES.getProperty("server.host", "localhost");
     }
 
     public static String getDatabaseUrl() {
@@ -64,7 +64,7 @@ public final class ConfigUtil {
             return envValue.trim();
         }
 
-        String dotenvValue = dotenv.get(envKey);
+        String dotenvValue = DOTENV.get(envKey);
         if (dotenvValue != null && !dotenvValue.trim().isEmpty()) {
             return dotenvValue.trim();
         }

@@ -22,7 +22,7 @@ import java.util.Locale;
 import java.util.Optional;
 
 public class AuthManager {
-    private static final Logger logger = LoggerFactory.getLogger(AuthManager.class);
+    private static final Logger LOGGER = LoggerFactory.getLogger(AuthManager.class);
     private static final AuthManager INSTANCE = new AuthManager();
 
     private volatile UserDao userDao;
@@ -75,10 +75,10 @@ public class AuthManager {
             clientHandler.authenticate(user.getId(), clientRole);
             sessionManager.bindSession(user.getId(), user.getUsername(), clientRole, clientHandler);
             clientHandler.sendMessage(JsonUtil.toJson(success));
-            logger.info("User '{}' logged in successfully.", user.getUsername());
+            LOGGER.info("User '{}' logged in successfully.", user.getUsername());
         } catch (DatabaseException e) {
             sendLoginFailure(clientHandler, "Cannot connect to authentication database.");
-            logger.error("Login query failed for user '{}': {}", normalizedUsername, e.getMessage(), e);
+            LOGGER.error("Login query failed for user '{}': {}", normalizedUsername, e.getMessage(), e);
         }
     }
 
@@ -121,10 +121,10 @@ public class AuthManager {
                     "Registration successful. Redirecting..."
             );
             clientHandler.sendMessage(JsonUtil.toJson(success));
-            logger.info("New user '{}' registered successfully.", username);
+            LOGGER.info("New user '{}' registered successfully.", username);
         } catch (DatabaseException e) {
             sendRegisterFailure(clientHandler, "Registration failed due to a database error.");
-            logger.error("Registration query failed for user '{}': {}", username, e.getMessage(), e);
+            LOGGER.error("Registration query failed for user '{}': {}", username, e.getMessage(), e);
         }
     }
 

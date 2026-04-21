@@ -8,13 +8,13 @@ import java.sql.Connection;
 import java.sql.SQLException;
 
 public class DatabaseManager {
-    private static final DatabaseManager instance = new DatabaseManager();
+    private static final DatabaseManager INSTANCE = new DatabaseManager();
     private HikariDataSource dataSource;
 
     private DatabaseManager() { }
 
     public static DatabaseManager getInstance() {
-        return instance;
+        return INSTANCE;
     }
 
     public synchronized void createConnectionPool() { // synchronized in case multithreaded server
