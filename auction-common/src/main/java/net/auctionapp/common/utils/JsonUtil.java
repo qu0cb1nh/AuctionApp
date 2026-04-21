@@ -23,15 +23,15 @@ public final class JsonUtil {
 
     private JsonUtil() { }
 
-    private static final Gson gson = new Gson();
+    private static final Gson GSON = new Gson();
 
     public static String toJson(Object object) {
-        return gson.toJson(object);
+        return GSON.toJson(object);
     }
 
     public static Message fromJson(String json) {
         try {
-            JsonObject jsonObject = gson.fromJson(json, JsonObject.class);
+            JsonObject jsonObject = GSON.fromJson(json, JsonObject.class);
 
             if (jsonObject == null || !jsonObject.has("type")) {
                 System.err.println("Invalid JSON or missing 'type' field: " + json);
@@ -43,36 +43,36 @@ public final class JsonUtil {
 
             switch (type) {
                 case LOGIN_REQUEST:
-                    return gson.fromJson(json, LoginRequestMessage.class);
+                    return GSON.fromJson(json, LoginRequestMessage.class);
                 case REGISTER_REQUEST:
-                    return gson.fromJson(json, RegisterRequestMessage.class);
+                    return GSON.fromJson(json, RegisterRequestMessage.class);
                 case GET_AUCTION_LIST_REQUEST:
-                    return gson.fromJson(json, GetAuctionListRequestMessage.class);
+                    return GSON.fromJson(json, GetAuctionListRequestMessage.class);
                 case GET_AUCTION_DETAILS_REQUEST:
-                    return gson.fromJson(json, GetAuctionDetailsRequestMessage.class);
+                    return GSON.fromJson(json, GetAuctionDetailsRequestMessage.class);
                 case CREATE_ITEM_REQUEST:
-                    return gson.fromJson(json, CreateItemRequestMessage.class);
+                    return GSON.fromJson(json, CreateItemRequestMessage.class);
                 case LOGIN_SUCCESS:
                 case LOGIN_FAILURE:
-                    return gson.fromJson(json, LoginResultMessage.class);
+                    return GSON.fromJson(json, LoginResultMessage.class);
                 case REGISTER_SUCCESS:
                 case REGISTER_FAILURE:
-                    return gson.fromJson(json, RegisterResultMessage.class);
+                    return GSON.fromJson(json, RegisterResultMessage.class);
                 case AUCTION_LIST_RESPONSE:
-                    return gson.fromJson(json, AuctionListResponseMessage.class);
+                    return GSON.fromJson(json, AuctionListResponseMessage.class);
                 case AUCTION_DETAILS_RESPONSE:
-                    return gson.fromJson(json, AuctionDetailsResponseMessage.class);
+                    return GSON.fromJson(json, AuctionDetailsResponseMessage.class);
                 case BID_REQUEST:
-                    return gson.fromJson(json, BidRequestMessage.class);
+                    return GSON.fromJson(json, BidRequestMessage.class);
                 case BID_ACCEPTED:
                 case BID_REJECTED:
-                    return gson.fromJson(json, BidResultMessage.class);
+                    return GSON.fromJson(json, BidResultMessage.class);
                 case PRICE_UPDATE:
-                    return gson.fromJson(json, PriceUpdateMessage.class);
+                    return GSON.fromJson(json, PriceUpdateMessage.class);
                 case AUCTION_ENDED:
-                    return gson.fromJson(json, AuctionEndedMessage.class);
+                    return GSON.fromJson(json, AuctionEndedMessage.class);
                 case ERROR:
-                    return gson.fromJson(json, ErrorMessage.class);
+                    return GSON.fromJson(json, ErrorMessage.class);
                 default:
                     System.err.println("Unhandled message type: " + type);
                     return null;

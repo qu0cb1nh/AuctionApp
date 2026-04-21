@@ -18,7 +18,7 @@ import java.net.Socket;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 public class ClientHandler implements Runnable {
-    private static final Logger logger = LoggerFactory.getLogger(ClientHandler.class);
+    private static final Logger LOGGER = LoggerFactory.getLogger(ClientHandler.class);
     private final Socket socket;
     private PrintWriter out;
     private BufferedReader in;
@@ -41,27 +41,27 @@ public class ClientHandler implements Runnable {
         try {
             in = new BufferedReader(new InputStreamReader(socket.getInputStream()));
             out = new PrintWriter(socket.getOutputStream(), true);
-            logger.info("Client connected from {}", socket.getInetAddress());
+            LOGGER.info("Client connected from {}", socket.getInetAddress());
 
             String jsonString;
             while ((jsonString = in.readLine()) != null) {
-                logger.debug("Received from {}: {}", socket.getInetAddress(), jsonString);
+                LOGGER.debug("Received from {}: {}", socket.getInetAddress(), jsonString);
 
                 try {
                     Message message = JsonUtil.fromJson(jsonString);
                     if (message == null) {
-                        logger.warn("Received null message after JSON deserialization from {}", socket.getInetAddress());
+                        LOGGER.warn("Received null message after JSON deserialization from {}", socket.getInetAddress());
                         continue;
                     }
 
                     handleMessagesFromClient(message);
                 } catch (Exception e) {
-                    logger.error("Error processing message from {}: {}", socket.getInetAddress(), jsonString, e);
+                    LOGGER.error("Error processing message from {}: {}", socket.getInetAddress(), jsonString, e);
                     sendMessage(JsonUtil.toJson(new ErrorMessage("Error processing your request: " + e.getMessage())));
                 }
             }
         } catch (IOException e) {
-            logger.info("Client at {} disconnected.", socket.getInetAddress());
+            LOGGER.info("Client at {} disconnected.", socket.getInetAddress());
         } finally {
             closeConnection();
         }
@@ -71,11 +71,11 @@ public class ClientHandler implements Runnable {
         if (!closed.compareAndSet(false, true)) {
             return;
         }
-        logger.info("Closing connection for client {}", socket.getInetAddress());
+        LOGGER.info("Closing connection for client {}", socket.getInetAddress());
         try {
             socket.close();
         } catch (IOException e) {
-            logger.warn("Error while closing socket for {}: {}", socket.getInetAddress(), e.getMessage());
+            LOGGER.warn("Error while closing socket for {}: {}", socket.getInetAddress(), e.getMessage());
         } finally {
             sessionManager.unbindSession(this);
             ServerApp.unregisterClient(this);
@@ -84,18 +84,18 @@ public class ClientHandler implements Runnable {
 
     public boolean sendMessage(String jsonMessage) {
         if (closed.get() || out == null || socket.isClosed()) {
-            logger.warn("Attempted to send message to a closed client {}.", socket.getInetAddress());
+            LOGGER.warn("Attempted to send message to a closed client {}.", socket.getInetAddress());
             closeConnection();
             return false;
         }
 
         out.println(jsonMessage);
         if (out.checkError()) {
-            logger.error("PrintWriter error for client {}. Closing connection.", socket.getInetAddress());
+            LOGGER.error("PrintWriter error for client {}. Closing connection.", socket.getInetAddress());
             closeConnection();
             return false;
         }
-        logger.debug("Sent to {}: {}", socket.getInetAddress(), jsonMessage);
+        LOGGER.debug("Sent to {}: {}", socket.getInetAddress(), jsonMessage);
         return true;
     }
 
@@ -136,7 +136,7 @@ public class ClientHandler implements Runnable {
                 auctionManager.handleBidRequest((BidRequestMessage) message, this);
                 break;
             default:
-                logger.warn("Received unsupported message type: {} from {}", message.getType(), socket.getInetAddress());
+                LOGGER.warn("Received unsupported message type: {} from {}", message.getType(), socket.getInetAddress());
                 sendMessage(JsonUtil.toJson(new ErrorMessage("Unsupported message type.")));
                 break;
         }

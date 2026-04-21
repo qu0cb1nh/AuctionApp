@@ -14,7 +14,7 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 
 public final class SceneNavigator {
-    private static final ScheduledExecutorService scheduler = Executors.newSingleThreadScheduledExecutor(r -> {
+    private static final ScheduledExecutorService SCHEDULER = Executors.newSingleThreadScheduledExecutor(r -> {
         Thread t = new Thread(r, "SceneNavigator-Scheduler");
         t.setDaemon(true);
         return t;
@@ -48,7 +48,7 @@ public final class SceneNavigator {
 
     public static void switchSceneWithDelay(String fxmlPath, long delayMillis) {
         Objects.requireNonNull(fxmlPath, "fxmlPath");
-        scheduler.schedule(
+        SCHEDULER.schedule(
                 () -> Platform.runLater(() -> switchScene(fxmlPath)),
                 delayMillis,
                 TimeUnit.MILLISECONDS
