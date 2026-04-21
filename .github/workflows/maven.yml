@@ -58,8 +58,8 @@ jobs:
         with:
           name: auctionapp-jars
           path: |
-            target/AuctionApp-*-Client.jar
-            target/AuctionApp-*-Server.jar
+            auction-client/target/AuctionApp-*-Client.jar
+            auction-server/target/AuctionApp-*-Server.jar
           if-no-files-found: error
 
   release:

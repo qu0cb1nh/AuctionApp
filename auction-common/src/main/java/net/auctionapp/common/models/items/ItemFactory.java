@@ -1,7 +1,7 @@
 package net.auctionapp.common.models.items;
 
+import net.auctionapp.common.exceptions.ValidationException;
 import net.auctionapp.common.messages.types.CreateItemRequestMessage;
-import net.auctionapp.server.exceptions.ValidationException;
 
 import java.math.BigDecimal;
 
