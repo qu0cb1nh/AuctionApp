@@ -1,16 +1,12 @@
 package net.auctionapp.client.controllers;
 
-import javafx.animation.FadeTransition;
-import javafx.animation.PauseTransition;
 import javafx.event.ActionEvent;
 import javafx.fxml.FXML;
 import javafx.fxml.Initializable;
 import javafx.scene.control.Button;
-import javafx.scene.control.Label;
 import javafx.scene.control.PasswordField;
 import javafx.scene.control.TextField;
 import javafx.scene.input.MouseEvent;
-import javafx.util.Duration;
 import net.auctionapp.client.ClientApp;
 import net.auctionapp.client.SceneNavigator;
 import net.auctionapp.common.exceptions.ValidationException;
@@ -35,23 +31,13 @@ public class LoginMenuController implements Initializable {
     @FXML
     private PasswordField passwordField;
     @FXML
-    private Label chatBubble;
+    private AssistantPanelController assistantPanelController;
 
     @Override
     public void initialize(URL url, ResourceBundle resourceBundle) {
         messageListener = this::handleServerMessage;
         ClientApp.getInstance().addMessageHandler(MessageType.LOGIN_SUCCESS, messageListener);
         ClientApp.getInstance().addMessageHandler(MessageType.LOGIN_FAILURE, messageListener);
-    }
-
-    private void assistantSpeak(String message, String color) {
-        chatBubble.setText(message);
-        chatBubble.setStyle(chatBubble.getStyle() + "-fx-text-fill: " + color + ";");
-        chatBubble.setVisible(true);
-        FadeTransition ft = new FadeTransition(Duration.millis(300), chatBubble);
-        ft.setFromValue(0);
-        ft.setToValue(1);
-        ft.play();
     }
 
     @FXML
@@ -62,7 +48,7 @@ public class LoginMenuController implements Initializable {
         try {
             CredentialUtil.validateLogin(username, password);
         } catch (ValidationException e) {
-            assistantSpeak(e.getMessage(), "#e67e22");
+            assistantPanelController.speak(e.getMessage(), "#e67e22");
             return;
         }
 
@@ -75,14 +61,14 @@ public class LoginMenuController implements Initializable {
         }
 
         if (message.getType() == MessageType.LOGIN_SUCCESS) {
-            assistantSpeak(result.getMessage(), "#27ae60");
+            assistantPanelController.speak(result.getMessage(), "#27ae60");
 
             ClientApp.getInstance().setCurrentUser(result.getUsername(), result.getRole());
             cleanupHandlers();
             SceneNavigator.switchSceneWithDelay("views/MainMenu.fxml", 1500);
 
         } else if (message.getType() == MessageType.LOGIN_FAILURE) {
-            assistantSpeak(result.getMessage(), "#e74c3c");
+            assistantPanelController.speak(result.getMessage(), "#e74c3c");
         }
     }
 

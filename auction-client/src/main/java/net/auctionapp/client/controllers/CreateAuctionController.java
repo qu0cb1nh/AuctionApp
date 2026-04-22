@@ -32,6 +32,8 @@ public class CreateAuctionController implements Initializable {
     private static final DateTimeFormatter TIME_FORMATTER = DateTimeFormatter.ofPattern("HH:mm");
 
     @FXML
+    private HeaderController appHeaderController;
+    @FXML
     private TextField itemNameField;
     @FXML
     private ComboBox<ItemType> categoryComboBox;
@@ -53,6 +55,8 @@ public class CreateAuctionController implements Initializable {
 
     @Override
     public void initialize(URL location, ResourceBundle resources) {
+        appHeaderController.setupHeader("Create Auction", true, "views/MainMenu.fxml");
+
         categoryComboBox.setItems(FXCollections.observableArrayList(ItemType.values()));
         categoryComboBox.getSelectionModel().select(ItemType.ELECTRONICS);
 
@@ -213,4 +217,3 @@ public class CreateAuctionController implements Initializable {
         }
     }
 }
-

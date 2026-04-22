@@ -3,7 +3,6 @@ package net.auctionapp.client.controllers;
 import javafx.fxml.FXML;
 import javafx.fxml.Initializable;
 import javafx.scene.control.Button;
-import javafx.scene.control.Label;
 import javafx.scene.control.PasswordField;
 import javafx.scene.control.TextField;
 import javafx.scene.input.MouseEvent;
@@ -38,7 +37,7 @@ public class RegisterMenuController implements Initializable {
     private Button registerButton;
 
     @FXML
-    private Label statusLabel;
+    private AssistantPanelController assistantPanelController;
 
     @Override
     public void initialize(URL url, ResourceBundle resourceBundle) {
@@ -57,11 +56,9 @@ public class RegisterMenuController implements Initializable {
         try {
             CredentialUtil.validateRegistration(username, password, confirmPassword);
         } catch (ValidationException e) {
-            statusLabel.setText(e.getMessage());
+            assistantPanelController.speak(e.getMessage(), "#e67e22");
             return;
         }
-
-        statusLabel.setText("Registering account...");
         ClientApp.getInstance().getNetworkService().sendMessage(new RegisterRequestMessage(username, password));
     }
 
@@ -69,11 +66,13 @@ public class RegisterMenuController implements Initializable {
         if (!(message instanceof RegisterResultMessage result)) {
             return;
         }
-        statusLabel.setText(result.getMessage());
 
         if (message.getType() == MessageType.REGISTER_SUCCESS) {
+            assistantPanelController.speak(result.getMessage(), "#27ae60");
             cleanupHandlers();
             SceneNavigator.switchSceneWithDelay("views/LoginMenu.fxml", 1500);
+        } else if (message.getType() == MessageType.REGISTER_FAILURE) {
+            assistantPanelController.speak(result.getMessage(), "#e74c3c");
         }
     }
 

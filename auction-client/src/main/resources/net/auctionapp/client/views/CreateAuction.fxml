@@ -19,16 +19,7 @@
 <BorderPane prefHeight="768.0" prefWidth="1024.0" style="-fx-background-color: #f4f4f4;" xmlns="http://javafx.com/javafx/25" xmlns:fx="http://javafx.com/fxml/1" fx:controller="net.auctionapp.client.controllers.CreateAuctionController">
 
     <top>
-        <HBox alignment="CENTER_LEFT" prefHeight="60.0" prefWidth="1024.0" style="-fx-background-color: #3bb3c3;" BorderPane.alignment="CENTER">
-            <padding>
-                <Insets bottom="20.0" left="40.0" right="40.0" top="20.0" />
-            </padding>
-            <children>
-                <Label style="-fx-font-size: 28px; -fx-font-weight: bold; -fx-text-fill: white;" text="Create Auction" />
-                <Region HBox.hgrow="ALWAYS" />
-                <Button mnemonicParsing="false" onAction="#handleBack" style="-fx-background-color: white; -fx-text-fill: #3bb3c3; -fx-background-radius: 20px; -fx-padding: 8px 25px; -fx-font-weight: bold; -fx-cursor: hand;" text="Back" />
-            </children>
-        </HBox>
+        <fx:include fx:id="appHeader" source="Header.fxml" />
     </top>
 
     <center>
