@@ -13,6 +13,8 @@ import java.util.ResourceBundle;
 
 public class MainMenuController implements Initializable {
     @FXML
+    private HeaderController appHeaderController;
+    @FXML
     private Label usernameLabel;
     @FXML
     private Label roleLabel;
@@ -23,6 +25,8 @@ public class MainMenuController implements Initializable {
 
     @Override
     public void initialize(URL location, ResourceBundle resources) {
+        appHeaderController.setupHeader("Auction Dashboard", false, null);
+
         String username = ClientApp.getInstance() != null ? ClientApp.getInstance().getCurrentUsername() : null;
         String role = ClientApp.getInstance() != null ? ClientApp.getInstance().getCurrentRole() : null;
 

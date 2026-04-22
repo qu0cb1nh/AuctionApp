@@ -11,20 +11,15 @@
 <?import javafx.scene.text.Font?>
 
 <VBox prefHeight="673.0" prefWidth="563.0" spacing="18" style="-fx-background-color: #f4fbff;" xmlns="http://javafx.com/javafx/25" xmlns:fx="http://javafx.com/fxml/1" fx:controller="net.auctionapp.client.controllers.NotificationsController">
-
-    <!-- HEADER -->
-    <HBox alignment="CENTER_LEFT" spacing="10.0" style="-fx-background-color: #3bb3d1; -fx-padding: 14 18;">
-
-        <Label style="-fx-text-fill: white; -fx-font-size: 20; -fx-font-weight: bold;" text="Notifications" />
-
-        <Region HBox.hgrow="ALWAYS" />
-
-        <Button fx:id="clearAllButton" mnemonicParsing="false" onAction="#handleClearAll" style="-fx-background-color: white; -fx-text-fill: #3bb3d1; -fx-background-radius: 20; -fx-padding: 6 14; -fx-font-weight: bold; -fx-cursor: hand;" text="Clear All" />
-        <Button fx:id="backButton" mnemonicParsing="false" onAction="#handleBack" prefHeight="30.0" prefWidth="78.0" style="-fx-background-color: white; -fx-text-fill: #3bb3d1; -fx-background-radius: 20; -fx-padding: 6 14; -fx-font-weight: bold; -fx-cursor: hand;" text="Back" />
-    </HBox>
+    <fx:include fx:id="appHeader" source="Header.fxml" />
 
           <!-- FILTER (TAB STYLE) -->
     <VBox spacing="5" style="-fx-padding: 0 18;">
+
+              <HBox alignment="CENTER_LEFT" spacing="25">
+                  <Button fx:id="clearAllButton" mnemonicParsing="false" onAction="#handleClearAll" style="-fx-background-color: white; -fx-text-fill: #3bb3d1; -fx-border-color: #3bb3d1; -fx-border-radius: 20; -fx-background-radius: 20; -fx-padding: 6 14; -fx-font-weight: bold; -fx-cursor: hand;" text="Clear All" />
+                  <Region HBox.hgrow="ALWAYS" />
+              </HBox>
 
               <HBox alignment="CENTER_LEFT" spacing="25">
 

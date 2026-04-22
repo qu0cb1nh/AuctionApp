@@ -8,7 +8,6 @@ import javafx.scene.control.Label;
 import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.Region;
 import javafx.scene.layout.VBox;
-import net.auctionapp.client.SceneNavigator;
 
 import java.net.URL;
 import java.util.ResourceBundle;
@@ -26,9 +25,8 @@ public class NotificationsController implements Initializable {
 
     @FXML
     private Button clearAllButton;
-
     @FXML
-    private Button backButton;
+    private HeaderController appHeaderController;
 
     @FXML
     private VBox notificationCardsContainer;
@@ -63,6 +61,8 @@ public class NotificationsController implements Initializable {
 
     @Override
     public void initialize(URL location, ResourceBundle resources) {
+        appHeaderController.setupHeader("Notifications", true, "views/MainMenu.fxml");
+
         filterLabels = new Label[]{
                 filterLabelAll, filterLabelBids, filterLabelMyAuctions, filterLabelSystem, filterLabelResults
         };
@@ -71,11 +71,6 @@ public class NotificationsController implements Initializable {
                 filterUnderlineResults
         };
         setActiveFilter(0, "All");
-    }
-
-    @FXML
-    public void handleBack(ActionEvent event) {
-        SceneNavigator.switchScene("views/MainMenu.fxml");
     }
 
     @FXML

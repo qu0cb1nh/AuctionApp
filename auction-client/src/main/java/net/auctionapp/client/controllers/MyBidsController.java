@@ -25,6 +25,8 @@ import java.util.stream.Collectors;
 
 public class MyBidsController implements Initializable {
     @FXML
+    private HeaderController appHeaderController;
+    @FXML
     private FlowPane bidFlowPane;
     @FXML
     private TextField searchField;
@@ -37,6 +39,8 @@ public class MyBidsController implements Initializable {
 
     @Override
     public void initialize(URL location, ResourceBundle resources) {
+        appHeaderController.setupHeader("My Bids", true, "views/MainMenu.fxml");
+
         statusFilterComboBox.getItems().setAll("All", "RUNNING", "FINISHED", "OUTBID");
         statusFilterComboBox.getSelectionModel().selectFirst();
         loadMyBids();

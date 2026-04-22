@@ -18,6 +18,8 @@ import java.util.ResourceBundle;
 
 public class SettingsController implements Initializable {
     @FXML
+    private HeaderController appHeaderController;
+    @FXML
     private TextField displayNameField;
     @FXML
     private ComboBox<String> currencyComboBox;
@@ -32,6 +34,8 @@ public class SettingsController implements Initializable {
 
     @Override
     public void initialize(URL location, ResourceBundle resources) {
+        appHeaderController.setupHeader("Settings", true, "views/MainMenu.fxml");
+
         currencyComboBox.setItems(FXCollections.observableArrayList("USD", "VND", "EUR"));
         themeComboBox.setItems(FXCollections.observableArrayList("Ocean", "Light", "Dark"));
         autoRefreshSpinner.setValueFactory(new SpinnerValueFactory.IntegerSpinnerValueFactory(5, 120, 15, 5));
