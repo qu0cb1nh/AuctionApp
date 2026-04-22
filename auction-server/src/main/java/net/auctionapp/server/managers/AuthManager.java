@@ -54,7 +54,7 @@ public class AuthManager {
         try {
             Optional<User> storedUser = requireUserDao().findByUsername(normalizedUsername);
             if (storedUser.isEmpty()) {
-                sendLoginFailure(clientHandler, "Wrong username.");
+                sendLoginFailure(clientHandler, "Username not found.");
                 return;
             }
 

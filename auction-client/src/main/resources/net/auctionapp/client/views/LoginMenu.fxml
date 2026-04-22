@@ -13,61 +13,77 @@
 
 <StackPane prefHeight="616.0" prefWidth="881.0" style="-fx-background-color: white;" xmlns="http://javafx.com/javafx/25" xmlns:fx="http://javafx.com/fxml/1" fx:controller="net.auctionapp.client.controllers.LoginMenuController">
    <children>
+      <VBox alignment="BOTTOM_RIGHT" fillWidth="false" maxHeight="-Infinity" maxWidth="-Infinity" prefHeight="616.0" prefWidth="881.0">
+         <children>
+      
+                                                            <Label fx:id="chatBubble" alignment="CENTER" maxWidth="226.0" prefHeight="69.0" prefWidth="196.0" style="-fx-background-color: white; -fx-background-radius: 15; -fx-padding: 10; -fx-effect: dropshadow(three-pass-box, rgba(0,0,0,0.1), 10, 0, 0, 0); -fx-border-color: #eeeeee; -fx-border-radius: 15;" visible="false" wrapText="true">
+               <VBox.margin>
+                  <Insets bottom="10.0" right="13.0" />
+               </VBox.margin>
+               <font>
+                  <Font size="15.0" />
+               </font>
+            </Label>
+      
+                                                                  <ImageView fx:id="animeAssistant" fitHeight="218.0" fitWidth="224.0" pickOnBounds="true" preserveRatio="true">
+               <image>
+                  <Image url="@images/reiplush.png" />
+               </image>
+               <VBox.margin>
+                  <Insets />
+               </VBox.margin>
+            </ImageView>
+         </children>
+         <padding>
+            <Insets bottom="15.0" />
+         </padding>
+      </VBox>
 
-      <VBox alignment="CENTER" maxHeight="340.0" maxWidth="370.0" prefHeight="340.0" prefWidth="370.0" spacing="12.0" style="-fx-background-color: white; -fx-padding: 25; -fx-background-radius: 15; -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.07), 15, 0, 0, 5);">
+                  <VBox alignment="CENTER" maxHeight="421.0" maxWidth="340.0" prefHeight="421.0" prefWidth="340.0" spacing="18.0">
          <children>
             <Label alignment="CENTER" text="Login">
                <font>
-                  <Font name="System Bold" size="26.0" />
+                  <Font name="System Bold" size="30.0" />
                </font>
                <VBox.margin>
-                  <Insets bottom="5.0" />
+                  <Insets bottom="20.0" />
                </VBox.margin>
             </Label>
 
-            <TextField fx:id="usernameField" prefHeight="38.0" promptText="Username" style="-fx-background-radius: 8; -fx-border-radius: 8; -fx-border-color: #eeeeee; -fx-font-size: 13px;" />
+                        <TextField fx:id="usernameField" prefHeight="38.0" prefWidth="299.0" promptText="Username" style="-fx-background-radius: 8; -fx-border-radius: 8; -fx-border-color: #eeeeee;">
+               <font>
+                  <Font size="14.0" />
+               </font>
+            </TextField>
 
-            <PasswordField fx:id="passwordField" prefHeight="38.0" promptText="Password" style="-fx-background-radius: 8; -fx-border-radius: 8; -fx-border-color: #eeeeee; -fx-font-size: 13px;" />
-
-            <Button fx:id="loginButton" mnemonicParsing="false" onAction="#onLoginButtonClicked" prefHeight="42.0" prefWidth="110.0" style="-fx-background-color: #2193b0; -fx-text-fill: white; -fx-font-size: 15px; -fx-font-weight: bold; -fx-background-radius: 8; -fx-cursor: hand;" text="Login">
+                        <PasswordField fx:id="passwordField" prefHeight="38.0" promptText="Password" style="-fx-background-radius: 8; -fx-border-radius: 8; -fx-border-color: #eeeeee;">
+               <font>
+                  <Font size="14.0" />
+               </font>
                <VBox.margin>
-                  <Insets top="8.0" />
+                  <Insets top="15.0" />
+               </VBox.margin>
+            </PasswordField>
+
+                        <Button fx:id="loginButton" mnemonicParsing="false" onAction="#onLoginButtonClicked" prefHeight="42.0" prefWidth="110.0" style="-fx-background-color: #2193b0; -fx-text-fill: white; -fx-font-size: 15px; -fx-font-weight: bold; -fx-background-radius: 8; -fx-cursor: hand;" text="Login">
+               <VBox.margin>
+                  <Insets top="20.0" />
                </VBox.margin>
             </Button>
-
-            <Label onMouseClicked="#switchToRegister" style="-fx-text-fill: #2193b0; -fx-cursor: hand; -fx-underline: true;" text="Don't have an account? Register now">
+      
+                        <Label onMouseClicked="#switchToRegister" style="-fx-text-fill: #2193b0; -fx-cursor: hand; -fx-underline: true;" text="Don't have an account? Register now">
                <font>
-                  <Font size="12.0" />
+                  <Font size="14.0" />
                </font>
-            </Label>
-
-            <Label fx:id="statusLabel" alignment="CENTER" prefHeight="25.0" prefWidth="350.0" style="-fx-text-fill: #555555;" textAlignment="CENTER">
-               <font>
-                  <Font size="13.0" />
-               </font>
+               <VBox.margin>
+                  <Insets top="10.0" />
+               </VBox.margin>
             </Label>
          </children>
-         <StackPane.margin>
-            <Insets bottom="160.0" />
-         </StackPane.margin>
+         <opaqueInsets>
+            <Insets />
+         </opaqueInsets>
       </VBox>
-
-      <Label fx:id="chatBubble" visible="false" maxWidth="180.0" wrapText="true"
-             style="-fx-background-color: white; -fx-background-radius: 15; -fx-padding: 10; -fx-effect: dropshadow(three-pass-box, rgba(0,0,0,0.1), 10, 0, 0, 0); -fx-border-color: #eeeeee; -fx-border-radius: 15; -fx-font-size: 13px;"
-             text="Hello!" StackPane.alignment="BOTTOM_RIGHT">
-         <StackPane.margin>
-            <Insets bottom="230.0" right="45.0" />
-         </StackPane.margin>
-      </Label>
-
-      <ImageView fx:id="animeAssistant" fitHeight="210.0" preserveRatio="true" pickOnBounds="true" StackPane.alignment="BOTTOM_RIGHT">
-         <image>
-            <Image url="@images/reiplush.png" />
-         </image>
-         <StackPane.margin>
-            <Insets bottom="15.0" right="15.0" />
-         </StackPane.margin>
-      </ImageView>
 
    </children>
 </StackPane>
