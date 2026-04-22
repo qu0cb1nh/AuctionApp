@@ -35,8 +35,6 @@ public class LoginMenuController implements Initializable {
     @FXML
     private PasswordField passwordField;
     @FXML
-    private Label statusLabel;
-    @FXML
     private Label chatBubble;
 
     @Override
@@ -54,9 +52,6 @@ public class LoginMenuController implements Initializable {
         ft.setFromValue(0);
         ft.setToValue(1);
         ft.play();
-        PauseTransition pause = new PauseTransition(Duration.seconds(3));
-        pause.setOnFinished(e -> chatBubble.setVisible(false));
-        pause.play();
     }
 
     @FXML
@@ -67,12 +62,10 @@ public class LoginMenuController implements Initializable {
         try {
             CredentialUtil.validateLogin(username, password);
         } catch (ValidationException e) {
-            statusLabel.setText(e.getMessage());
-            assistantSpeak("Check your input, please!", "#e67e22");
+            assistantSpeak(e.getMessage(), "#e67e22");
             return;
         }
 
-        statusLabel.setText("Signing in...");
         ClientApp.getInstance().getNetworkService().sendMessage(new LoginRequestMessage(username, password));
     }
 
@@ -81,19 +74,15 @@ public class LoginMenuController implements Initializable {
             return;
         }
 
-        statusLabel.setText(result.getMessage());
-
         if (message.getType() == MessageType.LOGIN_SUCCESS) {
-            assistantSpeak("Login successfully! Have fun bidding.", "#27ae60");
+            assistantSpeak(result.getMessage(), "#27ae60");
 
             ClientApp.getInstance().setCurrentUser(result.getUsername(), result.getRole());
             cleanupHandlers();
-            PauseTransition delay = new PauseTransition(Duration.seconds(1.2));
-            delay.setOnFinished(e -> SceneNavigator.switchScene("views/MainMenu.fxml"));
-            delay.play();
+            SceneNavigator.switchSceneWithDelay("views/MainMenu.fxml", 1500);
 
         } else if (message.getType() == MessageType.LOGIN_FAILURE) {
-            assistantSpeak("Wrong username or password. Try again owo", "#e74c3c");
+            assistantSpeak(result.getMessage(), "#e74c3c");
         }
     }
 
