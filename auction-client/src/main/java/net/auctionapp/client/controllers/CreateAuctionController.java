@@ -55,7 +55,7 @@ public class CreateAuctionController implements Initializable {
 
     @Override
     public void initialize(URL location, ResourceBundle resources) {
-        appHeaderController.setupHeader("Create Auction", true, "views/MainMenu.fxml");
+        appHeaderController.setupHeader("Create Auction", true, "MainMenu");
 
         categoryComboBox.setItems(FXCollections.observableArrayList(ItemType.values()));
         categoryComboBox.getSelectionModel().select(ItemType.ELECTRONICS);
@@ -73,13 +73,13 @@ public class CreateAuctionController implements Initializable {
     @FXML
     public void handleBack(ActionEvent event) {
         cleanupHandlers();
-        SceneNavigator.switchScene("views/MainMenu.fxml");
+        SceneNavigator.switchScene("MainMenu");
     }
 
     @FXML
     public void handleCancel(ActionEvent event) {
         cleanupHandlers();
-        SceneNavigator.switchScene("views/MainMenu.fxml");
+        SceneNavigator.switchScene("MainMenu");
     }
 
     @FXML
@@ -167,7 +167,7 @@ public class CreateAuctionController implements Initializable {
         statusLabel.setStyle("-fx-font-size: 13px; -fx-text-fill: #2e7d32;");
         statusLabel.setText("Auction created: " + response.getTitle());
         cleanupHandlers();
-        SceneNavigator.switchSceneWithDelay("views/AuctionList.fxml", 600);
+        SceneNavigator.switchSceneWithDelay("AuctionList", 600);
     }
 
     private void handleCreateError(Message message) {

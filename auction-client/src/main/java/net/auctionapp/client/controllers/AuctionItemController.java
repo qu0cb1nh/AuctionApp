@@ -25,7 +25,7 @@ public class AuctionItemController {
 
     @FXML
     public void initialize() {
-        appHeaderController.setupHeader("Auction Details", true, "views/AuctionList.fxml");
+        appHeaderController.setupHeader("Auction Details", true, "AuctionList");
         messageLabel.setText("");
     }
 
@@ -52,6 +52,6 @@ public class AuctionItemController {
     }
     @FXML
     public void handleBack(ActionEvent event) {
-        SceneNavigator.switchScene("views/AuctionList.fxml");
+        SceneNavigator.switchScene("AuctionList");
     }
 }

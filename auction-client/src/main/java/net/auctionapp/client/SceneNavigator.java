@@ -23,20 +23,20 @@ public final class SceneNavigator {
     private SceneNavigator() {
     }
 
-    public static void switchScene(String fxmlPath) {
-        Objects.requireNonNull(fxmlPath, "fxmlPath");
+    public static void switchScene(String fxmlFile) {
+        Objects.requireNonNull(fxmlFile, "fxmlFile");
 
         Stage stage = ClientApp.getPrimaryStage();
         if (stage == null) {
             throw new IllegalStateException("Primary stage is not initialized.");
         }
 
-        URL resource = SceneNavigator.class.getResource(fxmlPath);
+        URL resource = SceneNavigator.class.getResource("/net/auctionapp/client/views/" + fxmlFile + ".fxml");
         if (resource == null) {
-            throw new IllegalStateException("Missing FXML resource: " + fxmlPath);
+            throw new IllegalStateException("Missing FXML resource: " + fxmlFile);
         }
 
-        Parent root = loadRoot(resource, fxmlPath);
+        Parent root = loadRoot(resource, fxmlFile);
         Scene scene = stage.getScene();
         if (scene != null) {
             scene.setRoot(root);
@@ -46,10 +46,10 @@ public final class SceneNavigator {
         stage.show();
     }
 
-    public static void switchSceneWithDelay(String fxmlPath, long delayMillis) {
-        Objects.requireNonNull(fxmlPath, "fxmlPath");
+    public static void switchSceneWithDelay(String fxmlFile, long delayMillis) {
+        Objects.requireNonNull(fxmlFile, "fxmlFile");
         SCHEDULER.schedule(
-                () -> Platform.runLater(() -> switchScene(fxmlPath)),
+                () -> Platform.runLater(() -> switchScene(fxmlFile)),
                 delayMillis,
                 TimeUnit.MILLISECONDS
         );

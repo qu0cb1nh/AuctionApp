@@ -34,7 +34,7 @@ public class SettingsController implements Initializable {
 
     @Override
     public void initialize(URL location, ResourceBundle resources) {
-        appHeaderController.setupHeader("Settings", true, "views/MainMenu.fxml");
+        appHeaderController.setupHeader("Settings", true, "MainMenu");
 
         currencyComboBox.setItems(FXCollections.observableArrayList("USD", "VND", "EUR"));
         themeComboBox.setItems(FXCollections.observableArrayList("Ocean", "Light", "Dark"));
@@ -48,7 +48,7 @@ public class SettingsController implements Initializable {
 
     @FXML
     public void handleBack(ActionEvent event) {
-        SceneNavigator.switchScene("views/MainMenu.fxml");
+        SceneNavigator.switchScene("MainMenu");
     }
 
     @FXML

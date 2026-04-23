@@ -16,7 +16,7 @@ public class HeaderController {
     @FXML
     private MenuButton userMenuButton;
 
-    private String backTargetFxml = "views/MainMenu.fxml";
+    private String backTargetFxml = "MainMenu";
 
     @FXML
     public void initialize() {
@@ -39,12 +39,12 @@ public class HeaderController {
 
     @FXML
     public void handleOpenNotifications(ActionEvent event) {
-        SceneNavigator.switchScene("views/Notifications.fxml");
+        SceneNavigator.switchScene("Notifications");
     }
 
     @FXML
     public void handleOpenSettings(ActionEvent event) {
-        SceneNavigator.switchScene("views/Settings.fxml");
+        SceneNavigator.switchScene("Settings");
     }
 
     @FXML
@@ -52,7 +52,7 @@ public class HeaderController {
         if (ClientApp.getInstance() != null) {
             ClientApp.getInstance().setCurrentUser(null, null);
         }
-        SceneNavigator.switchScene("views/LoginMenu.fxml");
+        SceneNavigator.switchScene("LoginMenu");
     }
 
     private void setBackButtonVisible(boolean visible) {
