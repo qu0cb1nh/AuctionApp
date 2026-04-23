@@ -57,7 +57,6 @@ public class HeaderController {
 
     private void setBackButtonVisible(boolean visible) {
         backButton.setVisible(visible);
-        backButton.setManaged(visible);
         backButton.setDisable(!visible);
     }
 }
