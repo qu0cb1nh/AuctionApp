@@ -10,21 +10,21 @@ public class AuctionListController {
 
     @FXML
     public void initialize() {
-        appHeaderController.setupHeader("Explore Auctions", true, "views/MainMenu.fxml");
+        appHeaderController.setupHeader("Explore Auctions", true, "MainMenu");
     }
 
     @FXML
     public void handleViewItem(ActionEvent event) {
-        SceneNavigator.switchScene("views/AuctionItem.fxml");
+        SceneNavigator.switchScene("AuctionItem");
     }
 
     @FXML
     public void handleSignOut(ActionEvent event) {
-        SceneNavigator.switchScene("views/LoginMenu.fxml");
+        SceneNavigator.switchScene("LoginMenu");
     }
 
     @FXML
     public void handleBackToMainMenu(ActionEvent event) {
-        SceneNavigator.switchScene("views/MainMenu.fxml");
+        SceneNavigator.switchScene("MainMenu");
     }
 }

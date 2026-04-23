@@ -65,7 +65,7 @@ public class LoginMenuController implements Initializable {
 
             ClientApp.getInstance().setCurrentUser(result.getUsername(), result.getRole());
             cleanupHandlers();
-            SceneNavigator.switchSceneWithDelay("views/MainMenu.fxml", 1500);
+            SceneNavigator.switchSceneWithDelay("MainMenu", 1500);
 
         } else if (message.getType() == MessageType.LOGIN_FAILURE) {
             assistantPanelController.speak(result.getMessage(), "#e74c3c");
@@ -82,6 +82,6 @@ public class LoginMenuController implements Initializable {
     @FXML
     public void switchToRegister(MouseEvent event) {
         cleanupHandlers();
-        SceneNavigator.switchScene("views/RegisterMenu.fxml");
+        SceneNavigator.switchScene("RegisterMenu");
     }
 }

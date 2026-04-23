@@ -39,7 +39,7 @@ public class MyBidsController implements Initializable {
 
     @Override
     public void initialize(URL location, ResourceBundle resources) {
-        appHeaderController.setupHeader("My Bids", true, "views/MainMenu.fxml");
+        appHeaderController.setupHeader("My Bids", true, "MainMenu");
 
         statusFilterComboBox.getItems().setAll("All", "RUNNING", "FINISHED", "OUTBID");
         statusFilterComboBox.getSelectionModel().selectFirst();
@@ -49,7 +49,7 @@ public class MyBidsController implements Initializable {
 
     @FXML
     public void handleBack(ActionEvent event) {
-        SceneNavigator.switchScene("views/MainMenu.fxml");
+        SceneNavigator.switchScene("MainMenu");
     }
 
     @FXML
@@ -57,7 +57,7 @@ public class MyBidsController implements Initializable {
         if (ClientApp.getInstance() != null) {
             ClientApp.getInstance().setCurrentUser(null, null);
         }
-        SceneNavigator.switchScene("views/LoginMenu.fxml");
+        SceneNavigator.switchScene("LoginMenu");
     }
 
     @FXML
@@ -134,7 +134,7 @@ public class MyBidsController implements Initializable {
         viewButton.setStyle("-fx-background-color: #3bb3d1; -fx-text-fill: white; -fx-background-radius: 5;");
         viewButton.setOnAction(event -> {
             statusLabel.setText("Opening auction: " + bid.auctionTitle());
-            SceneNavigator.switchScene("views/AuctionItem.fxml");
+            SceneNavigator.switchScene("AuctionItem");
         });
 
         HBox buttonRow = new HBox(viewButton);

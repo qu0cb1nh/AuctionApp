@@ -16,68 +16,28 @@ public class MainMenuController implements Initializable {
     private HeaderController appHeaderController;
     @FXML
     private Label usernameLabel;
-    @FXML
-    private Label roleLabel;
-    @FXML
-    private Label balanceLabel;
-    @FXML
-    private Label statusLabel;
 
     @Override
     public void initialize(URL location, ResourceBundle resources) {
-        appHeaderController.setupHeader("Auction Dashboard", false, null);
+        appHeaderController.setupHeader("Dashboard", false, null);
 
         String username = ClientApp.getInstance() != null ? ClientApp.getInstance().getCurrentUsername() : null;
-        String role = ClientApp.getInstance() != null ? ClientApp.getInstance().getCurrentRole() : null;
 
-        usernameLabel.setText((username == null || username.isBlank()) ? "Guest" : username);
-        roleLabel.setText("Role: " + formatRole(role));
-        balanceLabel.setText("Balance: $0.00");
-        statusLabel.setText("Ready.");
+        usernameLabel.setText("Welcome back, " + (username == null || username.isBlank() ? "Guest" : username));
     }
 
     @FXML
     public void handleBrowseAuctions(ActionEvent event) {
-        SceneNavigator.switchScene("views/AuctionList.fxml");
+        SceneNavigator.switchScene("AuctionList");
     }
 
     @FXML
     public void handleSellItem(ActionEvent event) {
-        SceneNavigator.switchScene("views/CreateAuction.fxml");
+        SceneNavigator.switchScene("CreateAuction");
     }
 
     @FXML
     public void handleMyBids(ActionEvent event) {
-        SceneNavigator.switchScene("views/MyBids.fxml");
-    }
-
-    @FXML
-    public void handleMyListings(ActionEvent event) {
-        statusLabel.setText("My Listings screen is not available yet.");
-    }
-
-    @FXML
-    public void handleSettings(ActionEvent event) {
-        SceneNavigator.switchScene("views/Settings.fxml");
-    }
-
-    @FXML
-    public void handleNotifications(ActionEvent event) {
-        SceneNavigator.switchScene("views/Notifications.fxml");
-    }
-
-    @FXML
-    public void handleLogout(ActionEvent event) {
-        if (ClientApp.getInstance() != null) {
-            ClientApp.getInstance().setCurrentUser(null, null);
-        }
-        SceneNavigator.switchScene("views/LoginMenu.fxml");
-    }
-
-    private String formatRole(String role) {
-        if (role == null || role.isBlank()) {
-            return "UNKNOWN";
-        }
-        return role.toUpperCase(Locale.ROOT);
+        SceneNavigator.switchScene("MyBids");
     }
 }
