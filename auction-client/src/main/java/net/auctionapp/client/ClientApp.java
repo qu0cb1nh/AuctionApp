@@ -12,6 +12,8 @@ import java.io.IOException;
 import java.util.function.Consumer;
 
 public class ClientApp extends Application {
+    public static final double WINDOW_WIDTH = 1067;
+    public static final double WINDOW_HEIGHT = 700;
     private static ClientApp instance;
     private static Stage primaryStage;
     private final NetworkService networkService;
@@ -58,9 +60,16 @@ public class ClientApp extends Application {
         connectToServer();
 
         FXMLLoader loader = new FXMLLoader(ClientApp.class.getResource("views/LoginMenu.fxml"));
-        Scene scene = new Scene(loader.load());
+        Scene scene = new Scene(loader.load(), WINDOW_WIDTH, WINDOW_HEIGHT);
         primaryStage.setTitle("Auction App");
         primaryStage.setScene(scene);
+        primaryStage.setWidth(WINDOW_WIDTH);
+        primaryStage.setHeight(WINDOW_HEIGHT);
+        primaryStage.setMinWidth(WINDOW_WIDTH);
+        primaryStage.setMaxWidth(WINDOW_WIDTH);
+        primaryStage.setMinHeight(WINDOW_HEIGHT);
+        primaryStage.setMaxHeight(WINDOW_HEIGHT);
+        primaryStage.setResizable(false);
         primaryStage.show();
     }
 

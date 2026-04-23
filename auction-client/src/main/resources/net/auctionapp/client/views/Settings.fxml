@@ -15,7 +15,7 @@
 <?import javafx.scene.layout.Region?>
 <?import javafx.scene.layout.VBox?>
 
-<BorderPane prefHeight="650.0" prefWidth="980.0" style="-fx-background-color: #f2f5f9;" xmlns="http://javafx.com/javafx/25" xmlns:fx="http://javafx.com/fxml/1" fx:controller="net.auctionapp.client.controllers.SettingsController">
+<BorderPane prefHeight="634.0" prefWidth="967.0" style="-fx-background-color: #f2f5f9;" xmlns="http://javafx.com/javafx/25" xmlns:fx="http://javafx.com/fxml/1" fx:controller="net.auctionapp.client.controllers.SettingsController">
     <top>
         <fx:include fx:id="appHeader" source="Header.fxml" />
     </top>

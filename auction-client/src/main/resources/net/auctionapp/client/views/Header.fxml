@@ -7,7 +7,7 @@
 <?import javafx.scene.control.MenuItem?>
 <?import javafx.scene.layout.BorderPane?>
 
-<BorderPane prefHeight="64.0" style="-fx-background-color: #3bb3c3;" xmlns="http://javafx.com/javafx/25" xmlns:fx="http://javafx.com/fxml/1" fx:controller="net.auctionapp.client.controllers.HeaderController">
+<BorderPane prefHeight="64.0" prefWidth="967.0" style="-fx-background-color: #3bb3c3;" xmlns="http://javafx.com/javafx/25" xmlns:fx="http://javafx.com/fxml/1" fx:controller="net.auctionapp.client.controllers.HeaderController">
     <padding>
         <Insets bottom="12.0" left="24.0" right="24.0" top="12.0" />
     </padding>

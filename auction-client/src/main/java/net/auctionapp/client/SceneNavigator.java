@@ -41,7 +41,7 @@ public final class SceneNavigator {
         if (scene != null) {
             scene.setRoot(root);
         } else {
-            stage.setScene(new Scene(root));
+            stage.setScene(new Scene(root, ClientApp.WINDOW_WIDTH, ClientApp.WINDOW_HEIGHT));
         }
         stage.show();
     }

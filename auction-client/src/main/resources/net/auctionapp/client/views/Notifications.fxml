@@ -10,7 +10,7 @@
 <?import javafx.scene.layout.VBox?>
 <?import javafx.scene.text.Font?>
 
-<VBox prefHeight="673.0" prefWidth="563.0" spacing="18" style="-fx-background-color: #f4fbff;" xmlns="http://javafx.com/javafx/25" xmlns:fx="http://javafx.com/fxml/1" fx:controller="net.auctionapp.client.controllers.NotificationsController">
+<VBox prefHeight="634.0" prefWidth="967.0" spacing="18" style="-fx-background-color: #f4fbff;" xmlns="http://javafx.com/javafx/25" xmlns:fx="http://javafx.com/fxml/1" fx:controller="net.auctionapp.client.controllers.NotificationsController">
     <fx:include fx:id="appHeader" source="Header.fxml" />
 
           <!-- FILTER (TAB STYLE) -->
