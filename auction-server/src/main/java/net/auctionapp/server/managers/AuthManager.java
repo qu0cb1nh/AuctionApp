@@ -7,18 +7,17 @@ import net.auctionapp.common.messages.types.RegisterRequestMessage;
 import net.auctionapp.common.messages.types.RegisterResultMessage;
 import net.auctionapp.common.exceptions.ValidationException;
 import net.auctionapp.common.models.users.User;
-import net.auctionapp.common.models.users.UserRole;
 import net.auctionapp.common.utils.CredentialUtil;
 import net.auctionapp.common.utils.JsonUtil;
+import net.auctionapp.common.utils.UserIdentityUtil;
 import net.auctionapp.server.ClientHandler;
 import net.auctionapp.server.dao.UserDao;
 import net.auctionapp.server.exceptions.DatabaseException;
+import net.auctionapp.server.utils.UserRoleUtil;
 import org.mindrot.jbcrypt.BCrypt;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.EnumSet;
-import java.util.Locale;
 import java.util.Optional;
 
 public class AuthManager {
@@ -41,7 +40,7 @@ public class AuthManager {
     }
 
     public void handleLogin(LoginRequestMessage request, ClientHandler clientHandler) {
-        String normalizedUsername = normalizeUsername(request.getUsername());
+        String normalizedUsername = UserIdentityUtil.normalizeUserId(request.getUsername());
         String password = request.getPassword();
 
         try {
@@ -65,7 +64,7 @@ public class AuthManager {
             }
 
             userManager.syncAccountFromDatabase(user);
-            String clientRole = toClientRole(user);
+            String clientRole = UserRoleUtil.toClientRole(user);
             LoginResultMessage success = new LoginResultMessage(
                     MessageType.LOGIN_SUCCESS,
                     user.getUsername(),
@@ -83,7 +82,7 @@ public class AuthManager {
     }
 
     public void handleRegister(RegisterRequestMessage request, ClientHandler clientHandler) {
-        String normalizedUsername = normalizeUsername(request.getUsername());
+        String normalizedUsername = UserIdentityUtil.normalizeUserId(request.getUsername());
         String password = request.getPassword();
         String username = request.getUsername() == null ? "" : request.getUsername().trim();
 
@@ -106,7 +105,7 @@ public class AuthManager {
                     normalizedUsername,
                     username,
                     passwordHash,
-                    EnumSet.of(UserRole.SELLER, UserRole.BIDDER)
+                    UserRoleUtil.fromDatabaseRole("user")
             );
             if (!dao.createUser(user)) {
                 sendRegisterFailure(clientHandler, "Registration could not be completed.");
@@ -138,21 +137,10 @@ public class AuthManager {
         clientHandler.sendMessage(JsonUtil.toJson(failure));
     }
 
-    private String normalizeUsername(String username) {
-        if (username == null) {
-            return "";
-        }
-        return username.trim().toLowerCase(Locale.ROOT);
-    }
-
     private UserDao requireUserDao() {
         if (userDao == null) {
             throw new IllegalStateException("User DAO has not been configured.");
         }
         return userDao;
-    }
-
-    private String toClientRole(User user) {
-        return user.hasRole(UserRole.ADMIN) ? "admin" : "user";
     }
 }

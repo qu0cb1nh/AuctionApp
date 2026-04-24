@@ -43,6 +43,16 @@ public class HeaderController {
     }
 
     @FXML
+    public void handleOpenActivity(ActionEvent event) {
+        SceneNavigator.switchScene("MyActivity");
+    }
+
+    @FXML
+    public void handleOpenPurchases(ActionEvent event) {
+        SceneNavigator.switchScene("Purchases");
+    }
+
+    @FXML
     public void handleOpenSettings(ActionEvent event) {
         SceneNavigator.switchScene("Settings");
     }

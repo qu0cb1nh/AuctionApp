@@ -33,18 +33,24 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.ResourceBundle;
 import java.util.Set;
 import java.util.function.Consumer;
 
-public class MyBidsController implements Initializable {
+public class MyActivityController implements Initializable {
     private static final DateTimeFormatter CARD_TIME_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm");
-    private static final String STATUS_TEXT_STYLE = "-fx-text-fill: #666666;";
+    private static final String SCOPE_BIDDING = "BIDDING";
+    private static final String SCOPE_SELLING = "SELLING";
+
     private static final String STATUS_ALL = "All";
+    private static final String STATUS_ACTIVE = "ACTIVE";
     private static final String STATUS_LEADING = "LEADING";
     private static final String STATUS_OUTBID = "OUTBID";
     private static final String STATUS_WON = "WON";
     private static final String STATUS_LOST = "LOST";
+    private static final String STATUS_SOLD = "SOLD";
+    private static final String STATUS_UNSOLD = "UNSOLD";
     private static final String STATUS_CANCELED = "CANCELED";
 
     @FXML
@@ -52,7 +58,9 @@ public class MyBidsController implements Initializable {
     @FXML
     private BorderPane rootPane;
     @FXML
-    private FlowPane bidFlowPane;
+    private FlowPane bidActivityFlowPane;
+    @FXML
+    private FlowPane sellerActivityFlowPane;
     @FXML
     private TextField searchField;
     @FXML
@@ -60,9 +68,12 @@ public class MyBidsController implements Initializable {
     @FXML
     private Label statusLabel;
 
-    private final List<BidCard> allUserBids = new ArrayList<>();
-    private final List<BidCard> loadedUserBids = new ArrayList<>();
+    private final List<ActivityCard> allBidActivities = new ArrayList<>();
+    private final List<ActivityCard> loadedBidActivities = new ArrayList<>();
+    private final List<ActivityCard> allSellerActivities = new ArrayList<>();
+    private final List<ActivityCard> loadedSellerActivities = new ArrayList<>();
     private final Set<String> pendingAuctionIds = new HashSet<>();
+
     private Consumer<Message> auctionListHandler;
     private Consumer<Message> auctionDetailsHandler;
     private Consumer<Message> errorHandler;
@@ -70,14 +81,17 @@ public class MyBidsController implements Initializable {
 
     @Override
     public void initialize(URL location, ResourceBundle resources) {
-        appHeaderController.setupHeader("My Bids", true, "MainMenu");
+        appHeaderController.setupHeader("Activity", true, "MainMenu");
 
         statusFilterComboBox.getItems().setAll(
                 STATUS_ALL,
+                STATUS_ACTIVE,
                 STATUS_LEADING,
                 STATUS_OUTBID,
                 STATUS_WON,
                 STATUS_LOST,
+                STATUS_SOLD,
+                STATUS_UNSOLD,
                 STATUS_CANCELED
         );
         statusFilterComboBox.getSelectionModel().selectFirst();
@@ -88,7 +102,7 @@ public class MyBidsController implements Initializable {
         });
 
         registerMessageHandlers();
-        loadMyBids();
+        loadActivity();
     }
 
     @FXML
@@ -98,17 +112,8 @@ public class MyBidsController implements Initializable {
     }
 
     @FXML
-    public void handleSignOut(ActionEvent event) {
-        cleanupHandlers();
-        if (ClientApp.getInstance() != null) {
-            ClientApp.getInstance().setCurrentUser(null, null);
-        }
-        SceneNavigator.switchScene("LoginMenu");
-    }
-
-    @FXML
     public void handleRefresh(ActionEvent event) {
-        loadMyBids();
+        loadActivity();
     }
 
     @FXML
@@ -145,13 +150,16 @@ public class MyBidsController implements Initializable {
         handlersRegistered = false;
     }
 
-    private void loadMyBids() {
+    private void loadActivity() {
         pendingAuctionIds.clear();
-        allUserBids.clear();
-        loadedUserBids.clear();
-        renderBidCards(allUserBids);
-        statusLabel.setStyle(STATUS_TEXT_STYLE);
-        statusLabel.setText("Loading your bids...");
+        allBidActivities.clear();
+        loadedBidActivities.clear();
+        allSellerActivities.clear();
+        loadedSellerActivities.clear();
+        renderBidCards(List.of());
+        renderSellerCards(List.of());
+        statusLabel.setStyle("-fx-text-fill: #3f5569; -fx-font-size: 12px; -fx-font-weight: bold;");
+        statusLabel.setText("Loading your activity...");
         ClientApp.getInstance().getNetworkService().sendMessage(new GetAuctionListRequestMessage());
     }
 
@@ -160,17 +168,20 @@ public class MyBidsController implements Initializable {
             return;
         }
         pendingAuctionIds.clear();
-        loadedUserBids.clear();
+        loadedBidActivities.clear();
+        loadedSellerActivities.clear();
 
         List<String> auctionIds = response.getAuctions() == null ? List.of()
                 : response.getAuctions().stream()
-                        .map(summary -> summary == null ? null : summary.getAuctionId())
-                        .filter(id -> id != null && !id.isBlank())
-                        .toList();
+                .map(summary -> summary == null ? null : summary.getAuctionId())
+                .filter(id -> id != null && !id.isBlank())
+                .toList();
 
         if (auctionIds.isEmpty()) {
-            allUserBids.clear();
-            renderBidCards(allUserBids);
+            allBidActivities.clear();
+            allSellerActivities.clear();
+            renderBidCards(List.of());
+            renderSellerCards(List.of());
             statusLabel.setText("No auctions available yet.");
             return;
         }
@@ -190,20 +201,33 @@ public class MyBidsController implements Initializable {
             return;
         }
 
-        toBidCard(response, resolveCurrentUsername()).ifPresent(loadedUserBids::add);
+        String currentUsername = resolveCurrentUsername();
+        toBidActivity(response, currentUsername).ifPresent(loadedBidActivities::add);
+        toSellerActivity(response, currentUsername).ifPresent(loadedSellerActivities::add);
+
         if (!pendingAuctionIds.isEmpty()) {
             statusLabel.setText("Loading details for " + pendingAuctionIds.size() + " auction(s)...");
             return;
         }
 
-        allUserBids.clear();
-        allUserBids.addAll(
-                loadedUserBids.stream()
-                        .sorted(Comparator.comparingInt(this::statusPriority)
-                                .thenComparing(BidCard::endTime, Comparator.nullsLast(LocalDateTime::compareTo))
-                                .thenComparing(BidCard::auctionTitle, String.CASE_INSENSITIVE_ORDER))
+        allBidActivities.clear();
+        allBidActivities.addAll(
+                loadedBidActivities.stream()
+                        .sorted(Comparator.<ActivityCard>comparingInt(card -> statusPriority(card.status()))
+                                .thenComparing(ActivityCard::endTime, Comparator.nullsLast(LocalDateTime::compareTo))
+                                .thenComparing(ActivityCard::auctionTitle, String.CASE_INSENSITIVE_ORDER))
                         .toList()
         );
+
+        allSellerActivities.clear();
+        allSellerActivities.addAll(
+                loadedSellerActivities.stream()
+                        .sorted(Comparator.<ActivityCard>comparingInt(card -> statusPriority(card.status()))
+                                .thenComparing(ActivityCard::endTime, Comparator.nullsLast(LocalDateTime::compareTo))
+                                .thenComparing(ActivityCard::auctionTitle, String.CASE_INSENSITIVE_ORDER))
+                        .toList()
+        );
+
         applyFilters();
     }
 
@@ -219,66 +243,109 @@ public class MyBidsController implements Initializable {
         String search = searchField.getText() == null ? "" : searchField.getText().trim().toLowerCase(Locale.ROOT);
         String selectedStatus = statusFilterComboBox.getSelectionModel().getSelectedItem();
 
-        List<BidCard> filtered = allUserBids.stream()
-                .filter(bid -> search.isBlank() || bid.auctionTitle().toLowerCase(Locale.ROOT).contains(search))
-                .filter(bid -> selectedStatus == null
-                        || STATUS_ALL.equals(selectedStatus)
-                        || bid.status().equalsIgnoreCase(selectedStatus))
+        List<ActivityCard> filteredBids = allBidActivities.stream()
+                .filter(activity -> search.isBlank()
+                        || activity.auctionTitle().toLowerCase(Locale.ROOT).contains(search))
+                .filter(activity -> matchesStatusFilter(activity.status(), selectedStatus))
                 .toList();
 
-        renderBidCards(filtered);
-        statusLabel.setStyle(STATUS_TEXT_STYLE);
-        statusLabel.setText("Showing " + filtered.size() + " of " + allUserBids.size() + " auctions.");
+        List<ActivityCard> filteredSellerAuctions = allSellerActivities.stream()
+                .filter(activity -> search.isBlank()
+                        || activity.auctionTitle().toLowerCase(Locale.ROOT).contains(search))
+                .filter(activity -> matchesStatusFilter(activity.status(), selectedStatus))
+                .toList();
+
+        renderBidCards(filteredBids);
+        renderSellerCards(filteredSellerAuctions);
+        statusLabel.setStyle("-fx-text-fill: #3f5569; -fx-font-size: 12px; -fx-font-weight: bold;");
+        statusLabel.setText("Showing "
+                + filteredBids.size() + "/" + allBidActivities.size() + " bids and "
+                + filteredSellerAuctions.size() + "/" + allSellerActivities.size() + " auctions.");
     }
 
-    private void renderBidCards(List<BidCard> bids) {
-        bidFlowPane.getChildren().clear();
-        if (bids.isEmpty()) {
-            Label emptyLabel = new Label("You have not placed bids on any auction yet.");
+    private boolean matchesStatusFilter(String status, String selectedStatus) {
+        return selectedStatus == null
+                || STATUS_ALL.equals(selectedStatus)
+                || selectedStatus.equalsIgnoreCase(status);
+    }
+
+    private void renderBidCards(List<ActivityCard> activities) {
+        bidActivityFlowPane.getChildren().clear();
+        if (activities.isEmpty()) {
+            Label emptyLabel = new Label("You have not placed any bids yet.");
             emptyLabel.setStyle("-fx-font-size: 14px; -fx-font-weight: bold; -fx-text-fill: #4a5f73;");
-            bidFlowPane.getChildren().add(emptyLabel);
+            bidActivityFlowPane.getChildren().add(emptyLabel);
             return;
         }
-
-        for (BidCard bid : bids) {
-            bidFlowPane.getChildren().add(createBidCard(bid));
+        for (ActivityCard activity : activities) {
+            bidActivityFlowPane.getChildren().add(createActivityCard(activity));
         }
     }
 
-    private VBox createBidCard(BidCard bid) {
+    private void renderSellerCards(List<ActivityCard> activities) {
+        sellerActivityFlowPane.getChildren().clear();
+        if (activities.isEmpty()) {
+            Label emptyLabel = new Label("You have not created any auctions yet.");
+            emptyLabel.setStyle("-fx-font-size: 14px; -fx-font-weight: bold; -fx-text-fill: #4a5f73;");
+            sellerActivityFlowPane.getChildren().add(emptyLabel);
+            return;
+        }
+        for (ActivityCard activity : activities) {
+            sellerActivityFlowPane.getChildren().add(createActivityCard(activity));
+        }
+    }
+
+    private VBox createActivityCard(ActivityCard activity) {
         VBox card = new VBox(8.0);
-        card.setPrefSize(240.0, 230.0);
+        card.setPrefSize(250.0, 260.0);
         card.setStyle("-fx-background-color: white; -fx-background-radius: 10; "
                 + "-fx-effect: dropshadow(three-pass-box, rgba(0,0,0,0.2), 10, 0, 0, 0); "
                 + "-fx-padding: 10;");
 
-        Label title = new Label(bid.auctionTitle());
+        Label title = new Label(activity.auctionTitle());
         title.setWrapText(true);
         title.setStyle("-fx-font-weight: bold; -fx-font-size: 13px;");
 
-        Label yourBid = new Label("Your max bid: " + formatMoney(bid.yourMaxBid()));
-        Label highestBid = new Label("Current price: " + formatMoney(bid.currentPrice()));
-        Label nextBid = new Label("Minimum next bid: " + formatMoney(bid.minimumNextBid()));
-        Label endTime = new Label(formatTimingLabel(bid.endTime(), bid.auctionStatus()));
-        Label status = new Label("Status: " + bid.status());
-        status.setStyle("-fx-text-fill: " + statusColor(bid.status()) + "; -fx-font-weight: bold;");
+        Label role = new Label("Role: " + (SCOPE_BIDDING.equals(activity.scope()) ? "Bidder" : "Seller"));
+        role.setStyle("-fx-text-fill: #2962ff; -fx-font-weight: bold;");
 
-        Button viewButton = new Button(buttonLabelForStatus(bid.status()));
+        Label status = new Label("Status: " + activity.status());
+        status.setStyle("-fx-text-fill: " + statusColor(activity.status()) + "; -fx-font-weight: bold;");
+
+        Label currentPrice = new Label("Current price: " + formatMoney(activity.currentPrice()));
+
+        VBox content = new VBox(4.0, title, role, status, currentPrice);
+        if (SCOPE_BIDDING.equals(activity.scope())) {
+            content.getChildren().addAll(
+                    new Label("Your max bid: " + formatMoney(activity.yourMaxBid())),
+                    new Label("Minimum next bid: " + formatMoney(activity.minimumNextBid()))
+            );
+        } else {
+            content.getChildren().addAll(
+                    new Label("Starting price: " + formatMoney(activity.startingPrice())),
+                    new Label("Bid count: " + activity.bidCount()),
+                    new Label("Winner: " + safeWinnerName(activity.winnerBidderId()))
+            );
+        }
+        content.getChildren().add(new Label(formatTimingLabel(activity.endTime(), activity.auctionStatus())));
+
+        Button viewButton = new Button(buttonLabelForStatus(activity.scope(), activity.status()));
         viewButton.setStyle("-fx-background-color: #3bb3d1; -fx-text-fill: white; -fx-background-radius: 5;");
         viewButton.setOnAction(event -> {
-            statusLabel.setText("Opening auction: " + bid.auctionTitle());
-            ClientApp.getInstance().setSelectedAuctionId(bid.auctionId());
+            statusLabel.setText("Opening auction: " + activity.auctionTitle());
+            ClientApp.getInstance().setSelectedAuctionId(activity.auctionId());
             SceneNavigator.switchScene("AuctionItem");
         });
 
-        card.getChildren().addAll(title, yourBid, highestBid, nextBid, endTime, status, viewButton);
+        card.getChildren().addAll(content, viewButton);
         return card;
     }
 
-    private java.util.Optional<BidCard> toBidCard(AuctionDetailsResponseMessage response, String currentUsername) {
+    private Optional<ActivityCard> toBidActivity(AuctionDetailsResponseMessage response, String currentUsername) {
         if (response == null || currentUsername == null || currentUsername.isBlank()) {
-            return java.util.Optional.empty();
+            return Optional.empty();
         }
+
         List<BidView> bidHistory = response.getBidHistory() == null ? List.of() : response.getBidHistory();
         List<BidView> userBids = bidHistory.stream()
                 .filter(Objects::nonNull)
@@ -286,23 +353,50 @@ public class MyBidsController implements Initializable {
                 .filter(bid -> bid.getAmount() != null)
                 .toList();
         if (userBids.isEmpty()) {
-            return java.util.Optional.empty();
+            return Optional.empty();
         }
 
         BigDecimal yourMaxBid = userBids.stream()
                 .map(BidView::getAmount)
                 .max(BigDecimal::compareTo)
                 .orElse(BigDecimal.ZERO);
-        String status = deriveBidStatus(response, currentUsername);
-        return java.util.Optional.of(new BidCard(
+        return Optional.of(new ActivityCard(
                 response.getAuctionId(),
                 response.getTitle(),
+                SCOPE_BIDDING,
+                deriveBidStatus(response, currentUsername),
+                response.getStatus(),
                 yourMaxBid,
+                response.getStartingPrice(),
                 response.getCurrentPrice(),
                 response.getMinimumNextBid(),
-                response.getEndTime(),
-                status,
-                response.getStatus()
+                bidHistory.size(),
+                response.getWinnerBidderId(),
+                response.getEndTime()
+        ));
+    }
+
+    private Optional<ActivityCard> toSellerActivity(AuctionDetailsResponseMessage response, String currentUsername) {
+        if (response == null || currentUsername == null || currentUsername.isBlank()) {
+            return Optional.empty();
+        }
+        if (response.getSellerId() == null || !response.getSellerId().equalsIgnoreCase(currentUsername)) {
+            return Optional.empty();
+        }
+        int bidCount = response.getBidHistory() == null ? 0 : response.getBidHistory().size();
+        return Optional.of(new ActivityCard(
+                response.getAuctionId(),
+                response.getTitle(),
+                SCOPE_SELLING,
+                deriveSellerStatus(response),
+                response.getStatus(),
+                null,
+                response.getStartingPrice(),
+                response.getCurrentPrice(),
+                response.getMinimumNextBid(),
+                bidCount,
+                response.getWinnerBidderId(),
+                response.getEndTime()
         ));
     }
 
@@ -325,31 +419,52 @@ public class MyBidsController implements Initializable {
         return currentUsername.equalsIgnoreCase(response.getLeadingBidderId()) ? STATUS_LEADING : STATUS_OUTBID;
     }
 
-    private int statusPriority(BidCard bidCard) {
-        return switch (bidCard.status()) {
-            case STATUS_LEADING -> 0;
-            case STATUS_OUTBID -> 1;
-            case STATUS_WON -> 2;
-            case STATUS_LOST -> 3;
-            case STATUS_CANCELED -> 4;
-            default -> 5;
+    private String deriveSellerStatus(AuctionDetailsResponseMessage response) {
+        AuctionStatus auctionStatus = response.getStatus();
+        if (auctionStatus == AuctionStatus.CANCELED) {
+            return STATUS_CANCELED;
+        }
+        if (auctionStatus == AuctionStatus.OPEN || auctionStatus == AuctionStatus.RUNNING) {
+            return STATUS_ACTIVE;
+        }
+        if (auctionStatus == AuctionStatus.FINISHED || auctionStatus == AuctionStatus.PAID) {
+            if (response.getWinnerBidderId() != null && !response.getWinnerBidderId().isBlank()) {
+                return STATUS_SOLD;
+            }
+            return STATUS_UNSOLD;
+        }
+        return STATUS_ACTIVE;
+    }
+
+    private int statusPriority(String status) {
+        return switch (status) {
+            case STATUS_ACTIVE -> 0;
+            case STATUS_LEADING -> 1;
+            case STATUS_OUTBID -> 2;
+            case STATUS_SOLD -> 3;
+            case STATUS_WON -> 4;
+            case STATUS_UNSOLD -> 5;
+            case STATUS_LOST -> 6;
+            case STATUS_CANCELED -> 7;
+            default -> 8;
         };
     }
 
     private String statusColor(String status) {
         return switch (status) {
-            case STATUS_LEADING, STATUS_WON -> "#1f8f4c";
-            case STATUS_OUTBID, STATUS_LOST -> "#c13c21";
+            case STATUS_ACTIVE, STATUS_LEADING, STATUS_WON -> "#1f8f4c";
+            case STATUS_SOLD -> "#2962ff";
+            case STATUS_OUTBID, STATUS_UNSOLD, STATUS_LOST -> "#c13c21";
             case STATUS_CANCELED -> "#6b7280";
             default -> "#3f5569";
         };
     }
 
-    private String buttonLabelForStatus(String status) {
-        return switch (status) {
-            case STATUS_OUTBID -> "Bid again";
-            default -> "View auction";
-        };
+    private String buttonLabelForStatus(String scope, String status) {
+        if (SCOPE_BIDDING.equals(scope) && STATUS_OUTBID.equals(status)) {
+            return "Bid again";
+        }
+        return "View auction";
     }
 
     private String formatMoney(BigDecimal amount) {
@@ -357,6 +472,13 @@ public class MyBidsController implements Initializable {
             return "N/A";
         }
         return "$" + amount.stripTrailingZeros().toPlainString();
+    }
+
+    private String safeWinnerName(String winner) {
+        if (winner == null || winner.isBlank()) {
+            return "No winner yet";
+        }
+        return winner;
     }
 
     private String formatTimingLabel(LocalDateTime endTime, AuctionStatus auctionStatus) {
@@ -389,15 +511,19 @@ public class MyBidsController implements Initializable {
         return "less than 1m";
     }
 
-    private record BidCard(
+    private record ActivityCard(
             String auctionId,
             String auctionTitle,
+            String scope,
+            String status,
+            AuctionStatus auctionStatus,
             BigDecimal yourMaxBid,
+            BigDecimal startingPrice,
             BigDecimal currentPrice,
             BigDecimal minimumNextBid,
-            LocalDateTime endTime,
-            String status,
-            AuctionStatus auctionStatus
+            int bidCount,
+            String winnerBidderId,
+            LocalDateTime endTime
     ) {
     }
 }

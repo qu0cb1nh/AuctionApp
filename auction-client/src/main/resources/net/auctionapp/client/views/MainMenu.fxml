@@ -45,24 +45,9 @@
                   <Insets top="50.0" />
                </VBox.margin>
                <padding>
-                  <Insets bottom="20.0" top="20.0" />
-               </padding>
-            </Button>
-                  <Button maxHeight="-Infinity" maxWidth="-Infinity" mnemonicParsing="false" onAction="#handleMyBids" prefHeight="48.0" prefWidth="350.0" style="-fx-background-color: #ffffff; -fx-text-fill: #3bb3c3; -fx-border-color: #3bb3c3; -fx-border-radius: 12px; -fx-background-radius: 12px; -fx-font-size: 16px; -fx-font-weight: bold; -fx-cursor: hand;" text="My Bids">
-               <graphic>
-                  <ImageView fitHeight="36.0" fitWidth="35.0" pickOnBounds="true" preserveRatio="true">
-                     <image>
-                        <Image url="@images/MyBids.png" />
-                     </image>
-                  </ImageView>
-               </graphic>
-               <VBox.margin>
-                  <Insets top="50.0" />
-               </VBox.margin>
-               <padding>
-                  <Insets bottom="20.0" top="20.0" />
-               </padding>
-            </Button>
+                   <Insets bottom="20.0" top="20.0" />
+                </padding>
+             </Button>
          </children>
       </VBox>
    </center>
