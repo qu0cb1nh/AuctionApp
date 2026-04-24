@@ -16,14 +16,14 @@
 <?import javafx.scene.layout.Region?>
 <?import javafx.scene.layout.VBox?>
 
-<BorderPane prefHeight="634.0" prefWidth="967.0" style="-fx-background-color: #f4f4f4;" xmlns="http://javafx.com/javafx/25" xmlns:fx="http://javafx.com/fxml/1" fx:controller="net.auctionapp.client.controllers.CreateAuctionController">
+<BorderPane prefHeight="888.0" prefWidth="967.0" style="-fx-background-color: #f4f4f4;" xmlns="http://javafx.com/javafx/25" xmlns:fx="http://javafx.com/fxml/1" fx:controller="net.auctionapp.client.controllers.CreateAuctionController">
 
     <top>
         <fx:include fx:id="appHeader" source="Header.fxml" />
     </top>
 
     <center>
-        <ScrollPane fitToWidth="true" hbarPolicy="NEVER" vbarPolicy="AS_NEEDED" style="-fx-background-color: transparent; -fx-background: #f4f4f4;" BorderPane.alignment="CENTER">
+        <ScrollPane fitToWidth="true" hbarPolicy="NEVER" style="-fx-background-color: transparent; -fx-background: #f4f4f4;" vbarPolicy="AS_NEEDED" BorderPane.alignment="CENTER">
             <content>
                 <HBox spacing="40.0">
                     <padding>
@@ -49,15 +49,92 @@
                 <VBox spacing="14.0" HBox.hgrow="ALWAYS">
                     <children>
                         <Label style="-fx-font-size: 30px; -fx-font-weight: bold; -fx-text-fill: #333333;" text="Auction Information" />
-                        <Label style="-fx-font-size: 14px; -fx-text-fill: #666666;" text="Fill in all required fields before publishing." />
 
                         <Separator prefWidth="200.0" />
 
-                        <Label style="-fx-font-size: 15px; -fx-font-weight: bold; -fx-text-fill: #333333;" text="Item Name" />
-                        <TextField fx:id="itemNameField" promptText="Ex: Iphone 17 Pro Max 1TB" style="-fx-background-radius: 20px; -fx-padding: 10px 15px; -fx-font-size: 14px;" />
+                        <Label style="-fx-font-size: 15px; -fx-font-weight: bold; -fx-text-fill: #333333;" text="Auction Title" />
+                        <TextField fx:id="itemNameField" style="-fx-background-radius: 20px; -fx-padding: 10px 15px; -fx-font-size: 14px;" />
 
                         <Label style="-fx-font-size: 15px; -fx-font-weight: bold; -fx-text-fill: #333333;" text="Item Category" />
                         <ComboBox fx:id="categoryComboBox" prefWidth="220.0" promptText="Select category" style="-fx-background-radius: 12px;" />
+
+                        <VBox fx:id="electronicsFieldsBox" spacing="8.0">
+                            <children>
+                                <Label style="-fx-font-size: 15px; -fx-font-weight: bold; -fx-text-fill: #333333;" text="Electronics Details" />
+                                <HBox alignment="CENTER_LEFT" spacing="16.0">
+                                    <children>
+                                        <VBox spacing="8.0" HBox.hgrow="ALWAYS">
+                                            <children>
+                                                <Label style="-fx-font-size: 14px; -fx-text-fill: #333333;" text="Brand" />
+                                                <TextField fx:id="electronicsBrandField" promptText="Ex: Apple" style="-fx-background-radius: 20px; -fx-padding: 10px 15px; -fx-font-size: 14px;" />
+                                            </children>
+                                        </VBox>
+                                        <VBox spacing="8.0" HBox.hgrow="ALWAYS">
+                                            <children>
+                                                <Label style="-fx-font-size: 14px; -fx-text-fill: #333333;" text="Model" />
+                                                <TextField fx:id="electronicsModelField" promptText="Ex: iPhone 17" style="-fx-background-radius: 20px; -fx-padding: 10px 15px; -fx-font-size: 14px;" />
+                                            </children>
+                                        </VBox>
+                                        <VBox spacing="8.0" HBox.hgrow="ALWAYS">
+                                            <children>
+                                                <Label style="-fx-font-size: 14px; -fx-text-fill: #333333;" text="Warranty (months)" />
+                                                <TextField fx:id="electronicsWarrantyField" promptText="12" style="-fx-background-radius: 20px; -fx-padding: 10px 15px; -fx-font-size: 14px;" />
+                                            </children>
+                                        </VBox>
+                                    </children>
+                                </HBox>
+                            </children>
+                        </VBox>
+
+                        <VBox fx:id="artFieldsBox" managed="false" spacing="8.0" visible="false">
+                            <children>
+                                <Label style="-fx-font-size: 15px; -fx-font-weight: bold; -fx-text-fill: #333333;" text="Art Details" />
+                                <HBox alignment="CENTER_LEFT" spacing="16.0">
+                                    <children>
+                                        <VBox spacing="8.0" HBox.hgrow="ALWAYS">
+                                            <children>
+                                                <Label style="-fx-font-size: 14px; -fx-text-fill: #333333;" text="Author" />
+                                                <TextField fx:id="artAuthorField" promptText="Ex: Vincent van Gogh" style="-fx-background-radius: 20px; -fx-padding: 10px 15px; -fx-font-size: 14px;" />
+                                            </children>
+                                        </VBox>
+                                        <VBox spacing="8.0" HBox.hgrow="ALWAYS">
+                                            <children>
+                                                <Label style="-fx-font-size: 14px; -fx-text-fill: #333333;" text="Year Created" />
+                                                <TextField fx:id="artYearCreatedField" promptText="1889" style="-fx-background-radius: 20px; -fx-padding: 10px 15px; -fx-font-size: 14px;" />
+                                            </children>
+                                        </VBox>
+                                    </children>
+                                </HBox>
+                            </children>
+                        </VBox>
+
+                        <VBox fx:id="vehicleFieldsBox" managed="false" spacing="8.0" visible="false">
+                            <children>
+                                <Label style="-fx-font-size: 15px; -fx-font-weight: bold; -fx-text-fill: #333333;" text="Vehicle Details" />
+                                <HBox alignment="CENTER_LEFT" spacing="16.0">
+                                    <children>
+                                        <VBox spacing="8.0" HBox.hgrow="ALWAYS">
+                                            <children>
+                                                <Label style="-fx-font-size: 14px; -fx-text-fill: #333333;" text="Brand" />
+                                                <TextField fx:id="vehicleBrandField" promptText="Ex: Toyota" style="-fx-background-radius: 20px; -fx-padding: 10px 15px; -fx-font-size: 14px;" />
+                                            </children>
+                                        </VBox>
+                                        <VBox spacing="8.0" HBox.hgrow="ALWAYS">
+                                            <children>
+                                                <Label style="-fx-font-size: 14px; -fx-text-fill: #333333;" text="Model" />
+                                                <TextField fx:id="vehicleModelField" promptText="Ex: Camry" style="-fx-background-radius: 20px; -fx-padding: 10px 15px; -fx-font-size: 14px;" />
+                                            </children>
+                                        </VBox>
+                                        <VBox spacing="8.0" HBox.hgrow="ALWAYS">
+                                            <children>
+                                                <Label style="-fx-font-size: 14px; -fx-text-fill: #333333;" text="Year Created" />
+                                                <TextField fx:id="vehicleYearCreatedField" promptText="2024" style="-fx-background-radius: 20px; -fx-padding: 10px 15px; -fx-font-size: 14px;" />
+                                            </children>
+                                        </VBox>
+                                    </children>
+                                </HBox>
+                            </children>
+                        </VBox>
 
                         <HBox alignment="CENTER_LEFT" spacing="16.0">
                             <children>

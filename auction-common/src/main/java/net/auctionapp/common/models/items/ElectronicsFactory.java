@@ -10,11 +10,19 @@ public class ElectronicsFactory extends ItemFactory {
     public Item createItem(CreateItemRequestMessage message) {
         String title = message.getTitle();
         String description = message.getDescription();
-        BigDecimal basePrice = message.getBasePrice();
+        BigDecimal startingPrice = message.getStartingPrice();
         String brand = message.getBrand();
         String model = message.getModel();
         int warrantyMonths = message.getWarrantyMonths();
-        super.validateBasicData(title, description, basePrice);
-        return new Electronics(UUID.randomUUID().toString(), title, description, basePrice, brand, model, warrantyMonths);
+        super.validateBasicData(title, description, startingPrice);
+        return new Electronics(
+                UUID.randomUUID().toString(),
+                title,
+                description,
+                startingPrice,
+                brand,
+                model,
+                warrantyMonths
+        );
     }
 }

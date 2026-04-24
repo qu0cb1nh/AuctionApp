@@ -45,6 +45,7 @@ Hệ thống cho phép nhiều người dùng tham gia cạnh tranh giá để m
    - Entity (abstract) → User (abstract) → Bidder, Seller, Admin
    - Entity → Item (abstract) → Electronics, Art, Vehicle
    - Auction, BidTransaction
+   - Art bao gồm: author, yearCreated; Electronics bao gồm: brand, model, warrantyMonths; Vehicle bao gồm: brand, model, yearCreated
 
     Nguyên tắc: Đảm bảo đủ Encapsulation, Inheritance, Polymorphism và Abstraction.
 

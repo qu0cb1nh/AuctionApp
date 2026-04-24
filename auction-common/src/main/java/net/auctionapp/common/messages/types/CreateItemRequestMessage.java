@@ -11,7 +11,6 @@ public class CreateItemRequestMessage extends Message {
     private ItemType itemType;
     private String title;
     private String description;
-    private BigDecimal basePrice;
     private BigDecimal startingPrice;
     private BigDecimal minimumBidIncrement;
     private LocalDateTime startTime;
@@ -48,14 +47,6 @@ public class CreateItemRequestMessage extends Message {
 
     public void setDescription(String description) {
         this.description = description;
-    }
-
-    public BigDecimal getBasePrice() {
-        return basePrice;
-    }
-
-    public void setBasePrice(BigDecimal basePrice) {
-        this.basePrice = basePrice;
     }
 
     public BigDecimal getStartingPrice() {
