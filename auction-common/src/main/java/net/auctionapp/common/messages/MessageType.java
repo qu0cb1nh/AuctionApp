@@ -71,6 +71,11 @@ public enum MessageType {
     AUCTION_DETAILS_RESPONSE,
 
     /**
+     * Response after creating a new auction successfully.
+     */
+    CREATE_ITEM_SUCCESS,
+
+    /**
      * Response to the bidding client that their bid was accepted.
      */
     BID_ACCEPTED,

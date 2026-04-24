@@ -7,25 +7,49 @@ import javafx.scene.control.Button;
 import javafx.scene.control.ComboBox;
 import javafx.scene.control.Label;
 import javafx.scene.control.TextField;
-import javafx.scene.image.Image;
-import javafx.scene.image.ImageView;
+import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.FlowPane;
-import javafx.scene.layout.HBox;
 import javafx.scene.layout.VBox;
 import net.auctionapp.client.ClientApp;
 import net.auctionapp.client.SceneNavigator;
+import net.auctionapp.common.messages.Message;
+import net.auctionapp.common.messages.MessageType;
+import net.auctionapp.common.messages.types.AuctionDetailsResponseMessage;
+import net.auctionapp.common.messages.types.AuctionListResponseMessage;
+import net.auctionapp.common.messages.types.BidView;
+import net.auctionapp.common.messages.types.ErrorMessage;
+import net.auctionapp.common.messages.types.GetAuctionDetailsRequestMessage;
+import net.auctionapp.common.messages.types.GetAuctionListRequestMessage;
+import net.auctionapp.common.models.auction.AuctionStatus;
 
+import java.math.BigDecimal;
 import java.net.URL;
+import java.time.Duration;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
+import java.util.Objects;
 import java.util.ResourceBundle;
-import java.util.stream.Collectors;
+import java.util.Set;
+import java.util.function.Consumer;
 
 public class MyBidsController implements Initializable {
+    private static final DateTimeFormatter CARD_TIME_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm");
+    private static final String STATUS_ALL = "All";
+    private static final String STATUS_LEADING = "LEADING";
+    private static final String STATUS_OUTBID = "OUTBID";
+    private static final String STATUS_WON = "WON";
+    private static final String STATUS_LOST = "LOST";
+    private static final String STATUS_CANCELED = "CANCELED";
+
     @FXML
     private HeaderController appHeaderController;
+    @FXML
+    private BorderPane rootPane;
     @FXML
     private FlowPane bidFlowPane;
     @FXML
@@ -36,24 +60,45 @@ public class MyBidsController implements Initializable {
     private Label statusLabel;
 
     private final List<BidCard> allUserBids = new ArrayList<>();
+    private final List<BidCard> loadedUserBids = new ArrayList<>();
+    private final Set<String> pendingAuctionIds = new HashSet<>();
+    private Consumer<Message> auctionListHandler;
+    private Consumer<Message> auctionDetailsHandler;
+    private Consumer<Message> errorHandler;
+    private boolean handlersRegistered;
 
     @Override
     public void initialize(URL location, ResourceBundle resources) {
         appHeaderController.setupHeader("My Bids", true, "MainMenu");
 
-        statusFilterComboBox.getItems().setAll("All", "RUNNING", "FINISHED", "OUTBID");
+        statusFilterComboBox.getItems().setAll(
+                STATUS_ALL,
+                STATUS_LEADING,
+                STATUS_OUTBID,
+                STATUS_WON,
+                STATUS_LOST,
+                STATUS_CANCELED
+        );
         statusFilterComboBox.getSelectionModel().selectFirst();
+        rootPane.sceneProperty().addListener((observable, oldScene, newScene) -> {
+            if (oldScene != null) {
+                cleanupHandlers();
+            }
+        });
+
+        registerMessageHandlers();
         loadMyBids();
-        applyFilters();
     }
 
     @FXML
     public void handleBack(ActionEvent event) {
+        cleanupHandlers();
         SceneNavigator.switchScene("MainMenu");
     }
 
     @FXML
     public void handleSignOut(ActionEvent event) {
+        cleanupHandlers();
         if (ClientApp.getInstance() != null) {
             ClientApp.getInstance().setCurrentUser(null, null);
         }
@@ -63,7 +108,6 @@ public class MyBidsController implements Initializable {
     @FXML
     public void handleRefresh(ActionEvent event) {
         loadMyBids();
-        applyFilters();
     }
 
     @FXML
@@ -71,17 +115,103 @@ public class MyBidsController implements Initializable {
         applyFilters();
     }
 
+    private void registerMessageHandlers() {
+        if (handlersRegistered) {
+            return;
+        }
+        auctionListHandler = this::handleAuctionListResponse;
+        auctionDetailsHandler = this::handleAuctionDetailsResponse;
+        errorHandler = this::handleErrorResponse;
+        ClientApp.getInstance().addMessageHandler(MessageType.AUCTION_LIST_RESPONSE, auctionListHandler);
+        ClientApp.getInstance().addMessageHandler(MessageType.AUCTION_DETAILS_RESPONSE, auctionDetailsHandler);
+        ClientApp.getInstance().addMessageHandler(MessageType.ERROR, errorHandler);
+        handlersRegistered = true;
+    }
+
+    private void cleanupHandlers() {
+        if (!handlersRegistered) {
+            return;
+        }
+        if (auctionListHandler != null) {
+            ClientApp.getInstance().removeMessageHandler(MessageType.AUCTION_LIST_RESPONSE, auctionListHandler);
+        }
+        if (auctionDetailsHandler != null) {
+            ClientApp.getInstance().removeMessageHandler(MessageType.AUCTION_DETAILS_RESPONSE, auctionDetailsHandler);
+        }
+        if (errorHandler != null) {
+            ClientApp.getInstance().removeMessageHandler(MessageType.ERROR, errorHandler);
+        }
+        handlersRegistered = false;
+    }
+
     private void loadMyBids() {
-        String currentUser = resolveCurrentUsername();
-        List<BidCard> demoBids = buildDemoBids();
+        pendingAuctionIds.clear();
+        allUserBids.clear();
+        loadedUserBids.clear();
+        renderBidCards(allUserBids);
+        statusLabel.setStyle("-fx-text-fill: #3f5569; -fx-font-size: 12px; -fx-font-weight: bold;");
+        statusLabel.setText("Loading your bids...");
+        ClientApp.getInstance().getNetworkService().sendMessage(new GetAuctionListRequestMessage());
+    }
+
+    private void handleAuctionListResponse(Message message) {
+        if (!(message instanceof AuctionListResponseMessage response)) {
+            return;
+        }
+        pendingAuctionIds.clear();
+        loadedUserBids.clear();
+
+        List<String> auctionIds = response.getAuctions() == null ? List.of()
+                : response.getAuctions().stream()
+                        .map(summary -> summary == null ? null : summary.getAuctionId())
+                        .filter(id -> id != null && !id.isBlank())
+                        .toList();
+
+        if (auctionIds.isEmpty()) {
+            allUserBids.clear();
+            renderBidCards(allUserBids);
+            statusLabel.setText("No auctions available yet.");
+            return;
+        }
+
+        pendingAuctionIds.addAll(auctionIds);
+        statusLabel.setText("Loading details for " + pendingAuctionIds.size() + " auction(s)...");
+        for (String auctionId : auctionIds) {
+            ClientApp.getInstance().getNetworkService().sendMessage(new GetAuctionDetailsRequestMessage(auctionId));
+        }
+    }
+
+    private void handleAuctionDetailsResponse(Message message) {
+        if (!(message instanceof AuctionDetailsResponseMessage response)) {
+            return;
+        }
+        if (!pendingAuctionIds.remove(response.getAuctionId())) {
+            return;
+        }
+
+        toBidCard(response, resolveCurrentUsername()).ifPresent(loadedUserBids::add);
+        if (!pendingAuctionIds.isEmpty()) {
+            statusLabel.setText("Loading details for " + pendingAuctionIds.size() + " auction(s)...");
+            return;
+        }
 
         allUserBids.clear();
         allUserBids.addAll(
-                demoBids.stream()
-                        .filter(bid -> bid.bidderUsername().equalsIgnoreCase(currentUser))
-                        .sorted(Comparator.comparing(BidCard::auctionTitle))
+                loadedUserBids.stream()
+                        .sorted(Comparator.comparingInt(this::statusPriority)
+                                .thenComparing(BidCard::endTime, Comparator.nullsLast(LocalDateTime::compareTo))
+                                .thenComparing(BidCard::auctionTitle, String.CASE_INSENSITIVE_ORDER))
                         .toList()
         );
+        applyFilters();
+    }
+
+    private void handleErrorResponse(Message message) {
+        if (!(message instanceof ErrorMessage errorMessage)) {
+            return;
+        }
+        statusLabel.setStyle("-fx-text-fill: #d9534f; -fx-font-size: 12px; -fx-font-weight: bold;");
+        statusLabel.setText(errorMessage.getErrorMessage());
     }
 
     private void applyFilters() {
@@ -90,17 +220,20 @@ public class MyBidsController implements Initializable {
 
         List<BidCard> filtered = allUserBids.stream()
                 .filter(bid -> search.isBlank() || bid.auctionTitle().toLowerCase(Locale.ROOT).contains(search))
-                .filter(bid -> selectedStatus == null || "All".equals(selectedStatus) || bid.status().equalsIgnoreCase(selectedStatus))
-                .collect(Collectors.toList());
+                .filter(bid -> selectedStatus == null
+                        || STATUS_ALL.equals(selectedStatus)
+                        || bid.status().equalsIgnoreCase(selectedStatus))
+                .toList();
 
         renderBidCards(filtered);
-        statusLabel.setText("Showing " + filtered.size() + " bids.");
+        statusLabel.setStyle("-fx-text-fill: #3f5569; -fx-font-size: 12px; -fx-font-weight: bold;");
+        statusLabel.setText("Showing " + filtered.size() + " of " + allUserBids.size() + " auctions.");
     }
 
     private void renderBidCards(List<BidCard> bids) {
         bidFlowPane.getChildren().clear();
         if (bids.isEmpty()) {
-            Label emptyLabel = new Label("No bids found for your account.");
+            Label emptyLabel = new Label("You have not placed bids on any auction yet.");
             emptyLabel.setStyle("-fx-font-size: 14px; -fx-font-weight: bold; -fx-text-fill: #4a5f73;");
             bidFlowPane.getChildren().add(emptyLabel);
             return;
@@ -112,74 +245,158 @@ public class MyBidsController implements Initializable {
     }
 
     private VBox createBidCard(BidCard bid) {
-        VBox card = new VBox(8);
-        card.setPrefSize(200, 280);
+        VBox card = new VBox(8.0);
+        card.setPrefSize(240.0, 230.0);
         card.setStyle("-fx-background-color: white; -fx-background-radius: 10; "
                 + "-fx-effect: dropshadow(three-pass-box, rgba(0,0,0,0.2), 10, 0, 0, 0); "
                 + "-fx-padding: 10;");
-
-        ImageView imageView = createItemImage(bid.imagePath());
 
         Label title = new Label(bid.auctionTitle());
         title.setWrapText(true);
         title.setStyle("-fx-font-weight: bold; -fx-font-size: 13px;");
 
-        Label yourBid = new Label("Your Bid: " + bid.yourBid());
-        Label highestBid = new Label("Highest Bid: " + bid.highestBid());
-        Label endTime = new Label("End Time: " + bid.endTime());
+        Label yourBid = new Label("Your max bid: " + formatMoney(bid.yourMaxBid()));
+        Label highestBid = new Label("Current price: " + formatMoney(bid.currentPrice()));
+        Label nextBid = new Label("Minimum next bid: " + formatMoney(bid.minimumNextBid()));
+        Label endTime = new Label(formatTimingLabel(bid.endTime(), bid.auctionStatus()));
         Label status = new Label("Status: " + bid.status());
-        status.setStyle("-fx-text-fill: #c13c21; -fx-font-weight: bold;");
+        status.setStyle("-fx-text-fill: " + statusColor(bid.status()) + "; -fx-font-weight: bold;");
 
-        Button viewButton = new Button("Bid now!");
+        Button viewButton = new Button(buttonLabelForStatus(bid.status()));
         viewButton.setStyle("-fx-background-color: #3bb3d1; -fx-text-fill: white; -fx-background-radius: 5;");
         viewButton.setOnAction(event -> {
             statusLabel.setText("Opening auction: " + bid.auctionTitle());
+            ClientApp.getInstance().setSelectedAuctionId(bid.auctionId());
             SceneNavigator.switchScene("AuctionItem");
         });
 
-        HBox buttonRow = new HBox(viewButton);
-        buttonRow.setStyle("-fx-alignment: center-right;");
-
-        card.getChildren().addAll(imageView, title, yourBid, highestBid, endTime, status, buttonRow);
+        card.getChildren().addAll(title, yourBid, highestBid, nextBid, endTime, status, viewButton);
         return card;
     }
 
-    private ImageView createItemImage(String imagePath) {
-        ImageView imageView = new ImageView();
-        imageView.setFitHeight(150);
-        imageView.setFitWidth(200);
-        imageView.setPreserveRatio(true);
-        imageView.setPickOnBounds(true);
-
-        String resolvedPath = (imagePath == null || imagePath.isBlank()) ? "images/iphone.jpg" : imagePath;
-        URL url = getClass().getResource("/net/auctionapp/client/views/" + resolvedPath);
-        if (url == null) {
-            url = getClass().getResource("/net/auctionapp/client/views/images/iphone.jpg");
+    private java.util.Optional<BidCard> toBidCard(AuctionDetailsResponseMessage response, String currentUsername) {
+        if (response == null || currentUsername == null || currentUsername.isBlank()) {
+            return java.util.Optional.empty();
         }
-        if (url != null) {
-            imageView.setImage(new Image(url.toExternalForm()));
+        List<BidView> bidHistory = response.getBidHistory() == null ? List.of() : response.getBidHistory();
+        List<BidView> userBids = bidHistory.stream()
+                .filter(Objects::nonNull)
+                .filter(bid -> bid.getBidderId() != null && bid.getBidderId().equalsIgnoreCase(currentUsername))
+                .filter(bid -> bid.getAmount() != null)
+                .toList();
+        if (userBids.isEmpty()) {
+            return java.util.Optional.empty();
         }
-        return imageView;
-    }
 
-    private List<BidCard> buildDemoBids() {
-        return List.of(
-                new BidCard("admin", "Iphone 17 Pro Max 1TB", "$1,220", "$1,240", "2026-04-14 18:00", "RUNNING", "images/iphone.jpg"),
-                new BidCard("admin", "Gaming Laptop RTX", "$1,410", "$1,425", "2026-04-13 23:00", "OUTBID", "images/iphone.jpg"),
-                new BidCard("admin", "Vintage Camera Collection", "$840", "$840", "2026-04-14 10:00", "RUNNING", "images/iphone.jpg"),
-                new BidCard("bidderA", "Electric Scooter Pro", "$620", "$650", "2026-04-12 20:30", "FINISHED", "images/iphone.jpg")
-        );
+        BigDecimal yourMaxBid = userBids.stream()
+                .map(BidView::getAmount)
+                .max(BigDecimal::compareTo)
+                .orElse(BigDecimal.ZERO);
+        String status = deriveBidStatus(response, currentUsername);
+        return java.util.Optional.of(new BidCard(
+                response.getAuctionId(),
+                response.getTitle(),
+                yourMaxBid,
+                response.getCurrentPrice(),
+                response.getMinimumNextBid(),
+                response.getEndTime(),
+                status,
+                response.getStatus()
+        ));
     }
 
     private String resolveCurrentUsername() {
         if (ClientApp.getInstance() == null || ClientApp.getInstance().getCurrentUsername() == null
                 || ClientApp.getInstance().getCurrentUsername().isBlank()) {
-            return "admin";
+            return "";
         }
         return ClientApp.getInstance().getCurrentUsername();
     }
 
-    private record BidCard(String bidderUsername, String auctionTitle, String yourBid,
-                           String highestBid, String endTime, String status, String imagePath) {
+    private String deriveBidStatus(AuctionDetailsResponseMessage response, String currentUsername) {
+        AuctionStatus auctionStatus = response.getStatus();
+        if (auctionStatus == AuctionStatus.CANCELED) {
+            return STATUS_CANCELED;
+        }
+        if (auctionStatus == AuctionStatus.FINISHED || auctionStatus == AuctionStatus.PAID) {
+            return currentUsername.equalsIgnoreCase(response.getWinnerBidderId()) ? STATUS_WON : STATUS_LOST;
+        }
+        return currentUsername.equalsIgnoreCase(response.getLeadingBidderId()) ? STATUS_LEADING : STATUS_OUTBID;
+    }
+
+    private int statusPriority(BidCard bidCard) {
+        return switch (bidCard.status()) {
+            case STATUS_LEADING -> 0;
+            case STATUS_OUTBID -> 1;
+            case STATUS_WON -> 2;
+            case STATUS_LOST -> 3;
+            case STATUS_CANCELED -> 4;
+            default -> 5;
+        };
+    }
+
+    private String statusColor(String status) {
+        return switch (status) {
+            case STATUS_LEADING, STATUS_WON -> "#1f8f4c";
+            case STATUS_OUTBID, STATUS_LOST -> "#c13c21";
+            case STATUS_CANCELED -> "#6b7280";
+            default -> "#3f5569";
+        };
+    }
+
+    private String buttonLabelForStatus(String status) {
+        return switch (status) {
+            case STATUS_OUTBID -> "Bid again";
+            default -> "View auction";
+        };
+    }
+
+    private String formatMoney(BigDecimal amount) {
+        if (amount == null) {
+            return "N/A";
+        }
+        return "$" + amount.stripTrailingZeros().toPlainString();
+    }
+
+    private String formatTimingLabel(LocalDateTime endTime, AuctionStatus auctionStatus) {
+        if (endTime == null) {
+            return "End time: N/A";
+        }
+        if (auctionStatus == AuctionStatus.RUNNING) {
+            Duration remaining = Duration.between(LocalDateTime.now(), endTime);
+            if (!remaining.isNegative() && !remaining.isZero()) {
+                return "Ends in: " + formatRemainingDuration(remaining);
+            }
+        }
+        return "Ended at: " + CARD_TIME_FORMATTER.format(endTime);
+    }
+
+    private String formatRemainingDuration(Duration duration) {
+        long totalSeconds = duration.getSeconds();
+        long days = totalSeconds / 86_400;
+        long hours = (totalSeconds % 86_400) / 3_600;
+        long minutes = (totalSeconds % 3_600) / 60;
+        if (days > 0) {
+            return days + "d " + hours + "h";
+        }
+        if (hours > 0) {
+            return hours + "h " + minutes + "m";
+        }
+        if (minutes > 0) {
+            return minutes + "m";
+        }
+        return "less than 1m";
+    }
+
+    private record BidCard(
+            String auctionId,
+            String auctionTitle,
+            BigDecimal yourMaxBid,
+            BigDecimal currentPrice,
+            BigDecimal minimumNextBid,
+            LocalDateTime endTime,
+            String status,
+            AuctionStatus auctionStatus
+    ) {
     }
 }

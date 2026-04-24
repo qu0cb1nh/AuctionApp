@@ -1,7 +1,13 @@
 package net.auctionapp.common.utils;
 
 import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
+import com.google.gson.JsonParseException;
 import com.google.gson.JsonObject;
+import com.google.gson.TypeAdapter;
+import com.google.gson.stream.JsonReader;
+import com.google.gson.stream.JsonToken;
+import com.google.gson.stream.JsonWriter;
 import net.auctionapp.common.messages.Message;
 import net.auctionapp.common.messages.MessageType;
 import net.auctionapp.common.messages.types.BidRequestMessage;
@@ -10,6 +16,7 @@ import net.auctionapp.common.messages.types.AuctionDetailsResponseMessage;
 import net.auctionapp.common.messages.types.AuctionEndedMessage;
 import net.auctionapp.common.messages.types.AuctionListResponseMessage;
 import net.auctionapp.common.messages.types.CreateItemRequestMessage;
+import net.auctionapp.common.messages.types.CreateItemResultMessage;
 import net.auctionapp.common.messages.types.ErrorMessage;
 import net.auctionapp.common.messages.types.GetAuctionDetailsRequestMessage;
 import net.auctionapp.common.messages.types.GetAuctionListRequestMessage;
@@ -19,11 +26,17 @@ import net.auctionapp.common.messages.types.PriceUpdateMessage;
 import net.auctionapp.common.messages.types.RegisterRequestMessage;
 import net.auctionapp.common.messages.types.RegisterResultMessage;
 
+import java.io.IOException;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeParseException;
+
 public final class JsonUtil {
 
     private JsonUtil() { }
 
-    private static final Gson GSON = new Gson();
+    private static final Gson GSON = new GsonBuilder()
+            .registerTypeAdapter(LocalDateTime.class, new LocalDateTimeTypeAdapter())
+            .create();
 
     public static String toJson(Object object) {
         return GSON.toJson(object);
@@ -62,6 +75,8 @@ public final class JsonUtil {
                     return GSON.fromJson(json, AuctionListResponseMessage.class);
                 case AUCTION_DETAILS_RESPONSE:
                     return GSON.fromJson(json, AuctionDetailsResponseMessage.class);
+                case CREATE_ITEM_SUCCESS:
+                    return GSON.fromJson(json, CreateItemResultMessage.class);
                 case BID_REQUEST:
                     return GSON.fromJson(json, BidRequestMessage.class);
                 case BID_ACCEPTED:
@@ -81,6 +96,32 @@ public final class JsonUtil {
             System.err.println("Critical error while parsing JSON: " + json);
             e.printStackTrace();
             return null;
+        }
+    }
+
+    private static final class LocalDateTimeTypeAdapter extends TypeAdapter<LocalDateTime> {
+
+        @Override
+        public void write(JsonWriter out, LocalDateTime value) throws IOException {
+            if (value == null) {
+                out.nullValue();
+                return;
+            }
+            out.value(value.toString());
+        }
+
+        @Override
+        public LocalDateTime read(JsonReader in) throws IOException {
+            if (in.peek() == JsonToken.NULL) {
+                in.nextNull();
+                return null;
+            }
+            String value = in.nextString();
+            try {
+                return LocalDateTime.parse(value);
+            } catch (DateTimeParseException ex) {
+                throw new JsonParseException("Invalid LocalDateTime value: " + value, ex);
+            }
         }
     }
 }

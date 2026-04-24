@@ -10,10 +10,10 @@ public class ArtFactory extends ItemFactory {
     public Item createItem(CreateItemRequestMessage message) {
         String title = message.getTitle();
         String description = message.getDescription();
-        BigDecimal basePrice = message.getBasePrice();
+        BigDecimal startingPrice = message.getStartingPrice();
         String author = message.getAuthor();
         int yearCreated = message.getYearCreated();
-        super.validateBasicData(title, description, basePrice);
-        return new Art(UUID.randomUUID().toString(), title, description, basePrice, author, yearCreated);
+        super.validateBasicData(title, description, startingPrice);
+        return new Art(UUID.randomUUID().toString(), title, description, startingPrice, author, yearCreated);
     }
 }

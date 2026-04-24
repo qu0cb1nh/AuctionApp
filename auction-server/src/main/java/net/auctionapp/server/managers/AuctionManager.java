@@ -11,6 +11,8 @@ import net.auctionapp.common.models.users.UserRole;
 import net.auctionapp.common.utils.JsonUtil;
 import net.auctionapp.server.ClientHandler;
 import net.auctionapp.server.ServerApp;
+import net.auctionapp.server.dao.AuctionDao;
+import net.auctionapp.server.exceptions.DatabaseException;
 import net.auctionapp.server.exceptions.*;
 
 import java.math.BigDecimal;
@@ -34,6 +36,7 @@ public final class AuctionManager {
     private final ConcurrentMap<String, Auction> auctions = new ConcurrentHashMap<>();
     private final ConcurrentSkipListSet<String> announcedEndedAuctionIds = new ConcurrentSkipListSet<>();
     private final UserManager userManager;
+    private volatile AuctionDao auctionDao;
 
     private AuctionManager() {
         this.userManager = UserManager.getInstance();
@@ -89,8 +92,14 @@ public final class AuctionManager {
                     message.getStartTime(),
                     message.getEndTime()
             );
-            // After creating, send the new auction's details back to the creator
-            handleGetAuctionDetails(new GetAuctionDetailsRequestMessage(auction.getId()), handler);
+            persistAuction(auction);
+            handler.sendMessage(JsonUtil.toJson(new CreateItemResultMessage(
+                    auction.getId(),
+                    auction.getItem().getTitle(),
+                    "Auction created successfully."
+            )));
+        } catch (DatabaseException e) {
+            handler.sendMessage(JsonUtil.toJson(new ErrorMessage("Failed to save auction to database: " + e.getMessage())));
         } catch (AuctionAppException e) {
             handler.sendMessage(JsonUtil.toJson(new ErrorMessage(e.getMessage())));
         }
@@ -272,9 +281,12 @@ public final class AuctionManager {
     public BidTransaction submitBid(String auctionId, String bidderId, BigDecimal amount) {
         Auction auction = requireAuction(auctionId);
         userManager.requireUserById(bidderId);
-        User bidder = userManager.requireBidder(bidderId);
+        userManager.requireBidder(bidderId);
         if (amount == null || amount.signum() <= 0) {
             throw new ValidationException("Bid amount must be greater than zero.");
+        }
+        if (Objects.equals(auction.getSellerId(), bidderId)) {
+            throw new InvalidBidException("Seller cannot bid on own auction.");
         }
 
         refreshAuctionStatuses();
@@ -284,7 +296,7 @@ public final class AuctionManager {
 
         BigDecimal minimumNextBid = auction.getMinimumNextBid();
         if (minimumNextBid != null && amount.compareTo(minimumNextBid) < 0) {
-            throw new InvalidBidException("Bid must be higher than the current minimum next bid.");
+            throw new InvalidBidException("Bid must be at least " + minimumNextBid + ".");
         }
 
         BidTransaction bid = new BidTransaction(
@@ -297,14 +309,16 @@ public final class AuctionManager {
         );
 
         if (!auction.placeBid(bid, LocalDateTime.now())) {
-            throw new InvalidBidException("Bid was rejected.");
+            throw new InvalidBidException("Bid was rejected by auction rules.");
         }
+        persistAuctionState(auction);
         return bid;
     }
 
     public Auction finishAuction(String auctionId) {
         Auction auction = requireAuction(auctionId);
         auction.finish();
+        persistAuctionState(auction);
         return auction;
     }
 
@@ -313,6 +327,7 @@ public final class AuctionManager {
         if (!auction.markPaid()) {
             throw new InvalidAuctionStateException("Only finished auctions with a winner can be marked as paid.");
         }
+        persistAuctionState(auction);
         return auction;
     }
 
@@ -327,19 +342,38 @@ public final class AuctionManager {
         if (!auction.cancel()) {
             throw new InvalidAuctionStateException("Paid auctions cannot be canceled.");
         }
+        persistAuctionState(auction);
         return auction;
     }
 
     public void refreshAuctionStatuses() {
         LocalDateTime now = LocalDateTime.now();
         for (Auction auction : auctions.values()) {
+            AuctionStatus previousStatus = auction.getStatus();
+            LocalDateTime previousEndTime = auction.getEndTime();
             auction.refreshStatus(now);
+            if (previousStatus != auction.getStatus() || !previousEndTime.equals(auction.getEndTime())) {
+                persistAuctionState(auction);
+            }
         }
     }
 
     public void clear() {
         auctions.clear();
         announcedEndedAuctionIds.clear();
+    }
+
+    public synchronized void setAuctionDao(AuctionDao auctionDao) {
+        this.auctionDao = auctionDao;
+        if (auctionDao == null) {
+            return;
+        }
+        List<Auction> persistedAuctions = auctionDao.findAllAuctions();
+        auctions.clear();
+        announcedEndedAuctionIds.clear();
+        for (Auction auction : persistedAuctions) {
+            auctions.put(auction.getId(), auction);
+        }
     }
 
     public List<BidView> getBidViews(String auctionId) {
@@ -379,6 +413,36 @@ public final class AuctionManager {
                 throw new AuctionAppException("Unsupported item type.");
         }
         return factory.createItem(message);
+    }
+
+    private void persistAuction(Auction auction) {
+        if (auctionDao == null) {
+            throw new AuctionAppException("Auction persistence is not configured.");
+        }
+        try {
+            if (auctionDao.createAuction(auction)) {
+                return;
+            }
+        } catch (DatabaseException e) {
+            auctions.remove(auction.getId());
+            throw e;
+        }
+        auctions.remove(auction.getId());
+        throw new AuctionAppException("Auction could not be persisted.");
+    }
+
+    private void persistAuctionState(Auction auction) {
+        if (auctionDao == null) {
+            return;
+        }
+        try {
+            if (auctionDao.updateAuctionState(auction)) {
+                return;
+            }
+        } catch (DatabaseException e) {
+            throw new AuctionAppException("Failed to persist auction state.");
+        }
+        throw new AuctionAppException("Auction state could not be persisted.");
     }
 
     private Auction requireAuction(String auctionId) {

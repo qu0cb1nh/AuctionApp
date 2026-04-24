@@ -52,6 +52,26 @@ public class Auction extends Entity {
         this.status = AuctionStatus.OPEN;
     }
 
+    public Auction(
+            String id,
+            String sellerId,
+            LocalDateTime startTime,
+            LocalDateTime endTime,
+            Item item,
+            BigDecimal startingPrice,
+            BigDecimal minimumBidIncrement,
+            BigDecimal currentPrice,
+            String leadingBidderId,
+            String winnerBidderId,
+            AuctionStatus status
+    ) {
+        this(id, sellerId, startTime, endTime, item, startingPrice, minimumBidIncrement);
+        this.currentPrice = currentPrice == null ? startingPrice : currentPrice;
+        this.leadingBidderId = leadingBidderId;
+        this.winnerBidderId = winnerBidderId;
+        this.status = status == null ? AuctionStatus.OPEN : status;
+    }
+
     public String getSellerId() {
         return sellerId;
     }

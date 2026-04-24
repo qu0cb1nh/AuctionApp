@@ -19,6 +19,7 @@ public class ClientApp extends Application {
     private final NetworkService networkService;
     private String currentUsername;
     private String currentRole;
+    private String selectedAuctionId;
 
     public ClientApp() {
         instance = this;
@@ -48,6 +49,14 @@ public class ClientApp extends Application {
     public void setCurrentUser(String username, String role) {
         this.currentUsername = username;
         this.currentRole = role;
+    }
+
+    public String getSelectedAuctionId() {
+        return selectedAuctionId;
+    }
+
+    public void setSelectedAuctionId(String selectedAuctionId) {
+        this.selectedAuctionId = selectedAuctionId;
     }
 
     public static void main(String[] args) {

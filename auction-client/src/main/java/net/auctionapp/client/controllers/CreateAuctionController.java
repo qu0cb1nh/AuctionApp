@@ -9,12 +9,13 @@ import javafx.scene.control.DatePicker;
 import javafx.scene.control.Label;
 import javafx.scene.control.TextArea;
 import javafx.scene.control.TextField;
+import javafx.scene.layout.VBox;
 import net.auctionapp.client.ClientApp;
 import net.auctionapp.client.SceneNavigator;
 import net.auctionapp.common.messages.Message;
 import net.auctionapp.common.messages.MessageType;
-import net.auctionapp.common.messages.types.AuctionDetailsResponseMessage;
 import net.auctionapp.common.messages.types.CreateItemRequestMessage;
+import net.auctionapp.common.messages.types.CreateItemResultMessage;
 import net.auctionapp.common.messages.types.ErrorMessage;
 import net.auctionapp.common.models.items.ItemType;
 
@@ -38,6 +39,28 @@ public class CreateAuctionController implements Initializable {
     @FXML
     private ComboBox<ItemType> categoryComboBox;
     @FXML
+    private VBox electronicsFieldsBox;
+    @FXML
+    private VBox artFieldsBox;
+    @FXML
+    private VBox vehicleFieldsBox;
+    @FXML
+    private TextField electronicsBrandField;
+    @FXML
+    private TextField electronicsModelField;
+    @FXML
+    private TextField electronicsWarrantyField;
+    @FXML
+    private TextField artAuthorField;
+    @FXML
+    private TextField artYearCreatedField;
+    @FXML
+    private TextField vehicleBrandField;
+    @FXML
+    private TextField vehicleModelField;
+    @FXML
+    private TextField vehicleYearCreatedField;
+    @FXML
     private TextField startingPriceField;
     @FXML
     private TextField incrementField;
@@ -50,7 +73,7 @@ public class CreateAuctionController implements Initializable {
     @FXML
     private Label statusLabel;
 
-    private Consumer<Message> detailsListener;
+    private Consumer<Message> createSuccessListener;
     private Consumer<Message> errorListener;
 
     @Override
@@ -59,14 +82,19 @@ public class CreateAuctionController implements Initializable {
 
         categoryComboBox.setItems(FXCollections.observableArrayList(ItemType.values()));
         categoryComboBox.getSelectionModel().select(ItemType.ELECTRONICS);
+        categoryComboBox.valueProperty().addListener((observable, oldValue, newValue) -> updateTypeSpecificFields(newValue));
 
         LocalDate now = LocalDate.now();
         endDatePicker.setValue(now.plusDays(1));
         endTimeField.setText("21:00");
+        artYearCreatedField.setText(String.valueOf(now.getYear()));
+        vehicleYearCreatedField.setText(String.valueOf(now.getYear()));
+        electronicsWarrantyField.setText("12");
+        updateTypeSpecificFields(categoryComboBox.getValue());
 
-        detailsListener = this::handleCreateSuccess;
+        createSuccessListener = this::handleCreateSuccess;
         errorListener = this::handleCreateError;
-        ClientApp.getInstance().addMessageHandler(MessageType.AUCTION_DETAILS_RESPONSE, detailsListener);
+        ClientApp.getInstance().addMessageHandler(MessageType.CREATE_ITEM_SUCCESS, createSuccessListener);
         ClientApp.getInstance().addMessageHandler(MessageType.ERROR, errorListener);
     }
 
@@ -132,40 +160,56 @@ public class CreateAuctionController implements Initializable {
         request.setItemType(categoryComboBox.getValue());
         request.setTitle(title);
         request.setDescription(description);
-        request.setBasePrice(startingPrice);
         request.setStartingPrice(startingPrice);
         request.setMinimumBidIncrement(increment);
         request.setStartTime(startDateTime);
         request.setEndTime(endDateTime);
-        applyDefaultTypeSpecificFields(request);
+        applyTypeSpecificFields(request);
         return request;
     }
 
-    private void applyDefaultTypeSpecificFields(CreateItemRequestMessage request) {
+    private void applyTypeSpecificFields(CreateItemRequestMessage request) {
         switch (request.getItemType()) {
             case ELECTRONICS -> {
-                request.setBrand("Unknown");
-                request.setModel("Unknown");
-                request.setWarrantyMonths(0);
+                request.setBrand(requireNonBlank(electronicsBrandField.getText(), "Electronics brand"));
+                request.setModel(requireNonBlank(electronicsModelField.getText(), "Electronics model"));
+                request.setWarrantyMonths(parseNonNegativeInt(
+                        safeTrim(electronicsWarrantyField.getText()),
+                        "Electronics warranty months"
+                ));
             }
             case ART -> {
-                request.setAuthor("Unknown");
-                request.setYearCreated(LocalDate.now().getYear());
+                request.setAuthor(requireNonBlank(artAuthorField.getText(), "Art author"));
+                request.setYearCreated(parsePositiveInt(safeTrim(artYearCreatedField.getText()), "Art year created"));
             }
             case VEHICLE -> {
-                request.setBrand("Unknown");
-                request.setModel("Unknown");
-                request.setYearCreated(LocalDate.now().getYear());
+                request.setBrand(requireNonBlank(vehicleBrandField.getText(), "Vehicle brand"));
+                request.setModel(requireNonBlank(vehicleModelField.getText(), "Vehicle model"));
+                request.setYearCreated(parsePositiveInt(
+                        safeTrim(vehicleYearCreatedField.getText()),
+                        "Vehicle year created"
+                ));
             }
         }
     }
 
+    private void updateTypeSpecificFields(ItemType itemType) {
+        setSectionVisible(electronicsFieldsBox, itemType == ItemType.ELECTRONICS);
+        setSectionVisible(artFieldsBox, itemType == ItemType.ART);
+        setSectionVisible(vehicleFieldsBox, itemType == ItemType.VEHICLE);
+    }
+
+    private void setSectionVisible(VBox section, boolean visible) {
+        section.setVisible(visible);
+        section.setManaged(visible);
+    }
+
     private void handleCreateSuccess(Message message) {
-        if (!(message instanceof AuctionDetailsResponseMessage response)) {
+        if (!(message instanceof CreateItemResultMessage result)) {
             return;
         }
         statusLabel.setStyle("-fx-font-size: 13px; -fx-text-fill: #2e7d32;");
-        statusLabel.setText("Auction created: " + response.getTitle());
+        statusLabel.setText(result.getMessage());
         cleanupHandlers();
         SceneNavigator.switchSceneWithDelay("AuctionList", 600);
     }
@@ -208,9 +252,47 @@ public class CreateAuctionController implements Initializable {
         return value == null ? "" : value.trim();
     }
 
+    private String requireNonBlank(String value, String fieldName) {
+        String trimmed = safeTrim(value);
+        if (trimmed.isEmpty()) {
+            throw new IllegalArgumentException(fieldName + " is required.");
+        }
+        return trimmed;
+    }
+
+    private int parsePositiveInt(String input, String fieldName) {
+        if (input.isEmpty()) {
+            throw new IllegalArgumentException(fieldName + " is required.");
+        }
+        try {
+            int value = Integer.parseInt(input);
+            if (value <= 0) {
+                throw new IllegalArgumentException(fieldName + " must be greater than zero.");
+            }
+            return value;
+        } catch (NumberFormatException ex) {
+            throw new IllegalArgumentException(fieldName + " must be a valid integer.");
+        }
+    }
+
+    private int parseNonNegativeInt(String input, String fieldName) {
+        if (input.isEmpty()) {
+            throw new IllegalArgumentException(fieldName + " is required.");
+        }
+        try {
+            int value = Integer.parseInt(input);
+            if (value < 0) {
+                throw new IllegalArgumentException(fieldName + " must not be negative.");
+            }
+            return value;
+        } catch (NumberFormatException ex) {
+            throw new IllegalArgumentException(fieldName + " must be a valid integer.");
+        }
+    }
+
     private void cleanupHandlers() {
-        if (detailsListener != null) {
-            ClientApp.getInstance().removeMessageHandler(MessageType.AUCTION_DETAILS_RESPONSE, detailsListener);
+        if (createSuccessListener != null) {
+            ClientApp.getInstance().removeMessageHandler(MessageType.CREATE_ITEM_SUCCESS, createSuccessListener);
         }
         if (errorListener != null) {
             ClientApp.getInstance().removeMessageHandler(MessageType.ERROR, errorListener);
