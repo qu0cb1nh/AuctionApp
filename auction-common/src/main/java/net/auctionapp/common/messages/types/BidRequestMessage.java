@@ -3,28 +3,34 @@ package net.auctionapp.common.messages.types;
 import net.auctionapp.common.messages.Message;
 import net.auctionapp.common.messages.MessageType;
 
-/**
- * A message from the Client to the Server to place a bid.
- * Inherits from Message and has the type BID_REQUEST.
- */
 public class BidRequestMessage extends Message {
     private String itemId;
     private double price;
-    private String userName; // Temporarily using userName, could be userId or a token later
+    private String userName;
 
-    // Default constructor is needed for Gson
     public BidRequestMessage() {
         super(MessageType.BID_REQUEST);
     }
 
-    public BidRequestMessage(String itemId, double price, String userName) {
+    public BidRequestMessage(String auctionId, double price) {
+        this(auctionId, price, null);
+    }
+
+    public BidRequestMessage(String auctionId, double price, String userName) {
         super(MessageType.BID_REQUEST);
-        this.itemId = itemId;
+        this.itemId = auctionId;
         this.price = price;
         this.userName = userName;
     }
 
-    // Getters and Setters
+    public String getAuctionId() {
+        return itemId;
+    }
+
+    public void setAuctionId(String auctionId) {
+        this.itemId = auctionId;
+    }
+
     public String getItemId() {
         return itemId;
     }
@@ -41,10 +47,12 @@ public class BidRequestMessage extends Message {
         this.price = price;
     }
 
+    @Deprecated(forRemoval = false)
     public String getUserName() {
         return userName;
     }
 
+    @Deprecated(forRemoval = false)
     public void setUserName(String userName) {
         this.userName = userName;
     }

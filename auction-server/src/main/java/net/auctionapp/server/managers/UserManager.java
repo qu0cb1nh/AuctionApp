@@ -2,14 +2,15 @@ package net.auctionapp.server.managers;
 
 import net.auctionapp.common.models.users.User;
 import net.auctionapp.common.models.users.UserRole;
+import net.auctionapp.common.utils.UserIdentityUtil;
 import net.auctionapp.server.exceptions.AuthenticationException;
 import net.auctionapp.server.exceptions.NotFoundException;
 import net.auctionapp.server.exceptions.ValidationException;
 import org.mindrot.jbcrypt.BCrypt;
 
 import java.util.EnumSet;
-import java.util.Locale;
 import java.util.Optional;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 
@@ -29,41 +30,37 @@ public final class UserManager {
     }
 
     public User registerUser(String username, String rawPassword) {
-        String normalizedUsername = normalizeUsername(username);
-        validateCredentials(normalizedUsername, rawPassword);
-        return saveUser(
-                normalizedUsername,
-                username.trim(),
-                BCrypt.hashpw(rawPassword, BCrypt.gensalt()),
-                EnumSet.of(UserRole.SELLER, UserRole.BIDDER),
-                false
-        );
+        return registerAccount(username, rawPassword, EnumSet.of(UserRole.SELLER, UserRole.BIDDER));
     }
 
     public User registerAdmin(String username, String rawPassword) {
-        String normalizedUsername = normalizeUsername(username);
-        validateCredentials(normalizedUsername, rawPassword);
-        return saveUser(
-                normalizedUsername,
-                username.trim(),
-                BCrypt.hashpw(rawPassword, BCrypt.gensalt()),
-                EnumSet.of(UserRole.ADMIN, UserRole.SELLER, UserRole.BIDDER),
-                false
-        );
+        return registerAccount(username, rawPassword, EnumSet.of(UserRole.ADMIN, UserRole.SELLER, UserRole.BIDDER));
     }
 
     public User syncAccountFromDatabase(User user) {
+        String normalizedUserId = user == null
+                ? ""
+                : UserIdentityUtil.normalizeUserId(user.getId());
+        if (normalizedUserId.isEmpty() && user != null) {
+            normalizedUserId = UserIdentityUtil.normalizeUserId(user.getUsername());
+        }
         if (user == null
-                || normalizeUsername(user.getUsername()).isEmpty()
+                || normalizedUserId.isEmpty()
                 || user.getPasswordHash() == null
                 || user.getPasswordHash().isBlank()) {
             throw new ValidationException("Database account data is invalid.");
         }
-        return saveUser(user.getId(), user.getUsername().trim(), user.getPasswordHash(), user.getRoles(), true);
+        return saveUser(
+                normalizedUserId,
+                user.getUsername().trim(),
+                user.getPasswordHash(),
+                user.getRoles(),
+                true
+        );
     }
 
     public User login(String username, String rawPassword) {
-        String accountId = normalizeUsername(username);
+        String accountId = UserIdentityUtil.normalizeUserId(username);
         if (accountId.isEmpty() || rawPassword == null || rawPassword.isEmpty()) {
             throw new AuthenticationException("Username and password are required.");
         }
@@ -77,11 +74,11 @@ public final class UserManager {
     }
 
     public Optional<User> getUserById(String userId) {
-        return Optional.ofNullable(usersById.get(userId));
+        return Optional.ofNullable(usersById.get(UserIdentityUtil.normalizeUserId(userId)));
     }
 
     public User requireUserById(String userId) {
-        User user = usersById.get(userId);
+        User user = usersById.get(UserIdentityUtil.normalizeUserId(userId));
         if (user == null) {
             throw new NotFoundException("User not found.");
         }
@@ -89,21 +86,21 @@ public final class UserManager {
     }
 
     public Optional<User> getUserByUsername(String username) {
-        return Optional.ofNullable(usersById.get(normalizeUsername(username)));
+        return Optional.ofNullable(usersById.get(UserIdentityUtil.normalizeUserId(username)));
     }
 
     public User requireSeller(String userId) {
-        User user = requireUserById(userId);
-        if (!user.hasRole(UserRole.SELLER)) {
-            throw new ValidationException("This account cannot act as a seller.");
-        }
-        return user;
+        return requireRole(userId, UserRole.SELLER, "This account cannot act as a seller.");
     }
 
     public User requireBidder(String userId) {
+        return requireRole(userId, UserRole.BIDDER, "This account cannot act as a bidder.");
+    }
+
+    public User requireRole(String userId, UserRole role, String denialMessage) {
         User user = requireUserById(userId);
-        if (!user.hasRole(UserRole.BIDDER)) {
-            throw new ValidationException("This account cannot act as a bidder.");
+        if (!user.hasRole(role)) {
+            throw new ValidationException(denialMessage);
         }
         return user;
     }
@@ -116,6 +113,20 @@ public final class UserManager {
         usersById.clear();
     }
 
+    private User registerAccount(String username, String rawPassword, Set<UserRole> roles) {
+        String normalizedUsername = UserIdentityUtil.normalizeUserId(username);
+        validateCredentials(normalizedUsername, rawPassword);
+        String displayName = username == null ? "" : username.trim();
+        String passwordHash = BCrypt.hashpw(rawPassword, BCrypt.gensalt());
+        return saveUser(
+                normalizedUsername,
+                displayName,
+                passwordHash,
+                roles,
+                false
+        );
+    }
+
     private void validateCredentials(String normalizedUsername, String rawPassword) {
         if (normalizedUsername.isEmpty()) {
             throw new ValidationException("Username is required.");
@@ -123,13 +134,6 @@ public final class UserManager {
         if (rawPassword == null || rawPassword.length() < 6) {
             throw new ValidationException("Password must be at least 6 characters.");
         }
-    }
-
-    private String normalizeUsername(String username) {
-        if (username == null) {
-            return "";
-        }
-        return username.trim().toLowerCase(Locale.ROOT);
     }
 
     private User saveUser(
@@ -141,8 +145,12 @@ public final class UserManager {
     ) {
         User user = new User(userId, username, passwordHash, roles);
 
-        if (!overwriteExisting && usersById.containsKey(userId)) {
-            throw new ValidationException("Username already exists.");
+        if (!overwriteExisting) {
+            User existing = usersById.putIfAbsent(userId, user);
+            if (existing != null) {
+                throw new ValidationException("Username already exists.");
+            }
+            return user;
         }
 
         usersById.put(userId, user);

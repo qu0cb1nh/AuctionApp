@@ -24,6 +24,8 @@
         <MenuButton fx:id="userMenuButton" style="-fx-background-color: transparent; -fx-text-fill: white; -fx-font-size: 14px; -fx-font-weight: bold; -fx-cursor: hand;" text="Guest" BorderPane.alignment="CENTER">
             <items>
                 <MenuItem mnemonicParsing="false" onAction="#handleOpenNotifications" text="Notifications" />
+                <MenuItem mnemonicParsing="false" onAction="#handleOpenActivity" text="Activity" />
+                <MenuItem mnemonicParsing="false" onAction="#handleOpenPurchases" text="Purchases" />
                 <MenuItem mnemonicParsing="false" onAction="#handleOpenSettings" text="Settings" />
                 <MenuItem mnemonicParsing="false" onAction="#handleLogout" text="Logout" />
             </items>

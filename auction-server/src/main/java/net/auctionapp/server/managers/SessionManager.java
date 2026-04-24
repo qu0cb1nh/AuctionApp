@@ -1,9 +1,9 @@
 package net.auctionapp.server.managers;
 
 import net.auctionapp.server.ClientHandler;
+import net.auctionapp.common.utils.UserIdentityUtil;
 
 import java.util.Collections;
-import java.util.Locale;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
@@ -30,7 +30,7 @@ public final class SessionManager {
             return;
         }
 
-        String normalizedUserId = normalizeUserId(userId);
+        String normalizedUserId = UserIdentityUtil.normalizeUserId(userId);
         if (normalizedUserId.isEmpty()) {
             return;
         }
@@ -63,7 +63,7 @@ public final class SessionManager {
     }
 
     public Set<ClientHandler> getClientsByUserId(String userId) {
-        String normalizedUserId = normalizeUserId(userId);
+        String normalizedUserId = UserIdentityUtil.normalizeUserId(userId);
         if (normalizedUserId.isEmpty()) {
             return Set.of();
         }
@@ -91,14 +91,6 @@ public final class SessionManager {
         });
     }
 
-    private String normalizeUserId(String userId) {
-        if (userId == null) {
-            return "";
-        }
-        return userId.trim().toLowerCase(Locale.ROOT);
-    }
-
     public record SessionInfo(String userId, String username, String role) {
     }
 }
-

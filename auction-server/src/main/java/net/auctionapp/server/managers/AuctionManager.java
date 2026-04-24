@@ -1,19 +1,41 @@
 package net.auctionapp.server.managers;
 
 import net.auctionapp.common.messages.MessageType;
-import net.auctionapp.common.messages.types.*;
+import net.auctionapp.common.messages.types.AuctionDetailsResponseMessage;
+import net.auctionapp.common.messages.types.AuctionEndedMessage;
+import net.auctionapp.common.messages.types.AuctionListResponseMessage;
+import net.auctionapp.common.messages.types.AuctionSummary;
+import net.auctionapp.common.messages.types.BidRequestMessage;
+import net.auctionapp.common.messages.types.BidResultMessage;
+import net.auctionapp.common.messages.types.BidView;
+import net.auctionapp.common.messages.types.CreateItemRequestMessage;
+import net.auctionapp.common.messages.types.CreateItemResultMessage;
+import net.auctionapp.common.messages.types.ErrorMessage;
+import net.auctionapp.common.messages.types.GetAuctionDetailsRequestMessage;
+import net.auctionapp.common.messages.types.PriceUpdateMessage;
 import net.auctionapp.common.models.auction.Auction;
-import net.auctionapp.common.models.auction.BidTransaction;
 import net.auctionapp.common.models.auction.AuctionStatus;
-import net.auctionapp.common.models.items.*;
+import net.auctionapp.common.models.auction.BidTransaction;
+import net.auctionapp.common.models.items.ArtFactory;
+import net.auctionapp.common.models.items.ElectronicsFactory;
+import net.auctionapp.common.models.items.Item;
+import net.auctionapp.common.models.items.ItemFactory;
+import net.auctionapp.common.models.items.ItemType;
+import net.auctionapp.common.models.items.VehicleFactory;
 import net.auctionapp.common.models.users.User;
 import net.auctionapp.common.models.users.UserRole;
 import net.auctionapp.common.utils.JsonUtil;
+import net.auctionapp.common.utils.UserIdentityUtil;
 import net.auctionapp.server.ClientHandler;
 import net.auctionapp.server.ServerApp;
 import net.auctionapp.server.dao.AuctionDao;
+import net.auctionapp.server.exceptions.AuctionAppException;
+import net.auctionapp.server.exceptions.AuthorizationException;
 import net.auctionapp.server.exceptions.DatabaseException;
-import net.auctionapp.server.exceptions.*;
+import net.auctionapp.server.exceptions.InvalidAuctionStateException;
+import net.auctionapp.server.exceptions.InvalidBidException;
+import net.auctionapp.server.exceptions.NotFoundException;
+import net.auctionapp.server.exceptions.ValidationException;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
@@ -57,8 +79,7 @@ public final class AuctionManager {
 
     public void handleGetAuctionDetails(GetAuctionDetailsRequestMessage message, ClientHandler handler) {
         try {
-            Auction auction = getAuctionById(message.getAuctionId())
-                    .orElseThrow(() -> new AuctionAppException("Auction not found."));
+            Auction auction = requireAuction(message.getAuctionId());
             AuctionDetailsResponseMessage response = new AuctionDetailsResponseMessage(
                     auction.getId(),
                     auction.getSellerId(),
@@ -84,8 +105,9 @@ public final class AuctionManager {
         try {
             handler.ensureAuthenticated();
             Item item = createItemFromRequest(message);
+            String sellerId = UserIdentityUtil.normalizeUserId(handler.getAuthenticatedId());
             Auction auction = createAuction(
-                    handler.getAuthenticatedId().toLowerCase(),
+                    sellerId,
                     item,
                     message.getStartingPrice(),
                     message.getMinimumBidIncrement(),
@@ -106,38 +128,18 @@ public final class AuctionManager {
     }
 
     public void handleBidRequest(BidRequestMessage message, ClientHandler handler) {
+        String auctionId = message.getAuctionId();
         try {
             handler.ensureAuthenticated();
-            Auction auction = getAuctionById(message.getItemId())
-                    .orElseThrow(() -> new AuctionAppException("Auction not found."));
-            submitBid(
-                    auction.getId(),
-                    handler.getAuthenticatedId().toLowerCase(),
-                    BigDecimal.valueOf(message.getPrice())
-            );
-            Auction updatedAuction = getAuctionById(auction.getId())
-                    .orElseThrow(() -> new AuctionAppException("Auction not found."));
-            handler.sendMessage(JsonUtil.toJson(new BidResultMessage(
-                    MessageType.BID_ACCEPTED,
-                    updatedAuction.getId(),
-                    updatedAuction.getCurrentPrice(),
-                    updatedAuction.getLeadingBidderId(),
-                    "Bid accepted."
-            )));
-            ServerApp.broadcast(JsonUtil.toJson(new PriceUpdateMessage(
-                    updatedAuction.getId(),
-                    updatedAuction.getCurrentPrice().doubleValue(),
-                    updatedAuction.getLeadingBidderId()
-            )));
+            String bidderId = UserIdentityUtil.normalizeUserId(handler.getAuthenticatedId());
+            submitBid(auctionId, bidderId, BigDecimal.valueOf(message.getPrice()));
+
+            Auction updatedAuction = requireAuction(auctionId);
+            sendBidAccepted(handler, updatedAuction);
+            broadcastPriceUpdate(updatedAuction);
             broadcastEndedAuctions();
         } catch (AuctionAppException e) {
-            handler.sendMessage(JsonUtil.toJson(new BidResultMessage(
-                    MessageType.BID_REJECTED,
-                    message.getItemId(),
-                    null,
-                    null,
-                    e.getMessage()
-            )));
+            sendBidRejected(handler, auctionId, e.getMessage());
         }
     }
 
@@ -200,12 +202,10 @@ public final class AuctionManager {
     ) {
         validateAuctionDraft(item, startingPrice, minimumBidIncrement, startTime, endTime);
 
-        userManager.requireUserById(sellerId);
-        User seller = userManager.requireSeller(sellerId);
-
+        User seller = userManager.requireSeller(UserIdentityUtil.normalizeUserId(sellerId));
         Auction auction = new Auction(
                 UUID.randomUUID().toString(),
-                sellerId,
+                seller.getId(),
                 startTime,
                 endTime,
                 item,
@@ -253,12 +253,9 @@ public final class AuctionManager {
 
     public void deleteAuction(String actorId, String auctionId) {
         Auction auction = requireAuction(auctionId);
-        User actor = userManager.requireUserById(actorId);
+        User actor = userManager.requireUserById(UserIdentityUtil.normalizeUserId(actorId));
+        ensureAdminOrOwningSeller(actor, auction);
 
-        boolean canDelete = actor.hasRole(UserRole.ADMIN) || Objects.equals(actor.getId(), auction.getSellerId());
-        if (!canDelete) {
-            throw new AuthorizationException("Only the seller or an admin can delete an auction.");
-        }
         if (auction.getStatus() == AuctionStatus.RUNNING || auction.getStatus() == AuctionStatus.PAID) {
             throw new InvalidAuctionStateException("Running or paid auctions cannot be deleted.");
         }
@@ -280,35 +277,26 @@ public final class AuctionManager {
 
     public BidTransaction submitBid(String auctionId, String bidderId, BigDecimal amount) {
         Auction auction = requireAuction(auctionId);
-        userManager.requireUserById(bidderId);
-        userManager.requireBidder(bidderId);
-        if (amount == null || amount.signum() <= 0) {
-            throw new ValidationException("Bid amount must be greater than zero.");
-        }
-        if (Objects.equals(auction.getSellerId(), bidderId)) {
-            throw new InvalidBidException("Seller cannot bid on own auction.");
-        }
+        String normalizedBidderId = UserIdentityUtil.normalizeUserId(bidderId);
+        userManager.requireBidder(normalizedBidderId);
+        validateBidAmount(amount);
+        ensureBidderIsNotSeller(auction, normalizedBidderId);
 
         refreshAuctionStatuses();
-        if (auction.getStatus() != AuctionStatus.RUNNING) {
-            throw new InvalidAuctionStateException("Auction is not open for bidding.");
-        }
+        ensureAuctionIsRunning(auction);
+        ensureBidAmountMeetsMinimum(auction, amount);
 
-        BigDecimal minimumNextBid = auction.getMinimumNextBid();
-        if (minimumNextBid != null && amount.compareTo(minimumNextBid) < 0) {
-            throw new InvalidBidException("Bid must be at least " + minimumNextBid + ".");
-        }
-
+        LocalDateTime now = LocalDateTime.now();
         BidTransaction bid = new BidTransaction(
                 UUID.randomUUID().toString(),
                 amount,
-                LocalDateTime.now(),
-                bidderId,
+                now,
+                normalizedBidderId,
                 auctionId,
                 false
         );
 
-        if (!auction.placeBid(bid, LocalDateTime.now())) {
+        if (!auction.placeBid(bid, now)) {
             throw new InvalidBidException("Bid was rejected by auction rules.");
         }
         persistAuctionState(auction);
@@ -333,12 +321,9 @@ public final class AuctionManager {
 
     public Auction cancelAuction(String actorId, String auctionId) {
         Auction auction = requireAuction(auctionId);
-        User actor = userManager.requireUserById(actorId);
+        User actor = userManager.requireUserById(UserIdentityUtil.normalizeUserId(actorId));
+        ensureAdminOrOwningSeller(actor, auction);
 
-        boolean canCancel = actor.hasRole(UserRole.ADMIN) || Objects.equals(actor.getId(), auction.getSellerId());
-        if (!canCancel) {
-            throw new AuthorizationException("Only the seller or an admin can cancel an auction.");
-        }
         if (!auction.cancel()) {
             throw new InvalidAuctionStateException("Paid auctions cannot be canceled.");
         }
@@ -352,7 +337,8 @@ public final class AuctionManager {
             AuctionStatus previousStatus = auction.getStatus();
             LocalDateTime previousEndTime = auction.getEndTime();
             auction.refreshStatus(now);
-            if (previousStatus != auction.getStatus() || !previousEndTime.equals(auction.getEndTime())) {
+            if (previousStatus != auction.getStatus()
+                    || !Objects.equals(previousEndTime, auction.getEndTime())) {
                 persistAuctionState(auction);
             }
         }
@@ -398,20 +384,14 @@ public final class AuctionManager {
 
     private Item createItemFromRequest(CreateItemRequestMessage message) {
         ItemType type = message.getItemType();
-        ItemFactory factory;
-        switch (type) {
-            case ART:
-                factory = new ArtFactory();
-                break;
-            case ELECTRONICS:
-                factory = new ElectronicsFactory();
-                break;
-            case VEHICLE:
-                factory = new VehicleFactory();
-                break;
-            default:
-                throw new AuctionAppException("Unsupported item type.");
+        if (type == null) {
+            throw new AuctionAppException("Item type is required.");
         }
+        ItemFactory factory = switch (type) {
+            case ART -> new ArtFactory();
+            case ELECTRONICS -> new ElectronicsFactory();
+            case VEHICLE -> new VehicleFactory();
+        };
         return factory.createItem(message);
     }
 
@@ -446,6 +426,9 @@ public final class AuctionManager {
     }
 
     private Auction requireAuction(String auctionId) {
+        if (auctionId == null || auctionId.isBlank()) {
+            throw new NotFoundException("Auction not found.");
+        }
         Auction auction = auctions.get(auctionId);
         if (auction == null) {
             throw new NotFoundException("Auction not found.");
@@ -454,10 +437,72 @@ public final class AuctionManager {
     }
 
     private void ensureSellerOwnsAuction(String sellerId, Auction auction) {
-        userManager.requireSeller(sellerId);
-        if (!Objects.equals(sellerId, auction.getSellerId())) {
+        User seller = userManager.requireSeller(UserIdentityUtil.normalizeUserId(sellerId));
+        if (!Objects.equals(seller.getId(), auction.getSellerId())) {
             throw new AuthorizationException("Only the owning seller can modify this auction.");
         }
+    }
+
+    private void ensureAdminOrOwningSeller(User actor, Auction auction) {
+        boolean isAdmin = actor.hasRole(UserRole.ADMIN);
+        boolean isOwningSeller = actor.hasRole(UserRole.SELLER)
+                && Objects.equals(actor.getId(), auction.getSellerId());
+        if (!isAdmin && !isOwningSeller) {
+            throw new AuthorizationException("Only the seller or an admin can manage this auction.");
+        }
+    }
+
+    private void validateBidAmount(BigDecimal amount) {
+        if (amount == null || amount.signum() <= 0) {
+            throw new ValidationException("Bid amount must be greater than zero.");
+        }
+    }
+
+    private void ensureBidderIsNotSeller(Auction auction, String bidderId) {
+        if (Objects.equals(auction.getSellerId(), bidderId)) {
+            throw new InvalidBidException("Seller cannot bid on own auction.");
+        }
+    }
+
+    private void ensureAuctionIsRunning(Auction auction) {
+        if (auction.getStatus() != AuctionStatus.RUNNING) {
+            throw new InvalidAuctionStateException("Auction is not open for bidding.");
+        }
+    }
+
+    private void ensureBidAmountMeetsMinimum(Auction auction, BigDecimal amount) {
+        BigDecimal minimumNextBid = auction.getMinimumNextBid();
+        if (minimumNextBid != null && amount.compareTo(minimumNextBid) < 0) {
+            throw new InvalidBidException("Bid must be at least " + minimumNextBid + ".");
+        }
+    }
+
+    private void sendBidAccepted(ClientHandler handler, Auction auction) {
+        handler.sendMessage(JsonUtil.toJson(new BidResultMessage(
+                MessageType.BID_ACCEPTED,
+                auction.getId(),
+                auction.getCurrentPrice(),
+                auction.getLeadingBidderId(),
+                "Bid accepted."
+        )));
+    }
+
+    private void sendBidRejected(ClientHandler handler, String auctionId, String message) {
+        handler.sendMessage(JsonUtil.toJson(new BidResultMessage(
+                MessageType.BID_REJECTED,
+                auctionId,
+                null,
+                null,
+                message
+        )));
+    }
+
+    private void broadcastPriceUpdate(Auction auction) {
+        ServerApp.broadcast(JsonUtil.toJson(new PriceUpdateMessage(
+                auction.getId(),
+                auction.getCurrentPrice().doubleValue(),
+                auction.getLeadingBidderId()
+        )));
     }
 
     private void validateAuctionDraft(

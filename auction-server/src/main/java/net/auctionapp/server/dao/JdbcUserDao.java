@@ -1,15 +1,14 @@
 package net.auctionapp.server.dao;
 
 import net.auctionapp.common.models.users.User;
-import net.auctionapp.common.models.users.UserRole;
 import net.auctionapp.server.exceptions.DatabaseException;
 import net.auctionapp.server.managers.DatabaseManager;
+import net.auctionapp.server.utils.UserRoleUtil;
 
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
-import java.util.EnumSet;
 import java.util.Optional;
 
 public class JdbcUserDao implements UserDao {
@@ -45,7 +44,7 @@ public class JdbcUserDao implements UserDao {
                         normalizedUsername,
                         username,
                         passwordHash,
-                        resolveRoles(databaseRole)
+                        UserRoleUtil.fromDatabaseRole(databaseRole)
                 ));
             }
         } catch (SQLException e) {
@@ -59,21 +58,10 @@ public class JdbcUserDao implements UserDao {
              PreparedStatement statement = connection.prepareStatement(CREATE_USER_QUERY)) {
             statement.setString(1, user.getUsername());
             statement.setString(2, user.getPasswordHash());
-            statement.setString(3, toDatabaseRole(user));
+            statement.setString(3, UserRoleUtil.toDatabaseRole(user));
             return statement.executeUpdate() == 1;
         } catch (SQLException e) {
             throw new DatabaseException("Failed to create user.", e);
         }
-    }
-
-    private EnumSet<UserRole> resolveRoles(String databaseRole) {
-        if ("admin".equalsIgnoreCase(databaseRole)) {
-            return EnumSet.of(UserRole.ADMIN, UserRole.SELLER, UserRole.BIDDER);
-        }
-        return EnumSet.of(UserRole.SELLER, UserRole.BIDDER);
-    }
-
-    private String toDatabaseRole(User user) {
-        return user.hasRole(UserRole.ADMIN) ? "admin" : "user";
     }
 }

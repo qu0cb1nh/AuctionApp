@@ -8,7 +8,6 @@ import net.auctionapp.client.ClientApp;
 import net.auctionapp.client.SceneNavigator;
 
 import java.net.URL;
-import java.util.Locale;
 import java.util.ResourceBundle;
 
 public class MainMenuController implements Initializable {
@@ -34,10 +33,5 @@ public class MainMenuController implements Initializable {
     @FXML
     public void handleSellItem(ActionEvent event) {
         SceneNavigator.switchScene("CreateAuction");
-    }
-
-    @FXML
-    public void handleMyBids(ActionEvent event) {
-        SceneNavigator.switchScene("MyBids");
     }
 }

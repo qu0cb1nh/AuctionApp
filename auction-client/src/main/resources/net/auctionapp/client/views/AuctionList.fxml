@@ -12,16 +12,17 @@
 <?import javafx.scene.layout.Region?>
 <?import javafx.scene.layout.VBox?>
 
-<BorderPane prefHeight="634.0" prefWidth="967.0" xmlns="http://javafx.com/javafx/25" xmlns:fx="http://javafx.com/fxml/1" fx:controller="net.auctionapp.client.controllers.AuctionListController">
+<BorderPane fx:id="rootPane" prefHeight="634.0" prefWidth="967.0" xmlns="http://javafx.com/javafx/25" xmlns:fx="http://javafx.com/fxml/1" fx:controller="net.auctionapp.client.controllers.AuctionListController">
     <top>
         <VBox spacing="0.0" BorderPane.alignment="CENTER">
             <children>
                 <fx:include fx:id="appHeader" source="Header.fxml" />
                 <HBox alignment="CENTER_LEFT" spacing="20.0" style="-fx-background-color: #3bb3d1;">
                     <children>
-                        <TextField prefHeight="35.0" prefWidth="250.0" promptText="Search for products..." style="-fx-background-radius: 15;" />
-                        <ComboBox prefHeight="35.0" prefWidth="150.0" promptText="Filter by..." style="-fx-background-radius: 10;" />
+                        <TextField fx:id="searchField" onKeyReleased="#handleFilterChanged" prefHeight="35.0" prefWidth="250.0" promptText="Search for products..." style="-fx-background-radius: 15;" />
+                        <ComboBox fx:id="statusFilterComboBox" onAction="#handleFilterChanged" prefHeight="35.0" prefWidth="170.0" promptText="Filter status" style="-fx-background-radius: 10;" />
                         <Region HBox.hgrow="ALWAYS" />
+                        <Button mnemonicParsing="false" onAction="#handleRefresh" prefHeight="35.0" prefWidth="100.0" style="-fx-background-color: white; -fx-text-fill: #3bb3d1; -fx-background-radius: 10; -fx-font-weight: bold;" text="Refresh" />
                     </children>
                     <padding>
                         <Insets bottom="15.0" left="25.0" right="25.0" top="15.0" />
@@ -37,7 +38,7 @@
                 <VBox spacing="10.0" style="-fx-padding: 20;">
                     <children>
                         <Label fx:id="listStatusLabel" style="-fx-text-fill: #666666;" text="Loading auctions..." />
-                        <FlowPane fx:id="auctionFlowPane" hgap="20.0" vgap="20.0" />
+                        <FlowPane fx:id="auctionFlowPane" hgap="16.0" vgap="16.0" />
                     </children>
                 </VBox>
             </content>
