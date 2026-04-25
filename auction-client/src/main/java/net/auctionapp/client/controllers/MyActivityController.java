@@ -158,7 +158,7 @@ public class MyActivityController implements Initializable {
         loadedSellerActivities.clear();
         renderBidCards(List.of());
         renderSellerCards(List.of());
-        statusLabel.setStyle("-fx-text-fill: #3f5569; -fx-font-size: 12px; -fx-font-weight: bold;");
+        statusLabel.setStyle("-fx-text-fill: #3f5569; -fx-font-size: 12px;");
         statusLabel.setText("Loading your activity...");
         ClientApp.getInstance().getNetworkService().sendMessage(new GetAuctionListRequestMessage());
     }
@@ -235,7 +235,7 @@ public class MyActivityController implements Initializable {
         if (!(message instanceof ErrorMessage errorMessage)) {
             return;
         }
-        statusLabel.setStyle("-fx-text-fill: #d9534f; -fx-font-size: 12px; -fx-font-weight: bold;");
+        statusLabel.setStyle("-fx-text-fill: #d9534f; -fx-font-size: 12px;");
         statusLabel.setText(errorMessage.getErrorMessage());
     }
 
@@ -257,7 +257,7 @@ public class MyActivityController implements Initializable {
 
         renderBidCards(filteredBids);
         renderSellerCards(filteredSellerAuctions);
-        statusLabel.setStyle("-fx-text-fill: #3f5569; -fx-font-size: 12px; -fx-font-weight: bold;");
+        statusLabel.setStyle("-fx-text-fill: #3f5569; -fx-font-size: 12px;");
         statusLabel.setText("Showing "
                 + filteredBids.size() + "/" + allBidActivities.size() + " bids and "
                 + filteredSellerAuctions.size() + "/" + allSellerActivities.size() + " auctions.");

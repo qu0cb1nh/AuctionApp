@@ -37,6 +37,7 @@
             <content>
                 <VBox spacing="12.0" style="-fx-padding: 20;">
                     <children>
+                    <Label fx:id="statusLabel" nodeOrientation="LEFT_TO_RIGHT" style="-fx-text-fill: #3f5569; -fx-font-size: 12px;" text="Ready." />
                         <Label style="-fx-font-size: 20px; -fx-font-weight: bold; -fx-text-fill: #153e5c;" text="Your Bids" />
                         <FlowPane fx:id="bidActivityFlowPane" hgap="20.0" vgap="20.0" />
                         <Label style="-fx-font-size: 20px; -fx-font-weight: bold; -fx-text-fill: #153e5c;" text="Your Auctions" />
@@ -46,8 +47,4 @@
             </content>
         </ScrollPane>
     </center>
-
-    <bottom>
-        <Label fx:id="statusLabel" style="-fx-padding: 8 24 12 24; -fx-text-fill: #3f5569; -fx-font-size: 12px; -fx-font-weight: bold;" text="Ready." />
-    </bottom>
 </BorderPane>
