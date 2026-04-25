@@ -16,12 +16,12 @@ import net.auctionapp.common.messages.types.PriceUpdateMessage;
 import net.auctionapp.common.models.auction.Auction;
 import net.auctionapp.common.models.auction.AuctionStatus;
 import net.auctionapp.common.models.auction.BidTransaction;
-import net.auctionapp.common.models.items.ArtFactory;
-import net.auctionapp.common.models.items.ElectronicsFactory;
+import net.auctionapp.server.factories.ArtFactory;
+import net.auctionapp.server.factories.ElectronicsFactory;
 import net.auctionapp.common.models.items.Item;
-import net.auctionapp.common.models.items.ItemFactory;
+import net.auctionapp.server.factories.ItemFactory;
 import net.auctionapp.common.models.items.ItemType;
-import net.auctionapp.common.models.items.VehicleFactory;
+import net.auctionapp.server.factories.VehicleFactory;
 import net.auctionapp.common.models.users.User;
 import net.auctionapp.common.models.users.UserRole;
 import net.auctionapp.common.utils.JsonUtil;
@@ -79,22 +79,9 @@ public final class AuctionManager {
 
     public void handleGetAuctionDetails(GetAuctionDetailsRequestMessage message, ClientHandler handler) {
         try {
+            handler.ensureAuthenticated();
             Auction auction = requireAuction(message.getAuctionId());
-            AuctionDetailsResponseMessage response = new AuctionDetailsResponseMessage(
-                    auction.getId(),
-                    auction.getSellerId(),
-                    auction.getItem().getTitle(),
-                    auction.getItem().getDescription(),
-                    auction.getStartingPrice(),
-                    auction.getCurrentPrice(),
-                    auction.getMinimumNextBid(),
-                    auction.getStatus(),
-                    auction.getLeadingBidderId(),
-                    auction.getWinnerBidderId(),
-                    auction.getStartTime(),
-                    auction.getEndTime(),
-                    getBidViews(auction.getId())
-            );
+            AuctionDetailsResponseMessage response = buildAuctionDetailsResponse(auction);
             handler.sendMessage(JsonUtil.toJson(response));
         } catch (AuctionAppException e) {
             handler.sendMessage(JsonUtil.toJson(new ErrorMessage(e.getMessage())));
@@ -157,22 +144,29 @@ public final class AuctionManager {
 
     public List<Auction> getAllAuctions() {
         refreshAuctionStatuses();
-        return new ArrayList<>(auctions.values());
+        List<Auction> snapshots = new ArrayList<>();
+        for (Auction auction : auctions.values()) {
+            snapshots.add(auction.snapshotCopy());
+        }
+        return snapshots;
     }
 
     public List<AuctionSummary> getAuctionSummaries() {
         refreshAuctionStatuses();
         List<AuctionSummary> result = new ArrayList<>();
         for (Auction auction : auctions.values()) {
-            result.add(new AuctionSummary(
-                    auction.getId(),
-                    auction.getItem().getTitle(),
-                    auction.getCurrentPrice(),
-                    auction.getMinimumNextBid(),
-                    auction.getStatus(),
-                    auction.getStartTime(),
-                    auction.getEndTime()
-            ));
+            synchronized (auction) {
+                Item item = auction.getItem();
+                result.add(new AuctionSummary(
+                        auction.getId(),
+                        item.getTitle(),
+                        auction.getCurrentPrice(),
+                        auction.getMinimumNextBid(),
+                        auction.getStatus(),
+                        auction.getStartTime(),
+                        auction.getEndTime()
+                ));
+            }
         }
         return result;
     }
@@ -182,7 +176,11 @@ public final class AuctionManager {
             return Optional.empty();
         }
         refreshAuctionStatuses();
-        return Optional.ofNullable(auctions.get(auctionId));
+        Auction auction = auctions.get(auctionId);
+        if (auction == null) {
+            return Optional.empty();
+        }
+        return Optional.of(auction.snapshotCopy());
     }
 
     public boolean addAuction(Auction auction) {
@@ -478,13 +476,15 @@ public final class AuctionManager {
     }
 
     private void sendBidAccepted(ClientHandler handler, Auction auction) {
-        handler.sendMessage(JsonUtil.toJson(new BidResultMessage(
-                MessageType.BID_ACCEPTED,
-                auction.getId(),
-                auction.getCurrentPrice(),
-                auction.getLeadingBidderId(),
-                "Bid accepted."
-        )));
+        synchronized (auction) {
+            handler.sendMessage(JsonUtil.toJson(new BidResultMessage(
+                    MessageType.BID_ACCEPTED,
+                    auction.getId(),
+                    auction.getCurrentPrice(),
+                    auction.getLeadingBidderId(),
+                    "Bid accepted."
+            )));
+        }
     }
 
     private void sendBidRejected(ClientHandler handler, String auctionId, String message) {
@@ -498,11 +498,34 @@ public final class AuctionManager {
     }
 
     private void broadcastPriceUpdate(Auction auction) {
-        ServerApp.broadcast(JsonUtil.toJson(new PriceUpdateMessage(
-                auction.getId(),
-                auction.getCurrentPrice().doubleValue(),
-                auction.getLeadingBidderId()
-        )));
+        synchronized (auction) {
+            ServerApp.broadcast(JsonUtil.toJson(new PriceUpdateMessage(
+                    auction.getId(),
+                    auction.getCurrentPrice().doubleValue(),
+                    auction.getLeadingBidderId()
+            )));
+        }
+    }
+
+    private AuctionDetailsResponseMessage buildAuctionDetailsResponse(Auction auction) {
+        synchronized (auction) {
+            Item item = auction.getItem();
+            return new AuctionDetailsResponseMessage(
+                    auction.getId(),
+                    auction.getSellerId(),
+                    item.getTitle(),
+                    item.getDescription(),
+                    auction.getStartingPrice(),
+                    auction.getCurrentPrice(),
+                    auction.getMinimumNextBid(),
+                    auction.getStatus(),
+                    auction.getLeadingBidderId(),
+                    auction.getWinnerBidderId(),
+                    auction.getStartTime(),
+                    auction.getEndTime(),
+                    getBidViews(auction.getId())
+            );
+        }
     }
 
     private void validateAuctionDraft(

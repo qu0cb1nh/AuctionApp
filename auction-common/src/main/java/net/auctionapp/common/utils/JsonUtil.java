@@ -10,21 +10,7 @@ import com.google.gson.stream.JsonToken;
 import com.google.gson.stream.JsonWriter;
 import net.auctionapp.common.messages.Message;
 import net.auctionapp.common.messages.MessageType;
-import net.auctionapp.common.messages.types.BidRequestMessage;
-import net.auctionapp.common.messages.types.BidResultMessage;
-import net.auctionapp.common.messages.types.AuctionDetailsResponseMessage;
-import net.auctionapp.common.messages.types.AuctionEndedMessage;
-import net.auctionapp.common.messages.types.AuctionListResponseMessage;
-import net.auctionapp.common.messages.types.CreateItemRequestMessage;
-import net.auctionapp.common.messages.types.CreateItemResultMessage;
-import net.auctionapp.common.messages.types.ErrorMessage;
-import net.auctionapp.common.messages.types.GetAuctionDetailsRequestMessage;
-import net.auctionapp.common.messages.types.GetAuctionListRequestMessage;
-import net.auctionapp.common.messages.types.LoginRequestMessage;
-import net.auctionapp.common.messages.types.LoginResultMessage;
-import net.auctionapp.common.messages.types.PriceUpdateMessage;
-import net.auctionapp.common.messages.types.RegisterRequestMessage;
-import net.auctionapp.common.messages.types.RegisterResultMessage;
+import net.auctionapp.common.messages.types.*;
 
 import java.io.IOException;
 import java.time.LocalDateTime;
@@ -88,6 +74,10 @@ public final class JsonUtil {
                     return GSON.fromJson(json, AuctionEndedMessage.class);
                 case ERROR:
                     return GSON.fromJson(json, ErrorMessage.class);
+                case PING:
+                    return GSON.fromJson(json, PingMessage.class);
+                case PONG:
+                    return GSON.fromJson(json, PongMessage.class);
                 default:
                     System.err.println("Unhandled message type: " + type);
                     return null;

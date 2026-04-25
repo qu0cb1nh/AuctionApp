@@ -1,7 +1,10 @@
 package net.auctionapp.common.models.auction;
 
 import net.auctionapp.common.models.Entity;
+import net.auctionapp.common.models.items.Art;
+import net.auctionapp.common.models.items.Electronics;
 import net.auctionapp.common.models.items.Item;
+import net.auctionapp.common.models.items.Vehicle;
 
 import java.math.BigDecimal;
 import java.time.Duration;
@@ -72,67 +75,67 @@ public class Auction extends Entity {
         this.status = status == null ? AuctionStatus.OPEN : status;
     }
 
-    public String getSellerId() {
+    public synchronized String getSellerId() {
         return sellerId;
     }
 
-    public LocalDateTime getStartTime() {
+    public synchronized LocalDateTime getStartTime() {
         return startTime;
     }
 
-    public LocalDateTime getEndTime() {
+    public synchronized LocalDateTime getEndTime() {
         return endTime;
     }
 
-    public Item getItem() {
-        return item;
+    public synchronized Item getItem() {
+        return copyItem(item);
     }
 
-    public BigDecimal getStartingPrice() {
+    public synchronized BigDecimal getStartingPrice() {
         return startingPrice;
     }
 
-    public BigDecimal getMinimumBidIncrement() {
+    public synchronized BigDecimal getMinimumBidIncrement() {
         return minimumBidIncrement;
     }
 
-    public BigDecimal getCurrentPrice() {
+    public synchronized BigDecimal getCurrentPrice() {
         return currentPrice;
     }
 
-    public String getLeadingBidderId() {
+    public synchronized String getLeadingBidderId() {
         return leadingBidderId;
     }
 
-    public String getWinnerBidderId() {
+    public synchronized String getWinnerBidderId() {
         return winnerBidderId;
     }
 
-    public AuctionStatus getStatus() {
+    public synchronized AuctionStatus getStatus() {
         return status;
     }
 
-    public List<BidTransaction> getBidHistory() {
+    public synchronized List<BidTransaction> getBidHistory() {
         return new ArrayList<>(bidHistory);
     }
 
-    public Map<String, AutoBidConfig> getAutoBidRegistry() {
+    public synchronized Map<String, AutoBidConfig> getAutoBidRegistry() {
         return Map.copyOf(autoBidRegistry);
     }
 
-    public long getAntiSnipingThresholdSeconds() {
+    public synchronized long getAntiSnipingThresholdSeconds() {
         return antiSnipingThresholdSeconds;
     }
 
-    public void setAntiSnipingThresholdSeconds(long antiSnipingThresholdSeconds) {
+    public synchronized void setAntiSnipingThresholdSeconds(long antiSnipingThresholdSeconds) {
         this.antiSnipingThresholdSeconds = antiSnipingThresholdSeconds;
     }
 
-    public long getAntiSnipingExtensionSeconds() {
+    public synchronized long getAntiSnipingExtensionSeconds() {
         return antiSnipingExtensionSeconds;
     }
 
-    public void setAntiSnipingExtensionSeconds(long antiSnipingExtensionSeconds) {
+    public synchronized void setAntiSnipingExtensionSeconds(long antiSnipingExtensionSeconds) {
         this.antiSnipingExtensionSeconds = antiSnipingExtensionSeconds;
     }
 
@@ -245,10 +248,70 @@ public class Auction extends Entity {
         return true;
     }
 
-    public BigDecimal getMinimumNextBid() {
+    public synchronized BigDecimal getMinimumNextBid() {
         if (currentPrice == null || minimumBidIncrement == null) {
             return null;
         }
         return currentPrice.add(minimumBidIncrement);
+    }
+
+    public synchronized Auction snapshotCopy() {
+        Auction copy = new Auction(
+                getId(),
+                sellerId,
+                startTime,
+                endTime,
+                copyItem(item),
+                startingPrice,
+                minimumBidIncrement,
+                currentPrice,
+                leadingBidderId,
+                winnerBidderId,
+                status
+        );
+        copy.bidHistory.addAll(bidHistory);
+        copy.autoBidRegistry.putAll(autoBidRegistry);
+        copy.antiSnipingThresholdSeconds = antiSnipingThresholdSeconds;
+        copy.antiSnipingExtensionSeconds = antiSnipingExtensionSeconds;
+        return copy;
+    }
+
+    private Item copyItem(Item source) {
+        if (source == null) {
+            throw new IllegalStateException("Auction item must not be null.");
+        }
+        if (source instanceof Electronics electronics) {
+            return new Electronics(
+                    electronics.getId(),
+                    electronics.getTitle(),
+                    electronics.getDescription(),
+                    electronics.getBasePrice(),
+                    electronics.getBrand(),
+                    electronics.getModel(),
+                    electronics.getWarrantyMonths()
+            );
+        }
+        if (source instanceof Vehicle vehicle) {
+            return new Vehicle(
+                    vehicle.getId(),
+                    vehicle.getTitle(),
+                    vehicle.getDescription(),
+                    vehicle.getBasePrice(),
+                    vehicle.getBrand(),
+                    vehicle.getModel(),
+                    vehicle.getYearCreated()
+            );
+        }
+        if (source instanceof Art art) {
+            return new Art(
+                    art.getId(),
+                    art.getTitle(),
+                    art.getDescription(),
+                    art.getBasePrice(),
+                    art.getAuthor(),
+                    art.getYearCreated()
+            );
+        }
+        throw new IllegalStateException("Unsupported item type: " + source.getClass().getName());
     }
 }
