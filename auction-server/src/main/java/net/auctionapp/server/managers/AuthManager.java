@@ -23,6 +23,7 @@ import java.util.Optional;
 public class AuthManager {
     private static final Logger LOGGER = LoggerFactory.getLogger(AuthManager.class);
     private static final AuthManager INSTANCE = new AuthManager();
+    private static final String INVALID_LOGIN_MESSAGE = "Invalid username or password.";
 
     private volatile UserDao userDao;
     private final UserManager userManager = UserManager.getInstance();
@@ -53,13 +54,13 @@ public class AuthManager {
         try {
             Optional<User> storedUser = requireUserDao().findByUsername(normalizedUsername);
             if (storedUser.isEmpty()) {
-                sendLoginFailure(clientHandler, "Username not found.");
+                sendLoginFailure(clientHandler, INVALID_LOGIN_MESSAGE);
                 return;
             }
 
             User user = storedUser.get();
             if (!BCrypt.checkpw(password, user.getPasswordHash())) {
-                sendLoginFailure(clientHandler, "Wrong password.");
+                sendLoginFailure(clientHandler, INVALID_LOGIN_MESSAGE);
                 return;
             }
 

@@ -1,6 +1,7 @@
 package net.auctionapp.server;
 
 import net.auctionapp.common.messages.Message;
+import net.auctionapp.common.messages.MessageType;
 import net.auctionapp.common.messages.types.*;
 import net.auctionapp.common.utils.JsonUtil;
 import net.auctionapp.server.exceptions.AuctionAppException;
@@ -19,6 +20,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 
 public class ClientHandler implements Runnable {
     private static final Logger LOGGER = LoggerFactory.getLogger(ClientHandler.class);
+    private static final int SOCKET_READ_TIMEOUT_MILLIS = 60_000;
     private final Socket socket;
     private PrintWriter out;
     private BufferedReader in;
@@ -26,8 +28,8 @@ public class ClientHandler implements Runnable {
     private final AuthManager authManager;
     private final SessionManager sessionManager;
     private final AtomicBoolean closed = new AtomicBoolean(false);
-    private String authenticatedUserId;
-    private String authenticatedRole;
+    private volatile String authenticatedUserId;
+    private volatile String authenticatedRole;
 
     public ClientHandler(Socket socket) {
         this.socket = socket;
@@ -39,6 +41,7 @@ public class ClientHandler implements Runnable {
     @Override
     public void run() {
         try {
+            socket.setSoTimeout(SOCKET_READ_TIMEOUT_MILLIS);
             in = new BufferedReader(new InputStreamReader(socket.getInputStream()));
             out = new PrintWriter(socket.getOutputStream(), true);
             LOGGER.info("Client connected from {}", socket.getInetAddress());
@@ -62,6 +65,7 @@ public class ClientHandler implements Runnable {
             }
         } catch (IOException e) {
             LOGGER.info("Client at {} disconnected.", socket.getInetAddress());
+            LOGGER.info(e.getMessage());
         } finally {
             closeConnection();
         }
@@ -82,7 +86,7 @@ public class ClientHandler implements Runnable {
         }
     }
 
-    public boolean sendMessage(String jsonMessage) {
+    public synchronized boolean sendMessage(String jsonMessage) {
         if (closed.get() || out == null || socket.isClosed()) {
             LOGGER.warn("Attempted to send message to a closed client {}.", socket.getInetAddress());
             closeConnection();
@@ -117,6 +121,9 @@ public class ClientHandler implements Runnable {
     private void handleMessagesFromClient(Message message) {
         auctionManager.broadcastEndedAuctions();
         switch (message.getType()) {
+            case PING:
+                sendMessage(JsonUtil.toJson(new PongMessage()));
+                break;
             case LOGIN_REQUEST:
                 authManager.handleLogin((LoginRequestMessage) message, this);
                 break;

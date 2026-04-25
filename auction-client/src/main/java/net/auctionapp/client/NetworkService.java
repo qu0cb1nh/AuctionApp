@@ -3,6 +3,7 @@ package net.auctionapp.client;
 import javafx.application.Platform;
 import net.auctionapp.common.messages.Message;
 import net.auctionapp.common.messages.MessageType;
+import net.auctionapp.common.messages.types.PingMessage;
 import net.auctionapp.common.utils.JsonUtil;
 
 import java.io.BufferedReader;
@@ -12,8 +13,7 @@ import java.io.PrintWriter;
 import java.net.Socket;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.*;
 import java.util.function.Consumer;
 
 public final class NetworkService {
@@ -22,6 +22,8 @@ public final class NetworkService {
     private PrintWriter out;
     private Socket socket;
     private BufferedReader in;
+
+    private ScheduledExecutorService heartbeatScheduler;
 
     public void connect(String host, int port) {
         try {
@@ -32,8 +34,27 @@ public final class NetworkService {
             Thread listenerThread = new Thread(this::listenForServerMessages);
             listenerThread.setDaemon(true);
             listenerThread.start();
+
+            sendHeartbeat();
         } catch (IOException e) {
             System.err.println("Cannot connect to server: " + e.getMessage());
+        }
+    }
+
+    private void sendHeartbeat() {
+        heartbeatScheduler = Executors.newSingleThreadScheduledExecutor();
+        heartbeatScheduler.scheduleAtFixedRate(() -> {
+            try {
+                sendMessage(new PingMessage());
+            } catch (Exception e) {
+                System.err.println("Failed to send heartbeat ping.");
+            }
+        }, 30, 30, TimeUnit.SECONDS);
+    }
+
+    private void stopHeartbeat() {
+        if (heartbeatScheduler != null && !heartbeatScheduler.isShutdown()) {
+            heartbeatScheduler.shutdownNow();
         }
     }
 
@@ -75,6 +96,8 @@ public final class NetworkService {
     }
 
     public void shutdown() {
+        stopHeartbeat();
+
         if (socket == null || socket.isClosed()) {
             return;
         }
@@ -94,6 +117,10 @@ public final class NetworkService {
             }
         } catch (IOException e) {
             System.err.println("Disconnected from server: " + e.getMessage());
+        } finally {
+            // If the listening loop breaks (server closed or network dropped),
+            // ensure the heartbeat stops so we don't keep trying to ping a dead socket.
+            stopHeartbeat();
         }
     }
 
@@ -101,6 +128,8 @@ public final class NetworkService {
         if (message == null) {
             return;
         }
+
+        // TODO: Handle the PONG message from server
 
         List<Consumer<Message>> handlers = messageHandlers.get(message.getType());
         if(handlers == null) {

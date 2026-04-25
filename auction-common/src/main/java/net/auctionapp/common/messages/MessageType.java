@@ -103,5 +103,19 @@ public enum MessageType {
     /**
      * Sends a simple text-based notification message.
      */
-    NOTIFICATION
+    NOTIFICATION,
+
+    /**
+     * Sent by the Client to the Server at regular intervals (e.g., every 30 seconds).
+     * The Server should reset its idle timeout counter and immediately
+     * reply with a PONG message.
+     */
+    PING,
+
+    /**
+     * Sent by the Server to the Client in direct response to a PING message.
+     * The Client can use this to verify the connection is healthy, no further reply is needed.
+     */
+    PONG,
+
 }

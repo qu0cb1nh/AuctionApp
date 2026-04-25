@@ -55,7 +55,7 @@ public class AuctionDetailsResponseMessage extends Message {
         this.winnerBidderId = winnerBidderId;
         this.startTime = startTime;
         this.endTime = endTime;
-        this.bidHistory = bidHistory;
+        this.bidHistory = bidHistory == null ? List.of() : List.copyOf(bidHistory);
     }
 
     public String getAuctionId() { return auctionId; }
@@ -70,5 +70,5 @@ public class AuctionDetailsResponseMessage extends Message {
     public String getWinnerBidderId() { return winnerBidderId; }
     public LocalDateTime getStartTime() { return startTime; }
     public LocalDateTime getEndTime() { return endTime; }
-    public List<BidView> getBidHistory() { return bidHistory; }
+    public List<BidView> getBidHistory() { return bidHistory == null ? List.of() : List.copyOf(bidHistory); }
 }

@@ -8,6 +8,10 @@ import net.auctionapp.common.models.items.Item;
 import net.auctionapp.common.models.items.ItemType;
 import net.auctionapp.common.models.items.Vehicle;
 import net.auctionapp.server.exceptions.DatabaseException;
+import net.auctionapp.server.factories.ArtFactory;
+import net.auctionapp.server.factories.ElectronicsFactory;
+import net.auctionapp.server.factories.ItemFactory;
+import net.auctionapp.server.factories.VehicleFactory;
 import net.auctionapp.server.managers.DatabaseManager;
 
 import java.sql.Connection;
@@ -135,7 +139,7 @@ public class JdbcAuctionDao implements AuctionDao {
             statement.setString(1, auction.getId());
             statement.setString(2, auction.getSellerId());
             statement.setString(3, item.getId());
-            statement.setString(4, resolveItemType(item).name());
+            statement.setString(4, item.getType().name());
             statement.setString(5, item.getTitle());
             statement.setString(6, item.getDescription());
             statement.setBigDecimal(7, auction.getStartingPrice());
@@ -201,38 +205,13 @@ public class JdbcAuctionDao implements AuctionDao {
     }
 
     private Auction mapAuction(ResultSet resultSet) throws SQLException {
-        String itemId = resultSet.getString("item_id");
-        String title = resultSet.getString("title");
-        String description = resultSet.getString("description");
         ItemType itemType = ItemType.valueOf(resultSet.getString("item_type"));
-        Item item = switch (itemType) {
-            case ELECTRONICS -> new Electronics(
-                    itemId,
-                    title,
-                    description,
-                    resultSet.getBigDecimal("starting_price"),
-                    resultSet.getString("brand"),
-                    resultSet.getString("model"),
-                    getNullableIntOrDefault(resultSet, "warranty_months", 0)
-            );
-            case VEHICLE -> new Vehicle(
-                    itemId,
-                    title,
-                    description,
-                    resultSet.getBigDecimal("starting_price"),
-                    resultSet.getString("brand"),
-                    resultSet.getString("model"),
-                    getNullableIntOrDefault(resultSet, "year_created", LocalDateTime.now().getYear())
-            );
-            case ART -> new Art(
-                    itemId,
-                    title,
-                    description,
-                    resultSet.getBigDecimal("starting_price"),
-                    resultSet.getString("author"),
-                    getNullableIntOrDefault(resultSet, "year_created", LocalDateTime.now().getYear())
-            );
+        ItemFactory itemFactory = switch (itemType) {
+            case ART -> new ArtFactory();
+            case ELECTRONICS -> new ElectronicsFactory();
+            case VEHICLE -> new VehicleFactory();
         };
+        Item item = itemFactory.createItem(resultSet);
 
         return new Auction(
                 resultSet.getString("id"),
@@ -262,19 +241,6 @@ public class JdbcAuctionDao implements AuctionDao {
             return fallback;
         }
         return value;
-    }
-
-    private ItemType resolveItemType(Item item) {
-        if (item instanceof Electronics) {
-            return ItemType.ELECTRONICS;
-        }
-        if (item instanceof Vehicle) {
-            return ItemType.VEHICLE;
-        }
-        if (item instanceof Art) {
-            return ItemType.ART;
-        }
-        throw unsupportedItemTypeError(item.getClass().getName());
     }
 
     private DatabaseException unsupportedItemTypeError(String itemTypeName) {
