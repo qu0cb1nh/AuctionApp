@@ -105,5 +105,5 @@ jobs:
         with:
           generate_release_notes: true
           files: |
-            dist/AuctionApp-*-Client.jar
-            dist/AuctionApp-*-Server.jar
+            dist/auction-client/target/AuctionApp-*-Client.jar
+            dist/auction-server/target/AuctionApp-*-Server.jar
