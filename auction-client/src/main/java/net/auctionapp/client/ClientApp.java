@@ -1,6 +1,7 @@
 package net.auctionapp.client;
 
 import javafx.application.Application;
+import javafx.application.Platform;
 import javafx.fxml.FXMLLoader;
 import javafx.scene.Scene;
 import javafx.stage.Stage;
@@ -9,6 +10,10 @@ import net.auctionapp.common.messages.MessageType;
 import net.auctionapp.common.utils.ConfigUtil;
 
 import java.io.IOException;
+import java.time.Duration;
+import java.util.Objects;
+import java.util.concurrent.CompletableFuture;
+import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 
 public class ClientApp extends Application {
@@ -88,6 +93,22 @@ public class ClientApp extends Application {
 
     public void removeMessageHandler(MessageType type, Consumer<Message> handler) {
         networkService.removeMessageHandler(type, handler);
+    }
+
+    public CompletableFuture<Message> sendRequest(Message request) {
+        return networkService.sendRequest(request);
+    }
+
+    public CompletableFuture<Message> sendRequest(Message request, Duration timeout) {
+        return networkService.sendRequest(request, timeout);
+    }
+
+    public void sendRequest(Message request, BiConsumer<Message, Throwable> callback) {
+        Objects.requireNonNull(request, "request must not be null");
+        Objects.requireNonNull(callback, "callback must not be null");
+
+        networkService.sendRequest(request)
+                .whenComplete((response, throwable) -> Platform.runLater(() -> callback.accept(response, throwable)));
     }
 
     private void connectToServer() {

@@ -50,8 +50,9 @@ public class ClientHandler implements Runnable {
             while ((jsonString = in.readLine()) != null) {
                 LOGGER.debug("Received from {}: {}", socket.getInetAddress(), jsonString);
 
+                Message message = null;
                 try {
-                    Message message = JsonUtil.fromJson(jsonString);
+                    message = JsonUtil.fromJson(jsonString);
                     if (message == null) {
                         LOGGER.warn("Received null message after JSON deserialization from {}", socket.getInetAddress());
                         continue;
@@ -60,7 +61,7 @@ public class ClientHandler implements Runnable {
                     handleMessagesFromClient(message);
                 } catch (Exception e) {
                     LOGGER.error("Error processing message from {}: {}", socket.getInetAddress(), jsonString, e);
-                    sendMessage(JsonUtil.toJson(new ErrorMessage("Error processing your request: " + e.getMessage())));
+                    sendResponse(new ErrorMessage("Error processing your request: " + e.getMessage()), message);
                 }
             }
         } catch (IOException e) {
@@ -103,6 +104,23 @@ public class ClientHandler implements Runnable {
         return true;
     }
 
+    public boolean sendMessage(Message message) {
+        if (message == null) {
+            return false;
+        }
+        return sendMessage(JsonUtil.toJson(message));
+    }
+
+    public boolean sendResponse(Message response, Message request) {
+        if (response == null) {
+            return false;
+        }
+        if (request != null && request.getMessageId() != null && !request.getMessageId().isBlank()) {
+            response.setCorrelationId(request.getMessageId());
+        }
+        return sendMessage(response);
+    }
+
     public void authenticate(String userId, String role) {
         this.authenticatedUserId = userId;
         this.authenticatedRole = role;
@@ -122,7 +140,7 @@ public class ClientHandler implements Runnable {
         auctionManager.broadcastEndedAuctions();
         switch (message.getType()) {
             case PING:
-                sendMessage(JsonUtil.toJson(new PongMessage()));
+                sendResponse(new PongMessage(), message);
                 break;
             case LOGIN_REQUEST:
                 authManager.handleLogin((LoginRequestMessage) message, this);
@@ -131,7 +149,7 @@ public class ClientHandler implements Runnable {
                 authManager.handleRegister((RegisterRequestMessage) message, this);
                 break;
             case GET_AUCTION_LIST_REQUEST:
-                auctionManager.handleGetAuctionList(this);
+                auctionManager.handleGetAuctionList((GetAuctionListRequestMessage) message, this);
                 break;
             case GET_AUCTION_DETAILS_REQUEST:
                 auctionManager.handleGetAuctionDetails((GetAuctionDetailsRequestMessage) message, this);
@@ -144,7 +162,7 @@ public class ClientHandler implements Runnable {
                 break;
             default:
                 LOGGER.warn("Received unsupported message type: {} from {}", message.getType(), socket.getInetAddress());
-                sendMessage(JsonUtil.toJson(new ErrorMessage("Unsupported message type.")));
+                sendResponse(new ErrorMessage("Unsupported message type."), message);
                 break;
         }
     }

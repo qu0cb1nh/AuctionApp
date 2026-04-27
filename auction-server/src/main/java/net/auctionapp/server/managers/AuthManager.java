@@ -8,7 +8,6 @@ import net.auctionapp.common.messages.types.RegisterResultMessage;
 import net.auctionapp.common.exceptions.ValidationException;
 import net.auctionapp.common.models.users.User;
 import net.auctionapp.common.utils.CredentialUtil;
-import net.auctionapp.common.utils.JsonUtil;
 import net.auctionapp.common.utils.UserIdentityUtil;
 import net.auctionapp.server.ClientHandler;
 import net.auctionapp.server.dao.UserDao;
@@ -47,20 +46,20 @@ public class AuthManager {
         try {
             CredentialUtil.validateLogin(request.getUsername(), password);
         } catch (ValidationException e) {
-            sendLoginFailure(clientHandler, e.getMessage());
+            sendLoginFailure(request, clientHandler, e.getMessage());
             return;
         }
 
         try {
             Optional<User> storedUser = requireUserDao().findByUsername(normalizedUsername);
             if (storedUser.isEmpty()) {
-                sendLoginFailure(clientHandler, INVALID_LOGIN_MESSAGE);
+                sendLoginFailure(request, clientHandler, INVALID_LOGIN_MESSAGE);
                 return;
             }
 
             User user = storedUser.get();
             if (!BCrypt.checkpw(password, user.getPasswordHash())) {
-                sendLoginFailure(clientHandler, INVALID_LOGIN_MESSAGE);
+                sendLoginFailure(request, clientHandler, INVALID_LOGIN_MESSAGE);
                 return;
             }
 
@@ -74,10 +73,10 @@ public class AuthManager {
             );
             clientHandler.authenticate(user.getId(), clientRole);
             sessionManager.bindSession(user.getId(), user.getUsername(), clientRole, clientHandler);
-            clientHandler.sendMessage(JsonUtil.toJson(success));
+            clientHandler.sendResponse(success, request);
             LOGGER.info("User '{}' logged in successfully.", user.getUsername());
         } catch (DatabaseException e) {
-            sendLoginFailure(clientHandler, "Cannot connect to authentication database.");
+            sendLoginFailure(request, clientHandler, "Cannot connect to authentication database.");
             LOGGER.error("Login query failed for user '{}': {}", normalizedUsername, e.getMessage(), e);
         }
     }
@@ -90,14 +89,14 @@ public class AuthManager {
         try {
             CredentialUtil.validateRegistration(username, password, password);
         } catch (ValidationException e) {
-            sendRegisterFailure(clientHandler, e.getMessage());
+            sendRegisterFailure(request, clientHandler, e.getMessage());
             return;
         }
 
         try {
             UserDao dao = requireUserDao();
             if (dao.findByUsername(normalizedUsername).isPresent()) {
-                sendRegisterFailure(clientHandler, "Username already exists.");
+                sendRegisterFailure(request, clientHandler, "Username already exists.");
                 return;
             }
 
@@ -109,7 +108,7 @@ public class AuthManager {
                     UserRoleUtil.fromDatabaseRole("user")
             );
             if (!dao.createUser(user)) {
-                sendRegisterFailure(clientHandler, "Registration could not be completed.");
+                sendRegisterFailure(request, clientHandler, "Registration could not be completed.");
                 return;
             }
 
@@ -120,22 +119,22 @@ public class AuthManager {
                     username,
                     "Registration successful. Redirecting..."
             );
-            clientHandler.sendMessage(JsonUtil.toJson(success));
+            clientHandler.sendResponse(success, request);
             LOGGER.info("New user '{}' registered successfully.", username);
         } catch (DatabaseException e) {
-            sendRegisterFailure(clientHandler, "Registration failed due to a database error.");
+            sendRegisterFailure(request, clientHandler, "Registration failed due to a database error.");
             LOGGER.error("Registration query failed for user '{}': {}", username, e.getMessage(), e);
         }
     }
 
-    private void sendLoginFailure(ClientHandler clientHandler, String message) {
+    private void sendLoginFailure(LoginRequestMessage request, ClientHandler clientHandler, String message) {
         LoginResultMessage failure = new LoginResultMessage(MessageType.LOGIN_FAILURE, null, null, message);
-        clientHandler.sendMessage(JsonUtil.toJson(failure));
+        clientHandler.sendResponse(failure, request);
     }
 
-    private void sendRegisterFailure(ClientHandler clientHandler, String message) {
+    private void sendRegisterFailure(RegisterRequestMessage request, ClientHandler clientHandler, String message) {
         RegisterResultMessage failure = new RegisterResultMessage(MessageType.REGISTER_FAILURE, null, message);
-        clientHandler.sendMessage(JsonUtil.toJson(failure));
+        clientHandler.sendResponse(failure, request);
     }
 
     private UserDao requireUserDao() {

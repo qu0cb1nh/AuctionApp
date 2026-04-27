@@ -12,8 +12,8 @@ import javafx.scene.layout.FlowPane;
 import javafx.scene.layout.VBox;
 import net.auctionapp.client.ClientApp;
 import net.auctionapp.client.SceneNavigator;
+import net.auctionapp.client.utils.DurationFormatUtil;
 import net.auctionapp.common.messages.Message;
-import net.auctionapp.common.messages.MessageType;
 import net.auctionapp.common.messages.types.AuctionDetailsResponseMessage;
 import net.auctionapp.common.messages.types.AuctionListResponseMessage;
 import net.auctionapp.common.messages.types.BidView;
@@ -35,7 +35,6 @@ import java.util.Locale;
 import java.util.Objects;
 import java.util.ResourceBundle;
 import java.util.Set;
-import java.util.function.Consumer;
 
 public class MyBidsController implements Initializable {
     private static final DateTimeFormatter CARD_TIME_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm");
@@ -63,10 +62,6 @@ public class MyBidsController implements Initializable {
     private final List<BidCard> allUserBids = new ArrayList<>();
     private final List<BidCard> loadedUserBids = new ArrayList<>();
     private final Set<String> pendingAuctionIds = new HashSet<>();
-    private Consumer<Message> auctionListHandler;
-    private Consumer<Message> auctionDetailsHandler;
-    private Consumer<Message> errorHandler;
-    private boolean handlersRegistered;
 
     @Override
     public void initialize(URL location, ResourceBundle resources) {
@@ -83,11 +78,10 @@ public class MyBidsController implements Initializable {
         statusFilterComboBox.getSelectionModel().selectFirst();
         rootPane.sceneProperty().addListener((observable, oldScene, newScene) -> {
             if (oldScene != null) {
-                cleanupHandlers();
+                // No persistent request handlers to clean up.
             }
         });
 
-        registerMessageHandlers();
         loadMyBids();
     }
 
@@ -116,33 +110,8 @@ public class MyBidsController implements Initializable {
         applyFilters();
     }
 
-    private void registerMessageHandlers() {
-        if (handlersRegistered) {
-            return;
-        }
-        auctionListHandler = this::handleAuctionListResponse;
-        auctionDetailsHandler = this::handleAuctionDetailsResponse;
-        errorHandler = this::handleErrorResponse;
-        ClientApp.getInstance().addMessageHandler(MessageType.AUCTION_LIST_RESPONSE, auctionListHandler);
-        ClientApp.getInstance().addMessageHandler(MessageType.AUCTION_DETAILS_RESPONSE, auctionDetailsHandler);
-        ClientApp.getInstance().addMessageHandler(MessageType.ERROR, errorHandler);
-        handlersRegistered = true;
-    }
-
     private void cleanupHandlers() {
-        if (!handlersRegistered) {
-            return;
-        }
-        if (auctionListHandler != null) {
-            ClientApp.getInstance().removeMessageHandler(MessageType.AUCTION_LIST_RESPONSE, auctionListHandler);
-        }
-        if (auctionDetailsHandler != null) {
-            ClientApp.getInstance().removeMessageHandler(MessageType.AUCTION_DETAILS_RESPONSE, auctionDetailsHandler);
-        }
-        if (errorHandler != null) {
-            ClientApp.getInstance().removeMessageHandler(MessageType.ERROR, errorHandler);
-        }
-        handlersRegistered = false;
+        // Deprecated: request/response now uses sendRequest with correlation IDs.
     }
 
     private void loadMyBids() {
@@ -152,13 +121,28 @@ public class MyBidsController implements Initializable {
         renderBidCards(allUserBids);
         statusLabel.setStyle(STATUS_TEXT_STYLE);
         statusLabel.setText("Loading your bids...");
-        ClientApp.getInstance().getNetworkService().sendMessage(new GetAuctionListRequestMessage());
+        ClientApp.getInstance().sendRequest(new GetAuctionListRequestMessage(), this::handleAuctionListRequestResult);
     }
 
-    private void handleAuctionListResponse(Message message) {
-        if (!(message instanceof AuctionListResponseMessage response)) {
+    private void handleAuctionListRequestResult(Message message, Throwable throwable) {
+        if (throwable != null) {
+            statusLabel.setStyle("-fx-text-fill: #d9534f; -fx-font-size: 12px; -fx-font-weight: bold;");
+            statusLabel.setText("Failed to load bids: " + throwable.getMessage());
             return;
         }
+        if (message instanceof ErrorMessage errorMessage) {
+            handleErrorResponse(errorMessage);
+            return;
+        }
+        if (!(message instanceof AuctionListResponseMessage response)) {
+            statusLabel.setStyle("-fx-text-fill: #d9534f; -fx-font-size: 12px; -fx-font-weight: bold;");
+            statusLabel.setText("Unexpected response from server.");
+            return;
+        }
+        handleAuctionListResponse(response);
+    }
+
+    private void handleAuctionListResponse(AuctionListResponseMessage response) {
         pendingAuctionIds.clear();
         loadedUserBids.clear();
 
@@ -178,8 +162,23 @@ public class MyBidsController implements Initializable {
         pendingAuctionIds.addAll(auctionIds);
         statusLabel.setText("Loading details for " + pendingAuctionIds.size() + " auction(s)...");
         for (String auctionId : auctionIds) {
-            ClientApp.getInstance().getNetworkService().sendMessage(new GetAuctionDetailsRequestMessage(auctionId));
+            ClientApp.getInstance().sendRequest(
+                    new GetAuctionDetailsRequestMessage(auctionId),
+                    (detailResponse, throwable) -> handleAuctionDetailsRequestResult(auctionId, detailResponse, throwable)
+            );
         }
+    }
+
+    private void handleAuctionDetailsRequestResult(String auctionId, Message message, Throwable throwable) {
+        if (throwable != null) {
+            completeLoadingAfterDetailFailure(auctionId, null);
+            return;
+        }
+        if (message instanceof ErrorMessage errorMessage) {
+            completeLoadingAfterDetailFailure(auctionId, errorMessage.getErrorMessage());
+            return;
+        }
+        handleAuctionDetailsResponse(message);
     }
 
     private void handleAuctionDetailsResponse(Message message) {
@@ -196,6 +195,25 @@ public class MyBidsController implements Initializable {
             return;
         }
 
+        finalizeLoadedBids();
+    }
+
+    private void completeLoadingAfterDetailFailure(String auctionId, String errorMessage) {
+        if (auctionId != null) {
+            pendingAuctionIds.remove(auctionId);
+        }
+        if (errorMessage != null && !errorMessage.isBlank()) {
+            statusLabel.setStyle("-fx-text-fill: #d9534f; -fx-font-size: 12px; -fx-font-weight: bold;");
+            statusLabel.setText(errorMessage);
+        }
+        if (!pendingAuctionIds.isEmpty()) {
+            statusLabel.setText("Loading details for " + pendingAuctionIds.size() + " auction(s)...");
+            return;
+        }
+        finalizeLoadedBids();
+    }
+
+    private void finalizeLoadedBids() {
         allUserBids.clear();
         allUserBids.addAll(
                 loadedUserBids.stream()
@@ -207,10 +225,7 @@ public class MyBidsController implements Initializable {
         applyFilters();
     }
 
-    private void handleErrorResponse(Message message) {
-        if (!(message instanceof ErrorMessage errorMessage)) {
-            return;
-        }
+    private void handleErrorResponse(ErrorMessage errorMessage) {
         statusLabel.setStyle("-fx-text-fill: #d9534f; -fx-font-size: 12px; -fx-font-weight: bold;");
         statusLabel.setText(errorMessage.getErrorMessage());
     }
@@ -366,27 +381,10 @@ public class MyBidsController implements Initializable {
         if (auctionStatus == AuctionStatus.RUNNING) {
             Duration remaining = Duration.between(LocalDateTime.now(), endTime);
             if (!remaining.isNegative() && !remaining.isZero()) {
-                return "Ends in: " + formatRemainingDuration(remaining);
+                return "Ends in: " + DurationFormatUtil.formatRemainingDuration(remaining);
             }
         }
         return "Ended at: " + CARD_TIME_FORMATTER.format(endTime);
-    }
-
-    private String formatRemainingDuration(Duration duration) {
-        long totalSeconds = duration.getSeconds();
-        long days = totalSeconds / 86_400;
-        long hours = (totalSeconds % 86_400) / 3_600;
-        long minutes = (totalSeconds % 3_600) / 60;
-        if (days > 0) {
-            return days + "d " + hours + "h";
-        }
-        if (hours > 0) {
-            return hours + "h " + minutes + "m";
-        }
-        if (minutes > 0) {
-            return minutes + "m";
-        }
-        return "less than 1m";
     }
 
     private record BidCard(

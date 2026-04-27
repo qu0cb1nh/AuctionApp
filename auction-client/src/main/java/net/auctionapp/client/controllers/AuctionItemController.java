@@ -11,13 +11,13 @@ import javafx.scene.control.TextField;
 import javafx.scene.image.ImageView;
 import javafx.scene.layout.BorderPane;
 import net.auctionapp.client.ClientApp;
-import net.auctionapp.client.SceneNavigator;
 import net.auctionapp.common.messages.Message;
 import net.auctionapp.common.messages.MessageType;
 import net.auctionapp.common.messages.types.AuctionDetailsResponseMessage;
 import net.auctionapp.common.messages.types.BidRequestMessage;
 import net.auctionapp.common.messages.types.BidResultMessage;
 import net.auctionapp.common.messages.types.BidView;
+import net.auctionapp.common.messages.types.ErrorMessage;
 import net.auctionapp.common.messages.types.GetAuctionDetailsRequestMessage;
 import net.auctionapp.common.messages.types.PriceUpdateMessage;
 import net.auctionapp.common.models.auction.AuctionStatus;
@@ -49,13 +49,9 @@ public class AuctionItemController implements Initializable {
     private String currentAuctionId;
     private BigDecimal currentHighestBid = BigDecimal.ZERO;
     private BigDecimal minimumNextBid = BigDecimal.ZERO;
-    private LocalDateTime auctionEndTime;
     private final XYChart.Series<String, Number> priceSeries = new XYChart.Series<>();
-    private Consumer<Message> detailsHandler;
-    private Consumer<Message> bidAcceptedHandler;
-    private Consumer<Message> bidRejectedHandler;
     private Consumer<Message> priceUpdateHandler;
-    private boolean handlersRegistered;
+    private boolean priceUpdateHandlerRegistered;
 
     @FXML
     @Override
@@ -68,7 +64,7 @@ public class AuctionItemController implements Initializable {
         priceHistoryChart.getData().add(priceSeries);
         rootPane.sceneProperty().addListener((observable, oldScene, newScene) -> {
             if (oldScene != null) {
-                cleanupHandlers();
+                cleanupEventHandlers();
             }
         });
 
@@ -79,8 +75,8 @@ public class AuctionItemController implements Initializable {
             return;
         }
 
-        registerMessageHandlers();
-        ClientApp.getInstance().getNetworkService().sendMessage(new GetAuctionDetailsRequestMessage(currentAuctionId));
+        registerEventHandlers();
+        requestAuctionDetails();
     }
 
     @FXML
@@ -88,51 +84,46 @@ public class AuctionItemController implements Initializable {
         try {
             BigDecimal bid = parseBidAmount(bidAmountField.getText(), minimumNextBid);
             BidRequestMessage request = new BidRequestMessage(currentAuctionId, bid.doubleValue());
-            ClientApp.getInstance().getNetworkService().sendMessage(request);
+            ClientApp.getInstance().sendRequest(request, this::handleBidResult);
         } catch (IllegalArgumentException e) {
             setErrorMessage(e.getMessage());
         }
     }
 
-    @FXML
-    public void handleBack(ActionEvent event) {
-        cleanupHandlers();
-        SceneNavigator.switchScene("AuctionList");
-    }
-
-    private void registerMessageHandlers() {
-        detailsHandler = this::handleAuctionDetails;
-        bidAcceptedHandler = this::handleBidAccepted;
-        bidRejectedHandler = this::handleBidRejected;
+    private void registerEventHandlers() {
         priceUpdateHandler = this::handlePriceUpdate;
-        ClientApp.getInstance().addMessageHandler(MessageType.AUCTION_DETAILS_RESPONSE, detailsHandler);
-        ClientApp.getInstance().addMessageHandler(MessageType.BID_ACCEPTED, bidAcceptedHandler);
-        ClientApp.getInstance().addMessageHandler(MessageType.BID_REJECTED, bidRejectedHandler);
         ClientApp.getInstance().addMessageHandler(MessageType.PRICE_UPDATE, priceUpdateHandler);
-        handlersRegistered = true;
+        priceUpdateHandlerRegistered = true;
     }
 
-    private void cleanupHandlers() {
-        if (!handlersRegistered) {
+    private void cleanupEventHandlers() {
+        if (!priceUpdateHandlerRegistered) {
             return;
-        }
-        if (detailsHandler != null) {
-            ClientApp.getInstance().removeMessageHandler(MessageType.AUCTION_DETAILS_RESPONSE, detailsHandler);
-        }
-        if (bidAcceptedHandler != null) {
-            ClientApp.getInstance().removeMessageHandler(MessageType.BID_ACCEPTED, bidAcceptedHandler);
-        }
-        if (bidRejectedHandler != null) {
-            ClientApp.getInstance().removeMessageHandler(MessageType.BID_REJECTED, bidRejectedHandler);
         }
         if (priceUpdateHandler != null) {
             ClientApp.getInstance().removeMessageHandler(MessageType.PRICE_UPDATE, priceUpdateHandler);
         }
-        handlersRegistered = false;
+        priceUpdateHandlerRegistered = false;
     }
 
-    private void handleAuctionDetails(Message message) {
+    private void requestAuctionDetails() {
+        ClientApp.getInstance().sendRequest(
+                new GetAuctionDetailsRequestMessage(currentAuctionId),
+                this::handleAuctionDetailsResponse
+        );
+    }
+
+    private void handleAuctionDetailsResponse(Message message, Throwable throwable) {
+        if (throwable != null) {
+            setErrorMessage("Failed to load auction details: " + throwable.getMessage());
+            return;
+        }
+        if (message instanceof ErrorMessage errorMessage) {
+            setErrorMessage(errorMessage.getErrorMessage());
+            return;
+        }
         if (!(message instanceof AuctionDetailsResponseMessage response)) {
+            setErrorMessage("Unexpected response from server.");
             return;
         }
         if (!currentAuctionId.equals(response.getAuctionId())) {
@@ -144,36 +135,44 @@ public class AuctionItemController implements Initializable {
         currentHighestBid = response.getCurrentPrice() == null ? BigDecimal.ZERO : response.getCurrentPrice();
         minimumNextBid = response.getMinimumNextBid() == null ? currentHighestBid : response.getMinimumNextBid();
         currentBidLabel.setText("$" + currentHighestBid.toPlainString());
-        auctionEndTime = response.getEndTime();
+        LocalDateTime auctionEndTime = response.getEndTime();
         timeRemainingLabel.setText(formatTimeRemaining(auctionEndTime));
         renderBidHistory(response.getBidHistory());
         updateBidControls(response);
     }
 
-    private void handleBidAccepted(Message message) {
+    private void handleBidResult(Message message, Throwable throwable) {
+        if (throwable != null) {
+            setErrorMessage("Failed to place bid: " + throwable.getMessage());
+            return;
+        }
+        if (message instanceof ErrorMessage errorMessage) {
+            setErrorMessage(errorMessage.getErrorMessage());
+            return;
+        }
         if (!(message instanceof BidResultMessage result)) {
+            setErrorMessage("Unexpected response from server.");
             return;
         }
         if (!currentAuctionId.equals(result.getAuctionId())) {
             return;
         }
-        if (result.getCurrentPrice() != null) {
-            currentHighestBid = result.getCurrentPrice();
-            currentBidLabel.setText("$" + currentHighestBid.toPlainString());
-        }
-        setSuccessMessage(result.getMessage());
-        bidAmountField.clear();
-        ClientApp.getInstance().getNetworkService().sendMessage(new GetAuctionDetailsRequestMessage(currentAuctionId));
-    }
 
-    private void handleBidRejected(Message message) {
-        if (!(message instanceof BidResultMessage result)) {
+        if (message.getType() == MessageType.BID_ACCEPTED) {
+            if (result.getCurrentPrice() != null) {
+                currentHighestBid = result.getCurrentPrice();
+                currentBidLabel.setText("$" + currentHighestBid.toPlainString());
+            }
+            setSuccessMessage(result.getMessage());
+            bidAmountField.clear();
+            requestAuctionDetails();
             return;
         }
-        if (!currentAuctionId.equals(result.getAuctionId())) {
+        if (message.getType() == MessageType.BID_REJECTED) {
+            setErrorMessage(result.getMessage());
             return;
         }
-        setErrorMessage(result.getMessage());
+        setErrorMessage("Unexpected bid response from server.");
     }
 
     private void handlePriceUpdate(Message message) {
@@ -185,7 +184,7 @@ public class AuctionItemController implements Initializable {
         }
         currentHighestBid = BigDecimal.valueOf(update.getNewPrice());
         currentBidLabel.setText("$" + currentHighestBid.toPlainString());
-        ClientApp.getInstance().getNetworkService().sendMessage(new GetAuctionDetailsRequestMessage(currentAuctionId));
+        requestAuctionDetails();
         setInfoMessage("New highest bid by " + update.getLeadingUserName());
     }
 
@@ -225,8 +224,7 @@ public class AuctionItemController implements Initializable {
         String currentUsername = ClientApp.getInstance() == null
                 ? ""
                 : ClientApp.getInstance().getCurrentUsername();
-        boolean isSellerViewingOwnAuction = currentUsername != null
-                && response.getSellerId() != null
+        boolean isSellerViewingOwnAuction = response.getSellerId() != null
                 && response.getSellerId().equalsIgnoreCase(currentUsername);
 
         if (isSellerViewingOwnAuction) {
