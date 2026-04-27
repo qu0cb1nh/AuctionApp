@@ -1,6 +1,6 @@
 <component name="ProjectRunConfigurationManager">
   <configuration default="false" name="Client" type="Application" factoryName="Application" singleton="false">
-    <option name="MAIN_CLASS_NAME" value="net.auctionapp.client.ClientApp" />
+    <option name="MAIN_CLASS_NAME" value="net.auctionapp.client.ClientLauncher" />
     <module name="auction-client" />
     <option name="VM_PARAMETERS" value="--enable-native-access=javafx.graphics" />
     <method v="2">

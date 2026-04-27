@@ -11,17 +11,15 @@ import net.auctionapp.client.SceneNavigator;
 import net.auctionapp.common.exceptions.ValidationException;
 import net.auctionapp.common.messages.Message;
 import net.auctionapp.common.messages.MessageType;
+import net.auctionapp.common.messages.types.ErrorMessage;
 import net.auctionapp.common.messages.types.RegisterRequestMessage;
 import net.auctionapp.common.messages.types.RegisterResultMessage;
 import net.auctionapp.common.utils.CredentialUtil;
 
 import java.net.URL;
 import java.util.ResourceBundle;
-import java.util.function.Consumer;
 
 public class RegisterMenuController implements Initializable {
-
-    private Consumer<Message> messageListener;
 
     // Fields for the registration form.
     @FXML
@@ -41,9 +39,7 @@ public class RegisterMenuController implements Initializable {
 
     @Override
     public void initialize(URL url, ResourceBundle resourceBundle) {
-        messageListener = this::handleServerMessage;
-        ClientApp.getInstance().addMessageHandler(MessageType.REGISTER_SUCCESS, messageListener);
-        ClientApp.getInstance().addMessageHandler(MessageType.REGISTER_FAILURE, messageListener);
+        // No persistent message handlers are required for register request/response flow.
     }
 
     // Triggered when the user clicks "Register".
@@ -59,33 +55,33 @@ public class RegisterMenuController implements Initializable {
             assistantPanelController.speak(e.getMessage(), "#e67e22");
             return;
         }
-        ClientApp.getInstance().getNetworkService().sendMessage(new RegisterRequestMessage(username, password));
+        ClientApp.getInstance().sendRequest(new RegisterRequestMessage(username, password), this::handleServerResponse);
     }
 
-    private void handleServerMessage(Message message) {
+    private void handleServerResponse(Message message, Throwable throwable) {
+        if (throwable != null) {
+            assistantPanelController.speak("Registration failed: " + throwable.getMessage(), "#e74c3c");
+            return;
+        }
+        if (message instanceof ErrorMessage errorMessage) {
+            assistantPanelController.speak(errorMessage.getErrorMessage(), "#e74c3c");
+            return;
+        }
         if (!(message instanceof RegisterResultMessage result)) {
+            assistantPanelController.speak("Unexpected response from server.", "#e74c3c");
             return;
         }
 
         if (message.getType() == MessageType.REGISTER_SUCCESS) {
             assistantPanelController.speak(result.getMessage(), "#27ae60");
-            cleanupHandlers();
             SceneNavigator.switchSceneWithDelay("LoginMenu", 1500);
         } else if (message.getType() == MessageType.REGISTER_FAILURE) {
             assistantPanelController.speak(result.getMessage(), "#e74c3c");
         }
     }
 
-    private void cleanupHandlers() {
-        if (messageListener != null) {
-            ClientApp.getInstance().removeMessageHandler(MessageType.REGISTER_SUCCESS, messageListener);
-            ClientApp.getInstance().removeMessageHandler(MessageType.REGISTER_FAILURE, messageListener);
-        }
-    }
-
     @FXML
     public void switchToLogin(MouseEvent event) {
-        cleanupHandlers();
         SceneNavigator.switchScene("LoginMenu");
     }
 }

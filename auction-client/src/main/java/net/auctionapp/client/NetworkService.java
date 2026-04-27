@@ -11,13 +11,18 @@ import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.PrintWriter;
 import java.net.Socket;
+import java.time.Duration;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 import java.util.concurrent.*;
 import java.util.function.Consumer;
 
 public final class NetworkService {
+    private static final Duration DEFAULT_REQUEST_TIMEOUT = Duration.ofSeconds(10);
+
     private final Map<MessageType, List<Consumer<Message>>> messageHandlers = new ConcurrentHashMap<>();
+    private final Map<String, CompletableFuture<Message>> pendingRequests = new ConcurrentHashMap<>();
 
     private PrintWriter out;
     private Socket socket;
@@ -63,15 +68,54 @@ public final class NetworkService {
             System.err.println("Cannot send a null message.");
             return;
         }
-        if (out == null) {
+        if (out == null || socket == null || socket.isClosed()) {
             System.err.println("Cannot send message: client is not connected.");
             return;
         }
 
-        out.println(JsonUtil.toJson(message));
-        if (out.checkError()) {
+        if (!sendJson(JsonUtil.toJson(message))) {
             System.err.println("Failed to send message to server.");
         }
+    }
+
+    public CompletableFuture<Message> sendRequest(Message request) {
+        return sendRequest(request, DEFAULT_REQUEST_TIMEOUT);
+    }
+
+    public CompletableFuture<Message> sendRequest(Message request, Duration timeout) {
+        if (request == null) {
+            return CompletableFuture.failedFuture(new IllegalArgumentException("Request cannot be null."));
+        }
+        if (timeout == null || timeout.isZero() || timeout.isNegative()) {
+            return CompletableFuture.failedFuture(new IllegalArgumentException("Timeout must be greater than zero."));
+        }
+        if (out == null || socket == null || socket.isClosed()) {
+            return CompletableFuture.failedFuture(new IllegalStateException("Client is not connected."));
+        }
+
+        String requestId = request.getMessageId();
+        if (requestId == null || requestId.isBlank()) {
+            requestId = UUID.randomUUID().toString();
+            request.setMessageId(requestId);
+        }
+        request.setCorrelationId(null);
+
+        CompletableFuture<Message> future = new CompletableFuture<>();
+        CompletableFuture<Message> existing = pendingRequests.putIfAbsent(requestId, future);
+        if (existing != null) {
+            return CompletableFuture.failedFuture(new IllegalStateException("Duplicate request id: " + requestId));
+        }
+
+        final String finalRequestId = requestId;
+        future.orTimeout(timeout.toMillis(), TimeUnit.MILLISECONDS)
+                .whenComplete((message, throwable) -> pendingRequests.remove(finalRequestId));
+
+        if (!sendJson(JsonUtil.toJson(request))) {
+            pendingRequests.remove(requestId);
+            future.completeExceptionally(new IllegalStateException("Failed to send request to server."));
+        }
+
+        return future;
     }
 
     public void addMessageHandler(MessageType type, Consumer<Message> handler) {
@@ -97,6 +141,7 @@ public final class NetworkService {
 
     public void shutdown() {
         stopHeartbeat();
+        failPendingRequests("Network service is shutting down.");
 
         if (socket == null || socket.isClosed()) {
             return;
@@ -113,7 +158,7 @@ public final class NetworkService {
             String jsonString;
             while ((jsonString = in.readLine()) != null) {
                 final Message message = JsonUtil.fromJson(jsonString);
-                Platform.runLater(() -> routeMessageToHandlers(message));
+                Platform.runLater(() -> handleMessagesFromServer(message));
             }
         } catch (IOException e) {
             System.err.println("Disconnected from server: " + e.getMessage());
@@ -121,16 +166,29 @@ public final class NetworkService {
             // If the listening loop breaks (server closed or network dropped),
             // ensure the heartbeat stops so we don't keep trying to ping a dead socket.
             stopHeartbeat();
+            failPendingRequests("Disconnected from server.");
         }
     }
 
-    private void routeMessageToHandlers(Message message) {
+    private void handleMessagesFromServer(Message message) {
         if (message == null) {
             return;
         }
 
-        // TODO: Handle the PONG message from server
+        String correlationId = message.getCorrelationId();
+        if (correlationId != null && !correlationId.isBlank()) {
+            CompletableFuture<Message> pending = pendingRequests.remove(correlationId);
+            if (pending != null) {
+                pending.complete(message);
+                return;
+            }
+        }
 
+        // If the message doesn't have a correlationId, route the message to message handlers
+        routeMessageToHandlers(message);
+    }
+
+    private void routeMessageToHandlers(Message message) {
         List<Consumer<Message>> handlers = messageHandlers.get(message.getType());
         if(handlers == null) {
             return;
@@ -138,5 +196,21 @@ public final class NetworkService {
         for (Consumer<Message> handler : handlers) {
             handler.accept(message);
         }
+    }
+
+    private void failPendingRequests(String reason) {
+        IllegalStateException exception = new IllegalStateException(reason);
+        for (CompletableFuture<Message> future : pendingRequests.values()) {
+            future.completeExceptionally(exception);
+        }
+        pendingRequests.clear();
+    }
+
+    private synchronized boolean sendJson(String jsonPayload) {
+        if (out == null || socket == null || socket.isClosed()) {
+            return false;
+        }
+        out.println(jsonPayload);
+        return !out.checkError();
     }
 }

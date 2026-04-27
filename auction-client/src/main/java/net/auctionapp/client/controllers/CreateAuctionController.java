@@ -27,7 +27,6 @@ import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
 import java.util.ResourceBundle;
-import java.util.function.Consumer;
 
 public class CreateAuctionController implements Initializable {
     private static final DateTimeFormatter TIME_FORMATTER = DateTimeFormatter.ofPattern("HH:mm");
@@ -73,9 +72,6 @@ public class CreateAuctionController implements Initializable {
     @FXML
     private Label statusLabel;
 
-    private Consumer<Message> createSuccessListener;
-    private Consumer<Message> errorListener;
-
     @Override
     public void initialize(URL location, ResourceBundle resources) {
         appHeaderController.setupHeader("Create Auction", true, "MainMenu");
@@ -91,22 +87,15 @@ public class CreateAuctionController implements Initializable {
         vehicleYearCreatedField.setText(String.valueOf(now.getYear()));
         electronicsWarrantyField.setText("12");
         updateTypeSpecificFields(categoryComboBox.getValue());
-
-        createSuccessListener = this::handleCreateSuccess;
-        errorListener = this::handleCreateError;
-        ClientApp.getInstance().addMessageHandler(MessageType.CREATE_ITEM_SUCCESS, createSuccessListener);
-        ClientApp.getInstance().addMessageHandler(MessageType.ERROR, errorListener);
     }
 
     @FXML
     public void handleBack(ActionEvent event) {
-        cleanupHandlers();
         SceneNavigator.switchScene("MainMenu");
     }
 
     @FXML
     public void handleCancel(ActionEvent event) {
-        cleanupHandlers();
         SceneNavigator.switchScene("MainMenu");
     }
 
@@ -116,7 +105,7 @@ public class CreateAuctionController implements Initializable {
             CreateItemRequestMessage request = buildRequestFromForm();
             statusLabel.setStyle("-fx-font-size: 13px; -fx-text-fill: #666666;");
             statusLabel.setText("Creating auction...");
-            ClientApp.getInstance().getNetworkService().sendMessage(request);
+            ClientApp.getInstance().sendRequest(request, this::handleCreateResponse);
         } catch (IllegalArgumentException ex) {
             statusLabel.setStyle("-fx-font-size: 13px; -fx-text-fill: #d9534f;");
             statusLabel.setText(ex.getMessage());
@@ -204,22 +193,25 @@ public class CreateAuctionController implements Initializable {
         section.setManaged(visible);
     }
 
-    private void handleCreateSuccess(Message message) {
-        if (!(message instanceof CreateItemResultMessage result)) {
+    private void handleCreateResponse(Message message, Throwable throwable) {
+        if (throwable != null) {
+            statusLabel.setStyle("-fx-font-size: 13px; -fx-text-fill: #d9534f;");
+            statusLabel.setText("Create auction failed: " + throwable.getMessage());
+            return;
+        }
+        if (message instanceof ErrorMessage errorMessage) {
+            statusLabel.setStyle("-fx-font-size: 13px; -fx-text-fill: #d9534f;");
+            statusLabel.setText(errorMessage.getErrorMessage());
+            return;
+        }
+        if (!(message instanceof CreateItemResultMessage result) || message.getType() != MessageType.CREATE_ITEM_SUCCESS) {
+            statusLabel.setStyle("-fx-font-size: 13px; -fx-text-fill: #d9534f;");
+            statusLabel.setText("Unexpected response from server.");
             return;
         }
         statusLabel.setStyle("-fx-font-size: 13px; -fx-text-fill: #2e7d32;");
         statusLabel.setText(result.getMessage());
-        cleanupHandlers();
         SceneNavigator.switchSceneWithDelay("AuctionList", 600);
-    }
-
-    private void handleCreateError(Message message) {
-        if (!(message instanceof ErrorMessage errorMessage)) {
-            return;
-        }
-        statusLabel.setStyle("-fx-font-size: 13px; -fx-text-fill: #d9534f;");
-        statusLabel.setText(errorMessage.getErrorMessage());
     }
 
     private BigDecimal parsePositiveDecimal(String input, String fieldName) {
@@ -290,12 +282,4 @@ public class CreateAuctionController implements Initializable {
         }
     }
 
-    private void cleanupHandlers() {
-        if (createSuccessListener != null) {
-            ClientApp.getInstance().removeMessageHandler(MessageType.CREATE_ITEM_SUCCESS, createSuccessListener);
-        }
-        if (errorListener != null) {
-            ClientApp.getInstance().removeMessageHandler(MessageType.ERROR, errorListener);
-        }
-    }
 }

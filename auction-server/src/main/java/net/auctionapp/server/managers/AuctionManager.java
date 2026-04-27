@@ -12,6 +12,7 @@ import net.auctionapp.common.messages.types.CreateItemRequestMessage;
 import net.auctionapp.common.messages.types.CreateItemResultMessage;
 import net.auctionapp.common.messages.types.ErrorMessage;
 import net.auctionapp.common.messages.types.GetAuctionDetailsRequestMessage;
+import net.auctionapp.common.messages.types.GetAuctionListRequestMessage;
 import net.auctionapp.common.messages.types.PriceUpdateMessage;
 import net.auctionapp.common.models.auction.Auction;
 import net.auctionapp.common.models.auction.AuctionStatus;
@@ -73,8 +74,8 @@ public final class AuctionManager {
 
     // --- Message Handling Logic ---
 
-    public void handleGetAuctionList(ClientHandler handler) {
-        handler.sendMessage(JsonUtil.toJson(new AuctionListResponseMessage(getAuctionSummaries())));
+    public void handleGetAuctionList(GetAuctionListRequestMessage request, ClientHandler handler) {
+        handler.sendResponse(new AuctionListResponseMessage(getAuctionSummaries()), request);
     }
 
     public void handleGetAuctionDetails(GetAuctionDetailsRequestMessage message, ClientHandler handler) {
@@ -82,9 +83,9 @@ public final class AuctionManager {
             handler.ensureAuthenticated();
             Auction auction = requireAuction(message.getAuctionId());
             AuctionDetailsResponseMessage response = buildAuctionDetailsResponse(auction);
-            handler.sendMessage(JsonUtil.toJson(response));
+            handler.sendResponse(response, message);
         } catch (AuctionAppException e) {
-            handler.sendMessage(JsonUtil.toJson(new ErrorMessage(e.getMessage())));
+            handler.sendResponse(new ErrorMessage(e.getMessage()), message);
         }
     }
 
@@ -102,15 +103,15 @@ public final class AuctionManager {
                     message.getEndTime()
             );
             persistAuction(auction);
-            handler.sendMessage(JsonUtil.toJson(new CreateItemResultMessage(
+            handler.sendResponse(new CreateItemResultMessage(
                     auction.getId(),
                     auction.getItem().getTitle(),
                     "Auction created successfully."
-            )));
+            ), message);
         } catch (DatabaseException e) {
-            handler.sendMessage(JsonUtil.toJson(new ErrorMessage("Failed to save auction to database: " + e.getMessage())));
+            handler.sendResponse(new ErrorMessage("Failed to save auction to database: " + e.getMessage()), message);
         } catch (AuctionAppException e) {
-            handler.sendMessage(JsonUtil.toJson(new ErrorMessage(e.getMessage())));
+            handler.sendResponse(new ErrorMessage(e.getMessage()), message);
         }
     }
 
@@ -122,11 +123,11 @@ public final class AuctionManager {
             submitBid(auctionId, bidderId, BigDecimal.valueOf(message.getPrice()));
 
             Auction updatedAuction = requireAuction(auctionId);
-            sendBidAccepted(handler, updatedAuction);
+            sendBidAccepted(handler, message, updatedAuction);
             broadcastPriceUpdate(updatedAuction);
             broadcastEndedAuctions();
         } catch (AuctionAppException e) {
-            sendBidRejected(handler, auctionId, e.getMessage());
+            sendBidRejected(handler, message, auctionId, e.getMessage());
         }
     }
 
@@ -475,26 +476,26 @@ public final class AuctionManager {
         }
     }
 
-    private void sendBidAccepted(ClientHandler handler, Auction auction) {
+    private void sendBidAccepted(ClientHandler handler, BidRequestMessage request, Auction auction) {
         synchronized (auction) {
-            handler.sendMessage(JsonUtil.toJson(new BidResultMessage(
+            handler.sendResponse(new BidResultMessage(
                     MessageType.BID_ACCEPTED,
                     auction.getId(),
                     auction.getCurrentPrice(),
                     auction.getLeadingBidderId(),
                     "Bid accepted."
-            )));
+            ), request);
         }
     }
 
-    private void sendBidRejected(ClientHandler handler, String auctionId, String message) {
-        handler.sendMessage(JsonUtil.toJson(new BidResultMessage(
+    private void sendBidRejected(ClientHandler handler, BidRequestMessage request, String auctionId, String message) {
+        handler.sendResponse(new BidResultMessage(
                 MessageType.BID_REJECTED,
                 auctionId,
                 null,
                 null,
                 message
-        )));
+        ), request);
     }
 
     private void broadcastPriceUpdate(Auction auction) {

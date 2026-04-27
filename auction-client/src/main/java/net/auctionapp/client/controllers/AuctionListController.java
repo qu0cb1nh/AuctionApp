@@ -13,6 +13,7 @@ import javafx.scene.layout.FlowPane;
 import javafx.scene.layout.VBox;
 import net.auctionapp.client.ClientApp;
 import net.auctionapp.client.SceneNavigator;
+import net.auctionapp.client.utils.DurationFormatUtil;
 import net.auctionapp.common.messages.Message;
 import net.auctionapp.common.messages.MessageType;
 import net.auctionapp.common.messages.types.AuctionListResponseMessage;
@@ -30,7 +31,6 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 import java.util.ResourceBundle;
-import java.util.function.Consumer;
 
 public class AuctionListController implements Initializable {
     private static final DateTimeFormatter CARD_TIME_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm");
@@ -49,8 +49,6 @@ public class AuctionListController implements Initializable {
     @FXML
     private ComboBox<String> statusFilterComboBox;
 
-    private Consumer<Message> listResponseListener;
-    private Consumer<Message> errorListener;
     private final List<AuctionSummary> allAuctions = new ArrayList<>();
 
     @FXML
@@ -68,25 +66,32 @@ public class AuctionListController implements Initializable {
         statusFilterComboBox.getSelectionModel().selectFirst();
         rootPane.sceneProperty().addListener((observable, oldScene, newScene) -> {
             if (oldScene != null) {
-                cleanupHandlers();
+                // No persistent request handlers to clean up.
             }
         });
 
-        listResponseListener = this::handleAuctionListResponse;
-        errorListener = this::handleErrorResponse;
-        ClientApp.getInstance().addMessageHandler(MessageType.AUCTION_LIST_RESPONSE, listResponseListener);
-        ClientApp.getInstance().addMessageHandler(MessageType.ERROR, errorListener);
         requestAuctionList();
     }
 
     private void requestAuctionList() {
         listStatusLabel.setStyle("-fx-text-fill: #666666;");
         listStatusLabel.setText("Loading auctions...");
-        ClientApp.getInstance().getNetworkService().sendMessage(new GetAuctionListRequestMessage());
+        ClientApp.getInstance().sendRequest(new GetAuctionListRequestMessage(), this::handleAuctionListResult);
     }
 
-    private void handleAuctionListResponse(Message message) {
+    private void handleAuctionListResult(Message message, Throwable throwable) {
+        if (throwable != null) {
+            listStatusLabel.setStyle("-fx-text-fill: #d9534f;");
+            listStatusLabel.setText("Failed to load auctions: " + throwable.getMessage());
+            return;
+        }
+        if (message instanceof ErrorMessage errorMessage) {
+            handleErrorResponse(errorMessage);
+            return;
+        }
         if (!(message instanceof AuctionListResponseMessage response)) {
+            listStatusLabel.setStyle("-fx-text-fill: #d9534f;");
+            listStatusLabel.setText("Unexpected response from server.");
             return;
         }
 
@@ -99,10 +104,7 @@ public class AuctionListController implements Initializable {
         applyFilters();
     }
 
-    private void handleErrorResponse(Message message) {
-        if (!(message instanceof ErrorMessage errorMessage)) {
-            return;
-        }
+    private void handleErrorResponse(ErrorMessage errorMessage) {
         listStatusLabel.setStyle("-fx-text-fill: #d9534f;");
         listStatusLabel.setText(errorMessage.getErrorMessage());
     }
@@ -208,35 +210,15 @@ public class AuctionListController implements Initializable {
         }
         LocalDateTime now = LocalDateTime.now();
         if (auction.getStatus() == AuctionStatus.OPEN && auction.getStartTime() != null && now.isBefore(auction.getStartTime())) {
-            return "Starts in: " + formatRemainingDuration(Duration.between(now, auction.getStartTime()));
+            return "Starts in: " + DurationFormatUtil.formatRemainingDuration(Duration.between(now, auction.getStartTime()));
         }
         if (auction.getStatus() == AuctionStatus.RUNNING && now.isBefore(auction.getEndTime())) {
-            return "Ends in: " + formatRemainingDuration(Duration.between(now, auction.getEndTime()));
+            return "Ends in: " + DurationFormatUtil.formatRemainingDuration(Duration.between(now, auction.getEndTime()));
         }
         if (now.isAfter(auction.getEndTime())) {
             return "Ended";
         }
         return "Scheduled";
-    }
-
-    private String formatRemainingDuration(Duration duration) {
-        if (duration == null || duration.isNegative() || duration.isZero()) {
-            return "less than 1m";
-        }
-        long totalSeconds = duration.getSeconds();
-        long days = totalSeconds / 86_400;
-        long hours = (totalSeconds % 86_400) / 3_600;
-        long minutes = (totalSeconds % 3_600) / 60;
-        if (days > 0) {
-            return days + "d " + hours + "h";
-        }
-        if (hours > 0) {
-            return hours + "h " + minutes + "m";
-        }
-        if (minutes > 0) {
-            return minutes + "m";
-        }
-        return "less than 1m";
     }
 
     private String statusColor(AuctionStatus status) {
@@ -260,29 +242,17 @@ public class AuctionListController implements Initializable {
     }
 
     private void handleViewItem(String auctionId) {
-        cleanupHandlers();
         ClientApp.getInstance().setSelectedAuctionId(auctionId);
         SceneNavigator.switchScene("AuctionItem");
     }
 
     @FXML
     public void handleSignOut() {
-        cleanupHandlers();
         SceneNavigator.switchScene("LoginMenu");
     }
 
     @FXML
     public void handleBackToMainMenu() {
-        cleanupHandlers();
         SceneNavigator.switchScene("MainMenu");
-    }
-
-    private void cleanupHandlers() {
-        if (listResponseListener != null) {
-            ClientApp.getInstance().removeMessageHandler(MessageType.AUCTION_LIST_RESPONSE, listResponseListener);
-        }
-        if (errorListener != null) {
-            ClientApp.getInstance().removeMessageHandler(MessageType.ERROR, errorListener);
-        }
     }
 }
