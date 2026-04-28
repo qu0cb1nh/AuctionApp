@@ -2,11 +2,11 @@ package net.auctionapp.common.utils;
 
 import java.util.Locale;
 
-public final class UserIdentityUtil {
-    private UserIdentityUtil() {
+public final class StringUtil {
+    private StringUtil() {
     }
 
-    public static String normalizeUserId(String value) {
+    public static String normalizeString(String value) {
         if (value == null) {
             return "";
         }

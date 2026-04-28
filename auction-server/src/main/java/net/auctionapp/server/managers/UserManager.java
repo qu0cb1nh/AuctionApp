@@ -2,7 +2,7 @@ package net.auctionapp.server.managers;
 
 import net.auctionapp.common.models.users.User;
 import net.auctionapp.common.models.users.UserRole;
-import net.auctionapp.common.utils.UserIdentityUtil;
+import net.auctionapp.common.utils.StringUtil;
 import net.auctionapp.server.exceptions.AuthenticationException;
 import net.auctionapp.server.exceptions.NotFoundException;
 import net.auctionapp.server.exceptions.ValidationException;
@@ -40,9 +40,9 @@ public final class UserManager {
     public User syncAccountFromDatabase(User user) {
         String normalizedUserId = user == null
                 ? ""
-                : UserIdentityUtil.normalizeUserId(user.getId());
+                : StringUtil.normalizeString(user.getId());
         if (normalizedUserId.isEmpty() && user != null) {
-            normalizedUserId = UserIdentityUtil.normalizeUserId(user.getUsername());
+            normalizedUserId = StringUtil.normalizeString(user.getUsername());
         }
         if (user == null
                 || normalizedUserId.isEmpty()
@@ -60,7 +60,7 @@ public final class UserManager {
     }
 
     public User login(String username, String rawPassword) {
-        String accountId = UserIdentityUtil.normalizeUserId(username);
+        String accountId = StringUtil.normalizeString(username);
         if (accountId.isEmpty() || rawPassword == null || rawPassword.isEmpty()) {
             throw new AuthenticationException("Username and password are required.");
         }
@@ -74,11 +74,11 @@ public final class UserManager {
     }
 
     public Optional<User> getUserById(String userId) {
-        return Optional.ofNullable(usersById.get(UserIdentityUtil.normalizeUserId(userId)));
+        return Optional.ofNullable(usersById.get(StringUtil.normalizeString(userId)));
     }
 
     public User requireUserById(String userId) {
-        User user = usersById.get(UserIdentityUtil.normalizeUserId(userId));
+        User user = usersById.get(StringUtil.normalizeString(userId));
         if (user == null) {
             throw new NotFoundException("User not found.");
         }
@@ -86,7 +86,7 @@ public final class UserManager {
     }
 
     public Optional<User> getUserByUsername(String username) {
-        return Optional.ofNullable(usersById.get(UserIdentityUtil.normalizeUserId(username)));
+        return Optional.ofNullable(usersById.get(StringUtil.normalizeString(username)));
     }
 
     public User requireSeller(String userId) {
@@ -114,7 +114,7 @@ public final class UserManager {
     }
 
     private User registerAccount(String username, String rawPassword, Set<UserRole> roles) {
-        String normalizedUsername = UserIdentityUtil.normalizeUserId(username);
+        String normalizedUsername = StringUtil.normalizeString(username);
         validateCredentials(normalizedUsername, rawPassword);
         String displayName = username == null ? "" : username.trim();
         String passwordHash = BCrypt.hashpw(rawPassword, BCrypt.gensalt());

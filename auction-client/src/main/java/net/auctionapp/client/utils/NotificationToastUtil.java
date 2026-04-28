@@ -10,7 +10,7 @@ import javafx.stage.Stage;
 import javafx.util.Duration;
 import net.auctionapp.client.ClientApp;
 import net.auctionapp.client.controllers.NotificationToastController;
-import net.auctionapp.common.notifications.NotificationView;
+import net.auctionapp.common.notifications.Notification;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -48,7 +48,7 @@ public final class NotificationToastUtil {
         return wrapper;
     }
 
-    public static void show(NotificationView notification) {
+    public static void show(Notification notification) {
         if (notification == null) {
             return;
         }
@@ -75,7 +75,7 @@ public final class NotificationToastUtil {
         hideDelay.play();
     }
 
-    private static HBox buildContent(NotificationView notification) {
+    private static HBox buildContent(Notification notification) {
         try {
             FXMLLoader loader = new FXMLLoader(NotificationToastUtil.class
                     .getResource("/net/auctionapp/client/views/NotificationToast.fxml"));

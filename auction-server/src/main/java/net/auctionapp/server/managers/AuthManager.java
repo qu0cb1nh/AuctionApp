@@ -8,7 +8,7 @@ import net.auctionapp.common.messages.types.RegisterResultMessage;
 import net.auctionapp.common.exceptions.ValidationException;
 import net.auctionapp.common.models.users.User;
 import net.auctionapp.common.utils.CredentialUtil;
-import net.auctionapp.common.utils.UserIdentityUtil;
+import net.auctionapp.common.utils.StringUtil;
 import net.auctionapp.server.ClientHandler;
 import net.auctionapp.server.dao.UserDao;
 import net.auctionapp.server.exceptions.DatabaseException;
@@ -40,7 +40,7 @@ public class AuthManager {
     }
 
     public void handleLogin(LoginRequestMessage request, ClientHandler clientHandler) {
-        String normalizedUsername = UserIdentityUtil.normalizeUserId(request.getUsername());
+        String normalizedUsername = StringUtil.normalizeString(request.getUsername());
         String password = request.getPassword();
 
         try {
@@ -83,7 +83,7 @@ public class AuthManager {
     }
 
     public void handleRegister(RegisterRequestMessage request, ClientHandler clientHandler) {
-        String normalizedUsername = UserIdentityUtil.normalizeUserId(request.getUsername());
+        String normalizedUsername = StringUtil.normalizeString(request.getUsername());
         String password = request.getPassword();
         String username = request.getUsername() == null ? "" : request.getUsername().trim();
 

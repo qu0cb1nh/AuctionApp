@@ -1,7 +1,7 @@
 package net.auctionapp.server.managers;
 
 import net.auctionapp.server.ClientHandler;
-import net.auctionapp.common.utils.UserIdentityUtil;
+import net.auctionapp.common.utils.StringUtil;
 
 import java.util.Collections;
 import java.util.Optional;
@@ -30,7 +30,7 @@ public final class SessionManager {
             return;
         }
 
-        String normalizedUserId = UserIdentityUtil.normalizeUserId(userId);
+        String normalizedUserId = StringUtil.normalizeString(userId);
         if (normalizedUserId.isEmpty()) {
             return;
         }
@@ -63,7 +63,7 @@ public final class SessionManager {
     }
 
     public Set<ClientHandler> getClientsByUserId(String userId) {
-        String normalizedUserId = UserIdentityUtil.normalizeUserId(userId);
+        String normalizedUserId = StringUtil.normalizeString(userId);
         if (normalizedUserId.isEmpty()) {
             return Set.of();
         }

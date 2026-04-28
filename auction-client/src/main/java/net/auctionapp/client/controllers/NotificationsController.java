@@ -19,8 +19,7 @@ import net.auctionapp.common.messages.types.MarkNotificationReadRequestMessage;
 import net.auctionapp.common.messages.types.NotificationMessage;
 import net.auctionapp.common.notifications.NotificationType;
 import net.auctionapp.common.messages.types.NotificationsResponseMessage;
-import net.auctionapp.common.notifications.NotificationView;
-import net.auctionapp.common.utils.UserIdentityUtil;
+import net.auctionapp.common.notifications.Notification;
 
 import java.net.URL;
 import java.time.LocalDateTime;
@@ -80,7 +79,7 @@ public class NotificationsController implements Initializable {
     private Region[] filterUnderlines;
     private int activeFilterIndex;
 
-    private final List<NotificationView> allNotifications = new ArrayList<>();
+    private final List<Notification> allNotifications = new ArrayList<>();
     private Consumer<Message> notificationPushHandler;
     private boolean pushHandlerRegistered;
 
@@ -188,16 +187,16 @@ public class NotificationsController implements Initializable {
         if (!(message instanceof NotificationMessage notificationMessage)) {
             return;
         }
-        NotificationView pushedNotification = notificationMessage.getNotification();
-        if (pushedNotification == null || !isNotificationForCurrentUser(notificationMessage)) {
+        Notification pushedNotification = notificationMessage.getNotification();
+        if (pushedNotification == null) {
             return;
         }
         allNotifications.removeIf(existing -> matchesNotificationId(existing, pushedNotification.getId()));
-        allNotifications.add(0, pushedNotification);
+        allNotifications.addFirst(pushedNotification);
         renderNotifications();
     }
 
-    private void updateNotifications(List<NotificationView> notifications) {
+    private void updateNotifications(List<Notification> notifications) {
         allNotifications.clear();
         if (notifications == null) {
             renderNotifications();
@@ -206,7 +205,6 @@ public class NotificationsController implements Initializable {
         allNotifications.addAll(
                 notifications.stream()
                         .filter(notification -> notification != null && notification.getId() != null)
-                        .filter(this::isNotificationForCurrentUser)
                         .sorted(Comparator.comparing(
                                 NotificationsController::notificationTimestampOrMin,
                                 Comparator.reverseOrder()
@@ -222,7 +220,7 @@ public class NotificationsController implements Initializable {
         }
         notificationCardsContainer.getChildren().clear();
 
-        List<NotificationView> filteredNotifications = allNotifications.stream()
+        List<Notification> filteredNotifications = allNotifications.stream()
                 .filter(this::matchesActiveFilter)
                 .toList();
 
@@ -232,12 +230,12 @@ public class NotificationsController implements Initializable {
             notificationCardsContainer.getChildren().add(emptyLabel);
             return;
         }
-        for (NotificationView notification : filteredNotifications) {
+        for (Notification notification : filteredNotifications) {
             notificationCardsContainer.getChildren().add(createNotificationCard(notification));
         }
     }
 
-    private HBox createNotificationCard(NotificationView notification) {
+    private HBox createNotificationCard(Notification notification) {
         Label typeLabel = new Label(notificationTypeLabel(notification));
         typeLabel.setStyle("-fx-text-fill: #3bb3d1; -fx-font-weight: bold; -fx-font-size: 13px;");
 
@@ -299,7 +297,7 @@ public class NotificationsController implements Initializable {
         );
     }
 
-    private boolean matchesActiveFilter(NotificationView notification) {
+    private boolean matchesActiveFilter(Notification notification) {
         if (notification == null) {
             return false;
         }
@@ -314,7 +312,7 @@ public class NotificationsController implements Initializable {
         };
     }
 
-    private String notificationTypeLabel(NotificationView notification) {
+    private String notificationTypeLabel(Notification notification) {
         if (notification == null || notification.getType() == null) {
             return "Notification";
         }
@@ -330,14 +328,14 @@ public class NotificationsController implements Initializable {
         return CARD_TIME_FORMATTER.format(createdAt);
     }
 
-    private static LocalDateTime notificationTimestampOrMin(NotificationView notification) {
+    private static LocalDateTime notificationTimestampOrMin(Notification notification) {
         if (notification == null || notification.getCreatedAt() == null) {
             return LocalDateTime.MIN;
         }
         return notification.getCreatedAt();
     }
 
-    private static boolean matchesNotificationId(NotificationView notification, String notificationId) {
+    private static boolean matchesNotificationId(Notification notification, String notificationId) {
         if (notification == null || notification.getId() == null || notificationId == null) {
             return false;
         }
@@ -361,42 +359,4 @@ public class NotificationsController implements Initializable {
         return value;
     }
 
-    private boolean isNotificationForCurrentUser(NotificationMessage notificationMessage) {
-        if (notificationMessage == null || notificationMessage.getNotification() == null) {
-            return false;
-        }
-        NotificationView notification = notificationMessage.getNotification();
-        String recipientUserId = UserIdentityUtil.normalizeUserId(notificationMessage.getRecipientUserId());
-        String notificationUserId = UserIdentityUtil.normalizeUserId(notification.getUserId());
-        String currentUserId = UserIdentityUtil.normalizeUserId(
-                ClientApp.getInstance() == null ? null : ClientApp.getInstance().getCurrentUserId()
-        );
-        if (currentUserId.isEmpty()) {
-            return false;
-        }
-        if (recipientUserId.isEmpty() && notificationUserId.isEmpty()) {
-            return false;
-        }
-        if (!recipientUserId.isEmpty() && !recipientUserId.equals(currentUserId)) {
-            return false;
-        }
-        if (!notificationUserId.isEmpty() && !notificationUserId.equals(currentUserId)) {
-            return false;
-        }
-        return true;
-    }
-
-    private boolean isNotificationForCurrentUser(NotificationView notification) {
-        if (notification == null) {
-            return false;
-        }
-        String notificationUserId = UserIdentityUtil.normalizeUserId(notification.getUserId());
-        String currentUserId = UserIdentityUtil.normalizeUserId(
-                ClientApp.getInstance() == null ? null : ClientApp.getInstance().getCurrentUserId()
-        );
-        if (notificationUserId.isEmpty() || currentUserId.isEmpty()) {
-            return false;
-        }
-        return notificationUserId.equals(currentUserId);
-    }
 }

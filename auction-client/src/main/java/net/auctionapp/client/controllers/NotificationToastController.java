@@ -2,7 +2,7 @@ package net.auctionapp.client.controllers;
 
 import javafx.fxml.FXML;
 import javafx.scene.control.Label;
-import net.auctionapp.common.notifications.NotificationView;
+import net.auctionapp.common.notifications.Notification;
 
 public final class NotificationToastController {
     @FXML
@@ -11,7 +11,7 @@ public final class NotificationToastController {
     @FXML
     private Label bodyLabel;
 
-    public void setNotification(NotificationView notification) {
+    public void setNotification(Notification notification) {
         if (notification == null) {
             titleLabel.setText("Notification");
             bodyLabel.setText("");

@@ -1,7 +1,7 @@
 package net.auctionapp.server.dao;
 
 import net.auctionapp.common.notifications.NotificationType;
-import net.auctionapp.common.notifications.NotificationView;
+import net.auctionapp.common.notifications.Notification;
 import net.auctionapp.server.exceptions.DatabaseException;
 import net.auctionapp.server.managers.DatabaseManager;
 
@@ -67,7 +67,7 @@ public class JdbcNotificationDao implements NotificationDao {
     }
 
     @Override
-    public NotificationView createNotification(
+    public Notification createNotification(
             String userId,
             NotificationType type,
             String title,
@@ -91,15 +91,15 @@ public class JdbcNotificationDao implements NotificationDao {
             if (updatedRows != 1) {
                 throw new DatabaseException("Notification could not be created.", new IllegalStateException());
             }
-            return new NotificationView(id, userId, type, title, body, auctionId, timestamp, false);
+            return new Notification(id, userId, type, title, body, auctionId, timestamp, false);
         } catch (SQLException e) {
             throw new DatabaseException("Failed to create notification.", e);
         }
     }
 
     @Override
-    public List<NotificationView> findByUserId(String userId) {
-        List<NotificationView> notifications = new ArrayList<>();
+    public List<Notification> findByUserId(String userId) {
+        List<Notification> notifications = new ArrayList<>();
         try (Connection connection = databaseManager.getConnection();
              PreparedStatement statement = connection.prepareStatement(FIND_BY_USER_ID_QUERY)) {
             statement.setString(1, userId);
@@ -162,12 +162,12 @@ public class JdbcNotificationDao implements NotificationDao {
         }
     }
 
-    private NotificationView mapNotification(ResultSet resultSet) throws SQLException {
+    private Notification mapNotification(ResultSet resultSet) throws SQLException {
         Timestamp createdAt = resultSet.getTimestamp("created_at");
         if (createdAt == null) {
             throw new DatabaseException("Notification created_at cannot be null.", new IllegalStateException());
         }
-        return new NotificationView(
+        return new Notification(
                 resultSet.getString("id"),
                 resultSet.getString("user_id"),
                 NotificationType.valueOf(resultSet.getString("type")),

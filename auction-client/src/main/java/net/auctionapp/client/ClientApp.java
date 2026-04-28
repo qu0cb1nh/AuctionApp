@@ -10,9 +10,9 @@ import net.auctionapp.client.utils.NotificationToastUtil;
 import net.auctionapp.common.messages.Message;
 import net.auctionapp.common.messages.MessageType;
 import net.auctionapp.common.messages.types.NotificationMessage;
-import net.auctionapp.common.notifications.NotificationView;
+import net.auctionapp.common.notifications.Notification;
 import net.auctionapp.common.utils.ConfigUtil;
-import net.auctionapp.common.utils.UserIdentityUtil;
+import net.auctionapp.common.utils.StringUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -154,7 +154,7 @@ public class ClientApp extends Application {
         if (!(message instanceof NotificationMessage notificationMessage)) {
             return;
         }
-        NotificationView notification = notificationMessage.getNotification();
+        Notification notification = notificationMessage.getNotification();
         if (notification == null || !isNotificationForCurrentUser(notificationMessage)) {
             return;
         }
@@ -165,10 +165,10 @@ public class ClientApp extends Application {
         if (notificationMessage == null || notificationMessage.getNotification() == null) {
             return false;
         }
-        NotificationView notification = notificationMessage.getNotification();
-        String recipientUserId = UserIdentityUtil.normalizeUserId(notificationMessage.getRecipientUserId());
-        String notificationUserId = UserIdentityUtil.normalizeUserId(notification.getUserId());
-        String normalizedCurrentUserId = UserIdentityUtil.normalizeUserId(getCurrentUserId());
+        Notification notification = notificationMessage.getNotification();
+        String recipientUserId = StringUtil.normalizeString(notificationMessage.getRecipientUserId());
+        String notificationUserId = StringUtil.normalizeString(notification.getUserId());
+        String normalizedCurrentUserId = StringUtil.normalizeString(getCurrentUserId());
         if (normalizedCurrentUserId.isEmpty()) {
             LOGGER.info("Popup notification skipped: missing current user id. notificationId=" + notification.getId());
             return false;
