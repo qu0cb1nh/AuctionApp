@@ -26,7 +26,7 @@ import net.auctionapp.server.factories.VehicleFactory;
 import net.auctionapp.common.models.users.User;
 import net.auctionapp.common.models.users.UserRole;
 import net.auctionapp.common.utils.JsonUtil;
-import net.auctionapp.common.utils.UserIdentityUtil;
+import net.auctionapp.common.utils.StringUtil;
 import net.auctionapp.server.ClientHandler;
 import net.auctionapp.server.ServerApp;
 import net.auctionapp.server.dao.AuctionDao;
@@ -98,7 +98,7 @@ public final class AuctionManager {
         try {
             handler.ensureAuthenticated();
             Item item = createItemFromRequest(message);
-            String sellerId = UserIdentityUtil.normalizeUserId(handler.getAuthenticatedId());
+            String sellerId = StringUtil.normalizeString(handler.getAuthenticatedId());
             Auction auction = createAuction(
                     sellerId,
                     item,
@@ -124,7 +124,7 @@ public final class AuctionManager {
         String auctionId = message.getAuctionId();
         try {
             handler.ensureAuthenticated();
-            String bidderId = UserIdentityUtil.normalizeUserId(handler.getAuthenticatedId());
+            String bidderId = StringUtil.normalizeString(handler.getAuthenticatedId());
             BidSubmissionResult bidSubmissionResult = submitBid(auctionId, bidderId, BigDecimal.valueOf(message.getPrice()));
 
             Auction updatedAuction = requireAuction(auctionId);
@@ -208,7 +208,7 @@ public final class AuctionManager {
     ) {
         validateAuctionDraft(item, startingPrice, minimumBidIncrement, startTime, endTime);
 
-        User seller = userManager.requireSeller(UserIdentityUtil.normalizeUserId(sellerId));
+        User seller = userManager.requireSeller(StringUtil.normalizeString(sellerId));
         Auction auction = new Auction(
                 UUID.randomUUID().toString(),
                 seller.getId(),
@@ -259,7 +259,7 @@ public final class AuctionManager {
 
     public void deleteAuction(String actorId, String auctionId) {
         Auction auction = requireAuction(auctionId);
-        User actor = userManager.requireUserById(UserIdentityUtil.normalizeUserId(actorId));
+        User actor = userManager.requireUserById(StringUtil.normalizeString(actorId));
         ensureAdminOrOwningSeller(actor, auction);
 
         if (auction.getStatus() == AuctionStatus.RUNNING || auction.getStatus() == AuctionStatus.PAID) {
@@ -283,7 +283,7 @@ public final class AuctionManager {
 
     public BidSubmissionResult submitBid(String auctionId, String bidderId, BigDecimal amount) {
         Auction auction = requireAuction(auctionId);
-        String normalizedBidderId = UserIdentityUtil.normalizeUserId(bidderId);
+        String normalizedBidderId = StringUtil.normalizeString(bidderId);
         userManager.requireBidder(normalizedBidderId);
         validateBidAmount(amount);
         ensureBidderIsNotSeller(auction, normalizedBidderId);
@@ -331,7 +331,7 @@ public final class AuctionManager {
 
     public Auction cancelAuction(String actorId, String auctionId) {
         Auction auction = requireAuction(auctionId);
-        User actor = userManager.requireUserById(UserIdentityUtil.normalizeUserId(actorId));
+        User actor = userManager.requireUserById(StringUtil.normalizeString(actorId));
         ensureAdminOrOwningSeller(actor, auction);
 
         if (!auction.cancel()) {
@@ -447,7 +447,7 @@ public final class AuctionManager {
     }
 
     private void ensureSellerOwnsAuction(String sellerId, Auction auction) {
-        User seller = userManager.requireSeller(UserIdentityUtil.normalizeUserId(sellerId));
+        User seller = userManager.requireSeller(StringUtil.normalizeString(sellerId));
         if (!Objects.equals(seller.getId(), auction.getSellerId())) {
             throw new AuthorizationException("Only the owning seller can modify this auction.");
         }
@@ -523,8 +523,8 @@ public final class AuctionManager {
         if (updatedAuction == null) {
             return;
         }
-        String displacedBidderId = UserIdentityUtil.normalizeUserId(previousLeadingBidderId);
-        String newLeadingBidderId = UserIdentityUtil.normalizeUserId(updatedAuction.getLeadingBidderId());
+        String displacedBidderId = StringUtil.normalizeString(previousLeadingBidderId);
+        String newLeadingBidderId = StringUtil.normalizeString(updatedAuction.getLeadingBidderId());
         if (displacedBidderId.isEmpty() || newLeadingBidderId.isEmpty() || displacedBidderId.equals(newLeadingBidderId)) {
             return;
         }

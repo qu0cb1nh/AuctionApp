@@ -33,7 +33,7 @@ import java.util.ResourceBundle;
 
 public class AuctionListController implements Initializable {
     private static final DateTimeFormatter CARD_TIME_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm");
-    private static final String STATUS_ALL = "All";
+    private static final String STATUS_ALL = "ALL";
 
     @FXML
     private HeaderController appHeaderController;
@@ -62,7 +62,7 @@ public class AuctionListController implements Initializable {
                 "PAID",
                 "CANCELED"
         );
-        statusFilterComboBox.getSelectionModel().selectFirst();
+        statusFilterComboBox.getSelectionModel().select("RUNNING");
         rootPane.sceneProperty().addListener((observable, oldScene, newScene) -> {
             if (oldScene != null) {
                 // No persistent request handlers to clean up.
@@ -125,7 +125,7 @@ public class AuctionListController implements Initializable {
         List<AuctionSummary> filtered = allAuctions.stream()
                 .filter(auction -> search.isBlank() || auction.getTitle().toLowerCase(Locale.ROOT).contains(search))
                 .filter(auction -> selectedStatus == null
-                        || STATUS_ALL.equals(selectedStatus)
+                        || STATUS_ALL.equalsIgnoreCase(selectedStatus)
                         || auction.getStatus().name().equalsIgnoreCase(selectedStatus))
                 .toList();
 

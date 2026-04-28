@@ -2,7 +2,7 @@ package net.auctionapp.common.notifications;
 
 import java.time.LocalDateTime;
 
-public class NotificationView {
+public class Notification {
     private String id;
     private String userId;
     private NotificationType type;
@@ -12,10 +12,10 @@ public class NotificationView {
     private LocalDateTime createdAt;
     private boolean read;
 
-    public NotificationView() {
+    public Notification() {
     }
 
-    public NotificationView(
+    public Notification(
             String id,
             String userId,
             NotificationType type,

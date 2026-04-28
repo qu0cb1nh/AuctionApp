@@ -7,8 +7,8 @@ import net.auctionapp.common.messages.types.MarkNotificationReadRequestMessage;
 import net.auctionapp.common.messages.types.NotificationMessage;
 import net.auctionapp.common.notifications.NotificationType;
 import net.auctionapp.common.messages.types.NotificationsResponseMessage;
-import net.auctionapp.common.notifications.NotificationView;
-import net.auctionapp.common.utils.UserIdentityUtil;
+import net.auctionapp.common.notifications.Notification;
+import net.auctionapp.common.utils.StringUtil;
 import net.auctionapp.server.ClientHandler;
 import net.auctionapp.server.dao.NotificationDao;
 import net.auctionapp.server.exceptions.AuctionAppException;
@@ -85,15 +85,15 @@ public final class NotificationManager {
             BigDecimal newPrice,
             String newLeadingBidderId
     ) {
-        String targetUserId = UserIdentityUtil.normalizeUserId(displacedBidderId);
-        String normalizedLeaderId = UserIdentityUtil.normalizeUserId(newLeadingBidderId);
+        String targetUserId = StringUtil.normalizeString(displacedBidderId);
+        String normalizedLeaderId = StringUtil.normalizeString(newLeadingBidderId);
         if (targetUserId.isEmpty() || targetUserId.equals(normalizedLeaderId)) {
             return;
         }
 
         String safeTitle = auctionTitle == null || auctionTitle.isBlank() ? "an auction" : "\"" + auctionTitle + "\"";
         String priceText = newPrice == null ? "N/A" : "$" + newPrice.stripTrailingZeros().toPlainString();
-        NotificationView notification = requireNotificationDao().createNotification(
+        Notification notification = requireNotificationDao().createNotification(
                 targetUserId,
                 NotificationType.OUTBID,
                 "You were outbid",
@@ -105,25 +105,25 @@ public final class NotificationManager {
     }
 
     private void sendCurrentInbox(String userId, net.auctionapp.common.messages.Message request, ClientHandler handler) {
-        List<NotificationView> notifications = requireNotificationDao().findByUserId(userId);
+        List<Notification> notifications = requireNotificationDao().findByUserId(userId);
         handler.sendResponse(new NotificationsResponseMessage(notifications), request);
     }
 
-    private void pushToOnlineClients(String userId, NotificationView notification) {
+    private void pushToOnlineClients(String userId, Notification notification) {
         Set<ClientHandler> clients = sessionManager.getClientsByUserId(userId);
         if (clients.isEmpty()) {
             return;
         }
-        String normalizedTargetUserId = UserIdentityUtil.normalizeUserId(userId);
+        String normalizedTargetUserId = StringUtil.normalizeString(userId);
         NotificationMessage pushMessage = new NotificationMessage(normalizedTargetUserId, notification);
         for (ClientHandler clientHandler : clients) {
-            String authenticatedUserId = UserIdentityUtil.normalizeUserId(clientHandler.getAuthenticatedId());
+            String authenticatedUserId = StringUtil.normalizeString(clientHandler.getAuthenticatedId());
             if (!normalizedTargetUserId.equals(authenticatedUserId)) {
                 continue;
             }
             if (sessionManager.getSession(clientHandler)
                     .map(SessionManager.SessionInfo::userId)
-                    .map(UserIdentityUtil::normalizeUserId)
+                    .map(StringUtil::normalizeString)
                     .filter(sessionUserId -> sessionUserId.equals(normalizedTargetUserId))
                     .isEmpty()) {
                 continue;
@@ -133,7 +133,7 @@ public final class NotificationManager {
     }
 
     private String requireAuthenticatedUserId(ClientHandler handler) {
-        String userId = UserIdentityUtil.normalizeUserId(handler.getAuthenticatedId());
+        String userId = StringUtil.normalizeString(handler.getAuthenticatedId());
         if (userId.isEmpty()) {
             throw new ValidationException("Authenticated user is required.");
         }
