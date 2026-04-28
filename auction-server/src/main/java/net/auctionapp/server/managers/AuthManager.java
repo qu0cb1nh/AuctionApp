@@ -67,6 +67,7 @@ public class AuthManager {
             String clientRole = UserRoleUtil.toClientRole(user);
             LoginResultMessage success = new LoginResultMessage(
                     MessageType.LOGIN_SUCCESS,
+                    user.getId(),
                     user.getUsername(),
                     clientRole,
                     "Login successful."
@@ -128,7 +129,7 @@ public class AuthManager {
     }
 
     private void sendLoginFailure(LoginRequestMessage request, ClientHandler clientHandler, String message) {
-        LoginResultMessage failure = new LoginResultMessage(MessageType.LOGIN_FAILURE, null, null, message);
+        LoginResultMessage failure = new LoginResultMessage(MessageType.LOGIN_FAILURE, null, null, null, message);
         clientHandler.sendResponse(failure, request);
     }
 

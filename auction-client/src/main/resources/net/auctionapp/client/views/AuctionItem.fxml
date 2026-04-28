@@ -54,6 +54,12 @@
                         </HBox>
                         <HBox alignment="CENTER_LEFT" spacing="15.0">
                             <children>
+                                <Label style="-fx-font-size: 16px; -fx-text-fill: #333333;" text="Top bidder:" />
+                                <Label fx:id="leadingBidderLabel" style="-fx-font-size: 16px; -fx-font-weight: bold; -fx-text-fill: #333333;" text="No bids yet" />
+                            </children>
+                        </HBox>
+                        <HBox alignment="CENTER_LEFT" spacing="15.0">
+                            <children>
                                 <Label style="-fx-font-size: 16px; -fx-text-fill: #333333;" text="Ends in:" />
                                 <Label fx:id="timeRemainingLabel" style="-fx-font-size: 16px; -fx-font-weight: bold; -fx-text-fill: #333333;" text="02:15:30" />
                             </children>

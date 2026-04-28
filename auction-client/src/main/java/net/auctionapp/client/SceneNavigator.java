@@ -5,6 +5,7 @@ import javafx.fxml.FXMLLoader;
 import javafx.scene.Parent;
 import javafx.scene.Scene;
 import javafx.stage.Stage;
+import net.auctionapp.client.utils.NotificationToastUtil;
 
 import java.io.IOException;
 import java.net.URL;
@@ -37,11 +38,12 @@ public final class SceneNavigator {
         }
 
         Parent root = loadRoot(resource, fxmlFile);
+        Parent wrappedRoot = NotificationToastUtil.wrapWithNotificationHost(root);
         Scene scene = stage.getScene();
         if (scene != null) {
-            scene.setRoot(root);
+            scene.setRoot(wrappedRoot);
         } else {
-            stage.setScene(new Scene(root, ClientApp.WINDOW_WIDTH, ClientApp.WINDOW_HEIGHT));
+            stage.setScene(new Scene(wrappedRoot, ClientApp.WINDOW_WIDTH, ClientApp.WINDOW_HEIGHT));
         }
         stage.show();
     }

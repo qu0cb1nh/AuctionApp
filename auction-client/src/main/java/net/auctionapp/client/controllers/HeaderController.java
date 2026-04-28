@@ -60,7 +60,7 @@ public class HeaderController {
     @FXML
     public void handleLogout(ActionEvent event) {
         if (ClientApp.getInstance() != null) {
-            ClientApp.getInstance().setCurrentUser(null, null);
+            ClientApp.getInstance().setCurrentUser(null, null, null);
         }
         SceneNavigator.switchScene("LoginMenu");
     }

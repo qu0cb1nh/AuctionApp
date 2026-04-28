@@ -15,10 +15,12 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import net.auctionapp.common.utils.ConfigUtil;
 import net.auctionapp.server.dao.JdbcAuctionDao;
+import net.auctionapp.server.dao.JdbcNotificationDao;
 import net.auctionapp.server.dao.JdbcUserDao;
 import net.auctionapp.server.managers.AuthManager;
 import net.auctionapp.server.managers.AuctionManager;
 import net.auctionapp.server.managers.DatabaseManager;
+import net.auctionapp.server.managers.NotificationManager;
 import net.auctionapp.server.managers.SessionManager;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -48,6 +50,7 @@ public class ServerApp {
             DatabaseManager.getInstance().createConnectionPool(); // Initializes database connection pool
             AuthManager.getInstance().setUserDao(new JdbcUserDao());
             AuctionManager.getInstance().setAuctionDao(new JdbcAuctionDao());
+            NotificationManager.getInstance().setNotificationDao(new JdbcNotificationDao());
 
             serverSocket = new ServerSocket(ConfigUtil.getServerPort(), MAX_CLIENTS);
             LOGGER.info("Auction server is running on port: {}", ConfigUtil.getServerPort());

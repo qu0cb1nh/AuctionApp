@@ -28,6 +28,11 @@ public enum MessageType {
     GET_AUCTION_DETAILS_REQUEST,
 
     /**
+     * Request for the current user's notifications inbox.
+     */
+    GET_NOTIFICATIONS_REQUEST,
+
+    /**
      * Sends a bid for an item.
      */
     BID_REQUEST,
@@ -36,6 +41,16 @@ public enum MessageType {
      * (Seller) Request to create a new item for auction.
      */
     CREATE_ITEM_REQUEST,
+
+    /**
+     * Mark a specific notification as read.
+     */
+    MARK_NOTIFICATION_READ_REQUEST,
+
+    /**
+     * Clear one notification.
+     */
+    CLEAR_NOTIFICATIONS_REQUEST,
 
 
     // === Server -> Client Messages ===
@@ -69,6 +84,11 @@ public enum MessageType {
      * Response containing detailed information about an auction session.
      */
     AUCTION_DETAILS_RESPONSE,
+
+    /**
+     * Response containing notifications for the authenticated user.
+     */
+    NOTIFICATIONS_RESPONSE,
 
     /**
      * Response after creating a new auction successfully.
