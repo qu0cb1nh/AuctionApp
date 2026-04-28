@@ -86,21 +86,6 @@ public class MyBidsController implements Initializable {
     }
 
     @FXML
-    public void handleBack(ActionEvent event) {
-        cleanupHandlers();
-        SceneNavigator.switchScene("MainMenu");
-    }
-
-    @FXML
-    public void handleSignOut(ActionEvent event) {
-        cleanupHandlers();
-        if (ClientApp.getInstance() != null) {
-            ClientApp.getInstance().setCurrentUser(null, null);
-        }
-        SceneNavigator.switchScene("LoginMenu");
-    }
-
-    @FXML
     public void handleRefresh(ActionEvent event) {
         loadMyBids();
     }
@@ -108,10 +93,6 @@ public class MyBidsController implements Initializable {
     @FXML
     public void handleFilterChanged() {
         applyFilters();
-    }
-
-    private void cleanupHandlers() {
-        // Deprecated: request/response now uses sendRequest with correlation IDs.
     }
 
     private void loadMyBids() {

@@ -15,7 +15,6 @@ import net.auctionapp.client.ClientApp;
 import net.auctionapp.client.SceneNavigator;
 import net.auctionapp.client.utils.DurationFormatUtil;
 import net.auctionapp.common.messages.Message;
-import net.auctionapp.common.messages.MessageType;
 import net.auctionapp.common.messages.types.AuctionListResponseMessage;
 import net.auctionapp.common.messages.types.AuctionSummary;
 import net.auctionapp.common.messages.types.ErrorMessage;
@@ -169,6 +168,7 @@ public class AuctionListController implements Initializable {
         priceLabel.setStyle("-fx-text-fill: #c13c21;");
 
         Label nextBidLabel = new Label("Minimum Next Bid: " + formatPrice(auction.getMinimumNextBid()));
+        Label topBidderLabel = new Label("Top bidder: " + formatTopBidder(auction.getLeadingBidderId()));
         Label startLabel = new Label("Start: " + formatDateTime(auction.getStartTime()));
         Label endLabel = new Label("End: " + formatDateTime(auction.getEndTime()));
         Label timingLabel = new Label(formatTimingLabel(auction));
@@ -178,7 +178,18 @@ public class AuctionListController implements Initializable {
         bidButton.setStyle("-fx-background-color: #3bb3d1; -fx-text-fill: white; -fx-background-radius: 5;");
         bidButton.setOnAction(event -> handleViewItem(auction.getAuctionId()));
 
-        VBox card = new VBox(8.0, statusLabel, titleLabel, priceLabel, nextBidLabel, startLabel, endLabel, timingLabel, bidButton);
+        VBox card = new VBox(
+                8.0,
+                statusLabel,
+                titleLabel,
+                priceLabel,
+                nextBidLabel,
+                topBidderLabel,
+                startLabel,
+                endLabel,
+                timingLabel,
+                bidButton
+        );
         card.setPadding(new Insets(10.0));
         card.setPrefWidth(206.0);
         card.setPrefHeight(245.0);
@@ -202,6 +213,13 @@ public class AuctionListController implements Initializable {
             return "N/A";
         }
         return CARD_TIME_FORMATTER.format(time);
+    }
+
+    private String formatTopBidder(String leadingBidderId) {
+        if (leadingBidderId == null || leadingBidderId.isBlank()) {
+            return "No bids yet";
+        }
+        return leadingBidderId;
     }
 
     private String formatTimingLabel(AuctionSummary auction) {
@@ -246,13 +264,4 @@ public class AuctionListController implements Initializable {
         SceneNavigator.switchScene("AuctionItem");
     }
 
-    @FXML
-    public void handleSignOut() {
-        SceneNavigator.switchScene("LoginMenu");
-    }
-
-    @FXML
-    public void handleBackToMainMenu() {
-        SceneNavigator.switchScene("MainMenu");
-    }
 }

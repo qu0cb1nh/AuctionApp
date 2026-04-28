@@ -68,7 +68,7 @@ public class LoginMenuController implements Initializable {
         if (message.getType() == MessageType.LOGIN_SUCCESS) {
             assistantPanelController.speak(result.getMessage(), "#27ae60");
 
-            ClientApp.getInstance().setCurrentUser(result.getUsername(), result.getRole());
+            ClientApp.getInstance().setCurrentUser(result.getUserId(), result.getUsername(), result.getRole());
             SceneNavigator.switchSceneWithDelay("MainMenu", 1500);
 
         } else if (message.getType() == MessageType.LOGIN_FAILURE) {

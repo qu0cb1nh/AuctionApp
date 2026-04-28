@@ -37,6 +37,8 @@ import net.auctionapp.server.exceptions.InvalidAuctionStateException;
 import net.auctionapp.server.exceptions.InvalidBidException;
 import net.auctionapp.server.exceptions.NotFoundException;
 import net.auctionapp.server.exceptions.ValidationException;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
@@ -54,15 +56,18 @@ import java.util.concurrent.ConcurrentSkipListSet;
  * Keeps the implementation small for the current project scope.
  */
 public final class AuctionManager {
+    private static final Logger LOGGER = LoggerFactory.getLogger(AuctionManager.class);
     private static AuctionManager instance;
 
     private final ConcurrentMap<String, Auction> auctions = new ConcurrentHashMap<>();
     private final ConcurrentSkipListSet<String> announcedEndedAuctionIds = new ConcurrentSkipListSet<>();
     private final UserManager userManager;
+    private final NotificationManager notificationManager;
     private volatile AuctionDao auctionDao;
 
     private AuctionManager() {
         this.userManager = UserManager.getInstance();
+        this.notificationManager = NotificationManager.getInstance();
     }
 
     public static synchronized AuctionManager getInstance() {
@@ -120,11 +125,12 @@ public final class AuctionManager {
         try {
             handler.ensureAuthenticated();
             String bidderId = UserIdentityUtil.normalizeUserId(handler.getAuthenticatedId());
-            submitBid(auctionId, bidderId, BigDecimal.valueOf(message.getPrice()));
+            BidSubmissionResult bidSubmissionResult = submitBid(auctionId, bidderId, BigDecimal.valueOf(message.getPrice()));
 
             Auction updatedAuction = requireAuction(auctionId);
             sendBidAccepted(handler, message, updatedAuction);
             broadcastPriceUpdate(updatedAuction);
+            trySendOutbidNotification(bidSubmissionResult.previousLeadingBidderId(), updatedAuction);
             broadcastEndedAuctions();
         } catch (AuctionAppException e) {
             sendBidRejected(handler, message, auctionId, e.getMessage());
@@ -164,6 +170,7 @@ public final class AuctionManager {
                         auction.getCurrentPrice(),
                         auction.getMinimumNextBid(),
                         auction.getStatus(),
+                        auction.getLeadingBidderId(),
                         auction.getStartTime(),
                         auction.getEndTime()
                 ));
@@ -274,7 +281,7 @@ public final class AuctionManager {
         return auction.placeBid(bid, LocalDateTime.now());
     }
 
-    public BidTransaction submitBid(String auctionId, String bidderId, BigDecimal amount) {
+    public BidSubmissionResult submitBid(String auctionId, String bidderId, BigDecimal amount) {
         Auction auction = requireAuction(auctionId);
         String normalizedBidderId = UserIdentityUtil.normalizeUserId(bidderId);
         userManager.requireBidder(normalizedBidderId);
@@ -295,11 +302,15 @@ public final class AuctionManager {
                 false
         );
 
-        if (!auction.placeBid(bid, now)) {
-            throw new InvalidBidException("Bid was rejected by auction rules.");
+        String previousLeadingBidderId;
+        synchronized (auction) {
+            previousLeadingBidderId = auction.getLeadingBidderId();
+            if (!auction.placeBid(bid, now)) {
+                throw new InvalidBidException("Bid was rejected by auction rules.");
+            }
         }
         persistAuctionState(auction);
-        return bid;
+        return new BidSubmissionResult(bid, previousLeadingBidderId);
     }
 
     public Auction finishAuction(String auctionId) {
@@ -508,6 +519,28 @@ public final class AuctionManager {
         }
     }
 
+    private void trySendOutbidNotification(String previousLeadingBidderId, Auction updatedAuction) {
+        if (updatedAuction == null) {
+            return;
+        }
+        String displacedBidderId = UserIdentityUtil.normalizeUserId(previousLeadingBidderId);
+        String newLeadingBidderId = UserIdentityUtil.normalizeUserId(updatedAuction.getLeadingBidderId());
+        if (displacedBidderId.isEmpty() || newLeadingBidderId.isEmpty() || displacedBidderId.equals(newLeadingBidderId)) {
+            return;
+        }
+        try {
+            notificationManager.sendOutbidNotification(
+                    displacedBidderId,
+                    updatedAuction.getId(),
+                    updatedAuction.getItem().getTitle(),
+                    updatedAuction.getCurrentPrice(),
+                    newLeadingBidderId
+            );
+        } catch (AuctionAppException e) {
+            LOGGER.warn("Failed to send outbid notification for auction {}: {}", updatedAuction.getId(), e.getMessage());
+        }
+    }
+
     private AuctionDetailsResponseMessage buildAuctionDetailsResponse(Auction auction) {
         synchronized (auction) {
             Item item = auction.getItem();
@@ -554,5 +587,8 @@ public final class AuctionManager {
         if (startTime == null || endTime == null || !endTime.isAfter(startTime)) {
             throw new ValidationException("Auction end time must be after start time.");
         }
+    }
+
+    public record BidSubmissionResult(BidTransaction bidTransaction, String previousLeadingBidderId) {
     }
 }

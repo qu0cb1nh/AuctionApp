@@ -11,6 +11,7 @@ public class AuctionSummary {
     private final BigDecimal currentPrice;
     private final BigDecimal minimumNextBid;
     private final AuctionStatus status;
+    private final String leadingBidderId;
     private final LocalDateTime startTime;
     private final LocalDateTime endTime;
 
@@ -20,6 +21,7 @@ public class AuctionSummary {
             BigDecimal currentPrice,
             BigDecimal minimumNextBid,
             AuctionStatus status,
+            String leadingBidderId,
             LocalDateTime startTime,
             LocalDateTime endTime
     ) {
@@ -28,6 +30,7 @@ public class AuctionSummary {
         this.currentPrice = currentPrice;
         this.minimumNextBid = minimumNextBid;
         this.status = status;
+        this.leadingBidderId = leadingBidderId;
         this.startTime = startTime;
         this.endTime = endTime;
     }
@@ -50,6 +53,10 @@ public class AuctionSummary {
 
     public AuctionStatus getStatus() {
         return status;
+    }
+
+    public String getLeadingBidderId() {
+        return leadingBidderId;
     }
 
     public LocalDateTime getStartTime() {

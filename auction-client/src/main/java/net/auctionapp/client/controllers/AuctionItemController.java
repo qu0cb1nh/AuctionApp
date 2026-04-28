@@ -40,6 +40,7 @@ public class AuctionItemController implements Initializable {
     @FXML private Label productNameLabel;
     @FXML private Label descriptionLabel;
     @FXML private Label currentBidLabel;
+    @FXML private Label leadingBidderLabel;
     @FXML private Label timeRemainingLabel;
     @FXML private TextField bidAmountField;
     @FXML private Button placeBidButton;
@@ -135,6 +136,7 @@ public class AuctionItemController implements Initializable {
         currentHighestBid = response.getCurrentPrice() == null ? BigDecimal.ZERO : response.getCurrentPrice();
         minimumNextBid = response.getMinimumNextBid() == null ? currentHighestBid : response.getMinimumNextBid();
         currentBidLabel.setText("$" + currentHighestBid.toPlainString());
+        leadingBidderLabel.setText(formatTopBidder(response.getLeadingBidderId()));
         LocalDateTime auctionEndTime = response.getEndTime();
         timeRemainingLabel.setText(formatTimeRemaining(auctionEndTime));
         renderBidHistory(response.getBidHistory());
@@ -184,6 +186,7 @@ public class AuctionItemController implements Initializable {
         }
         currentHighestBid = BigDecimal.valueOf(update.getNewPrice());
         currentBidLabel.setText("$" + currentHighestBid.toPlainString());
+        leadingBidderLabel.setText(formatTopBidder(update.getLeadingUserName()));
         requestAuctionDetails();
         setInfoMessage("New highest bid by " + update.getLeadingUserName());
     }
@@ -263,6 +266,13 @@ public class AuctionItemController implements Initializable {
         long minutes = (totalSeconds % 3600) / 60;
         long seconds = totalSeconds % 60;
         return String.format("%02d:%02d:%02d", hours, minutes, seconds);
+    }
+
+    private String formatTopBidder(String leadingBidderId) {
+        if (leadingBidderId == null || leadingBidderId.isBlank()) {
+            return "No bids yet";
+        }
+        return leadingBidderId;
     }
 
     private void setSuccessMessage(String text) {

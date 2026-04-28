@@ -1,6 +1,7 @@
 module net.auctionapp.common {
     requires com.google.gson;
     requires io.github.cdimascio.dotenv.java;
+    requires org.slf4j;
 
     exports net.auctionapp.common.exceptions;
     exports net.auctionapp.common.messages;
@@ -17,5 +18,7 @@ module net.auctionapp.common {
     opens net.auctionapp.common.models.auction to com.google.gson;
     opens net.auctionapp.common.models.items to com.google.gson;
     opens net.auctionapp.common.models.users to com.google.gson;
+    exports net.auctionapp.common.notifications;
+    opens net.auctionapp.common.notifications to com.google.gson;
 }
 

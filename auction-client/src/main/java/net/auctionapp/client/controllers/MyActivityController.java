@@ -99,12 +99,6 @@ public class MyActivityController implements Initializable {
     }
 
     @FXML
-    public void handleBack(ActionEvent event) {
-        cleanupHandlers();
-        SceneNavigator.switchScene("MainMenu");
-    }
-
-    @FXML
     public void handleRefresh(ActionEvent event) {
         loadActivity();
     }
@@ -112,10 +106,6 @@ public class MyActivityController implements Initializable {
     @FXML
     public void handleFilterChanged() {
         applyFilters();
-    }
-
-    private void cleanupHandlers() {
-        // Deprecated: request/response now uses sendRequest with correlation IDs.
     }
 
     private void loadActivity() {

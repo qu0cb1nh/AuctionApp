@@ -7,6 +7,7 @@ import net.auctionapp.common.utils.JsonUtil;
 import net.auctionapp.server.exceptions.AuctionAppException;
 import net.auctionapp.server.managers.AuthManager;
 import net.auctionapp.server.managers.AuctionManager;
+import net.auctionapp.server.managers.NotificationManager;
 import net.auctionapp.server.managers.SessionManager;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -26,6 +27,7 @@ public class ClientHandler implements Runnable {
     private BufferedReader in;
     private final AuctionManager auctionManager;
     private final AuthManager authManager;
+    private final NotificationManager notificationManager;
     private final SessionManager sessionManager;
     private final AtomicBoolean closed = new AtomicBoolean(false);
     private volatile String authenticatedUserId;
@@ -35,6 +37,7 @@ public class ClientHandler implements Runnable {
         this.socket = socket;
         this.auctionManager = AuctionManager.getInstance();
         this.authManager = AuthManager.getInstance();
+        this.notificationManager = NotificationManager.getInstance();
         this.sessionManager = SessionManager.getInstance();
     }
 
@@ -154,11 +157,20 @@ public class ClientHandler implements Runnable {
             case GET_AUCTION_DETAILS_REQUEST:
                 auctionManager.handleGetAuctionDetails((GetAuctionDetailsRequestMessage) message, this);
                 break;
+            case GET_NOTIFICATIONS_REQUEST:
+                notificationManager.handleGetNotifications((GetNotificationsRequestMessage) message, this);
+                break;
             case CREATE_ITEM_REQUEST:
                 auctionManager.handleCreateItem((CreateItemRequestMessage) message, this);
                 break;
             case BID_REQUEST:
                 auctionManager.handleBidRequest((BidRequestMessage) message, this);
+                break;
+            case MARK_NOTIFICATION_READ_REQUEST:
+                notificationManager.handleMarkNotificationRead((MarkNotificationReadRequestMessage) message, this);
+                break;
+            case CLEAR_NOTIFICATIONS_REQUEST:
+                notificationManager.handleClearNotifications((ClearNotificationsRequestMessage) message, this);
                 break;
             default:
                 LOGGER.warn("Received unsupported message type: {} from {}", message.getType(), socket.getInetAddress());
