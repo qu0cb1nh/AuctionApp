@@ -1,29 +1,19 @@
 package net.auctionapp.common.models.users;
 
 import net.auctionapp.common.models.Entity;
-import net.auctionapp.common.models.auction.Auction;
 import net.auctionapp.common.models.auction.AutoBidConfig;
-import net.auctionapp.common.models.auction.BidTransaction;
-
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.EnumSet;
-import java.util.List;
-import java.util.Set;
 
 public class User extends Entity {
     private final String username;
     private final String passwordHash;
-    private final EnumSet<UserRole> roles;
+    private final UserRole role;
     private AutoBidConfig autoBidConfig;
 
-    public User(String id, String username, String passwordHash, Set<UserRole> roles) {
+    public User(String id, String username, String passwordHash, UserRole role) {
         super(id);
         this.username = username;
         this.passwordHash = passwordHash;
-        this.roles = roles == null || roles.isEmpty()
-                ? EnumSet.noneOf(UserRole.class)
-                : EnumSet.copyOf(roles);
+        this.role = role == null ? UserRole.USER : role;
     }
 
     public String getUsername() {
@@ -34,12 +24,12 @@ public class User extends Entity {
         return passwordHash;
     }
 
-    public Set<UserRole> getRoles() {
-        return Collections.unmodifiableSet(roles);
+    public UserRole getRole() {
+        return role;
     }
 
     public boolean hasRole(UserRole role) {
-        return roles.contains(role);
+        return this.role == role;
     }
 
     public AutoBidConfig getAutoBidConfig() {

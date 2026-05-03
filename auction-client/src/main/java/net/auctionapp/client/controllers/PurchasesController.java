@@ -273,7 +273,7 @@ public class PurchasesController implements Initializable {
             return Optional.empty();
         }
 
-        String purchaseStatus = derivePurchaseStatus(response.getStatus());
+        String purchaseStatus = derivePurchaseStatus(response);
         if (purchaseStatus == null) {
             return Optional.empty();
         }
@@ -295,11 +295,17 @@ public class PurchasesController implements Initializable {
         return ClientApp.getInstance().getCurrentUsername();
     }
 
-    private String derivePurchaseStatus(AuctionStatus status) {
+    private String derivePurchaseStatus(AuctionDetailsResponseMessage response) {
+        if (response == null || response.getStatus() == null) {
+            return null;
+        }
+        AuctionStatus status = response.getStatus();
         if (status == AuctionStatus.PAID) {
             return STATUS_PAID;
         }
-        if (status == AuctionStatus.FINISHED) {
+        if (status == AuctionStatus.RUNNING
+                && response.getEndTime() != null
+                && !LocalDateTime.now().isBefore(response.getEndTime())) {
             return STATUS_PENDING_PAYMENT;
         }
         return null;

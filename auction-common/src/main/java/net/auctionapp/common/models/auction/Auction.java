@@ -52,7 +52,7 @@ public class Auction extends Entity {
         this.startingPrice = startingPrice;
         this.minimumBidIncrement = minimumBidIncrement;
         this.currentPrice = startingPrice;
-        this.status = AuctionStatus.OPEN;
+        this.status = AuctionStatus.RUNNING;
     }
 
     public Auction(
@@ -72,7 +72,7 @@ public class Auction extends Entity {
         this.currentPrice = currentPrice == null ? startingPrice : currentPrice;
         this.leadingBidderId = leadingBidderId;
         this.winnerBidderId = winnerBidderId;
-        this.status = status == null ? AuctionStatus.OPEN : status;
+        this.status = status == null ? AuctionStatus.RUNNING : status;
     }
 
     public synchronized String getSellerId() {
@@ -139,25 +139,11 @@ public class Auction extends Entity {
         this.antiSnipingExtensionSeconds = antiSnipingExtensionSeconds;
     }
 
-    public synchronized void refreshStatus(LocalDateTime now) {
-        if (status == AuctionStatus.CANCELED || status == AuctionStatus.PAID || status == AuctionStatus.FINISHED) {
-            return;
-        }
-        if (now.isBefore(startTime)) {
-            status = AuctionStatus.OPEN;
-            return;
-        }
-        if (now.isBefore(endTime)) {
-            status = AuctionStatus.RUNNING;
-            return;
-        }
-        status = AuctionStatus.FINISHED;
-        winnerBidderId = leadingBidderId;
-    }
-
     public synchronized boolean placeBid(BidTransaction bid, LocalDateTime now) {
-        refreshStatus(now);
         if (status != AuctionStatus.RUNNING) {
+            return false;
+        }
+        if (now == null || now.isBefore(startTime) || !now.isBefore(endTime)) {
             return false;
         }
         if (bid == null || bid.getAmount() == null) {
@@ -195,10 +181,6 @@ public class Auction extends Entity {
             LocalDateTime newStartTime,
             LocalDateTime newEndTime
     ) {
-        refreshStatus(LocalDateTime.now());
-        if (status != AuctionStatus.OPEN) {
-            return false;
-        }
         if (title == null || title.isBlank()
                 || description == null || description.isBlank()
                 || newStartingPrice == null || newStartingPrice.signum() < 0
@@ -227,25 +209,12 @@ public class Auction extends Entity {
         autoBidRegistry.put(config.getBidderId(), config);
     }
 
-    public synchronized void finish() {
-        status = AuctionStatus.FINISHED;
-        winnerBidderId = leadingBidderId;
+    public synchronized void setStatus(AuctionStatus status) {
+        this.status = status;
     }
 
-    public synchronized boolean markPaid() {
-        if (status != AuctionStatus.FINISHED || winnerBidderId == null) {
-            return false;
-        }
-        status = AuctionStatus.PAID;
-        return true;
-    }
-
-    public synchronized boolean cancel() {
-        if (status == AuctionStatus.PAID) {
-            return false;
-        }
-        status = AuctionStatus.CANCELED;
-        return true;
+    public synchronized void setWinnerBidderId(String winnerBidderId) {
+        this.winnerBidderId = winnerBidderId;
     }
 
     public synchronized BigDecimal getMinimumNextBid() {

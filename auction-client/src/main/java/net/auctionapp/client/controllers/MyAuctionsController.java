@@ -319,10 +319,10 @@ public class MyAuctionsController implements Initializable {
         if (auctionStatus == AuctionStatus.CANCELED) {
             return STATUS_CANCELED;
         }
-        if (auctionStatus == AuctionStatus.OPEN || auctionStatus == AuctionStatus.RUNNING) {
+        if (isOpen(response) || isRunning(response)) {
             return STATUS_ACTIVE;
         }
-        if (auctionStatus == AuctionStatus.FINISHED || auctionStatus == AuctionStatus.PAID) {
+        if (isFinished(response) || auctionStatus == AuctionStatus.PAID) {
             if (response.getWinnerBidderId() != null && !response.getWinnerBidderId().isBlank()) {
                 return STATUS_SOLD;
             }
@@ -368,10 +368,32 @@ public class MyAuctionsController implements Initializable {
                 return "Ends in: " + DurationFormatUtil.formatRemainingDuration(remaining);
             }
         }
-        if (auctionStatus == AuctionStatus.OPEN) {
-            return "Starts before: " + CARD_TIME_FORMATTER.format(endTime);
-        }
         return "Ended at: " + CARD_TIME_FORMATTER.format(endTime);
+    }
+
+    private boolean isOpen(AuctionDetailsResponseMessage response) {
+        return response != null
+                && response.getStatus() == AuctionStatus.RUNNING
+                && response.getStartTime() != null
+                && LocalDateTime.now().isBefore(response.getStartTime());
+    }
+
+    private boolean isRunning(AuctionDetailsResponseMessage response) {
+        LocalDateTime now = LocalDateTime.now();
+        return response != null
+                && response.getStatus() == AuctionStatus.RUNNING
+                && response.getStartTime() != null
+                && response.getEndTime() != null
+                && !now.isBefore(response.getStartTime())
+                && now.isBefore(response.getEndTime());
+    }
+
+    private boolean isFinished(AuctionDetailsResponseMessage response) {
+        return response != null
+                && (response.getStatus() == AuctionStatus.PAID || response.getStatus() == AuctionStatus.CANCELED
+                || (response.getStatus() == AuctionStatus.RUNNING
+                && response.getEndTime() != null
+                && !LocalDateTime.now().isBefore(response.getEndTime())));
     }
 
     private record AuctionCard(
