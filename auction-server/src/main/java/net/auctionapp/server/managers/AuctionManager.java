@@ -61,12 +61,12 @@ public final class AuctionManager {
 
     private final ConcurrentMap<String, Auction> auctions = new ConcurrentHashMap<>();
     private final ConcurrentSkipListSet<String> announcedEndedAuctionIds = new ConcurrentSkipListSet<>();
-    private final UserManager userManager;
+    private final AuthManager authManager;
     private final NotificationManager notificationManager;
     private volatile AuctionDao auctionDao;
 
     private AuctionManager() {
-        this.userManager = UserManager.getInstance();
+        this.authManager = AuthManager.getInstance();
         this.notificationManager = NotificationManager.getInstance();
     }
 
@@ -86,6 +86,7 @@ public final class AuctionManager {
     public void handleGetAuctionDetails(GetAuctionDetailsRequestMessage message, ClientHandler handler) {
         try {
             handler.ensureAuthenticated();
+            refreshAuctionStatuses();
             Auction auction = requireAuction(message.getAuctionId());
             AuctionDetailsResponseMessage response = buildAuctionDetailsResponse(auction);
             handler.sendResponse(response, message);
@@ -131,20 +132,13 @@ public final class AuctionManager {
             sendBidAccepted(handler, message, updatedAuction);
             broadcastPriceUpdate(updatedAuction);
             trySendOutbidNotification(bidSubmissionResult.previousLeadingBidderId(), updatedAuction);
-            broadcastEndedAuctions();
         } catch (AuctionAppException e) {
             sendBidRejected(handler, message, auctionId, e.getMessage());
         }
     }
 
     public void broadcastEndedAuctions() {
-        for (Auction auction : collectNewlyEndedAuctions()) {
-            ServerApp.broadcast(JsonUtil.toJson(new AuctionEndedMessage(
-                    auction.getId(),
-                    auction.getWinnerBidderId(),
-                    auction.getCurrentPrice()
-            )));
-        }
+        refreshAuctionStatuses();
     }
 
     // --- Core Business Logic ---
@@ -208,7 +202,7 @@ public final class AuctionManager {
     ) {
         validateAuctionDraft(item, startingPrice, minimumBidIncrement, startTime, endTime);
 
-        User seller = userManager.requireSeller(StringUtil.normalizeString(sellerId));
+        User seller = authManager.requireUserById(StringUtil.normalizeString(sellerId));
         Auction auction = new Auction(
                 UUID.randomUUID().toString(),
                 seller.getId(),
@@ -235,6 +229,7 @@ public final class AuctionManager {
     ) {
         Auction auction = requireAuction(auctionId);
         ensureSellerOwnsAuction(sellerId, auction);
+        ensureAuctionCanBeEdited(auction);
 
         boolean updated = auction.updateListingDetails(
                 title,
@@ -245,7 +240,7 @@ public final class AuctionManager {
                 endTime
         );
         if (!updated) {
-            throw new InvalidAuctionStateException("Only open auctions can be edited with valid data.");
+            throw new InvalidAuctionStateException("Auction draft update data is invalid.");
         }
         return auction;
     }
@@ -259,14 +254,23 @@ public final class AuctionManager {
 
     public void deleteAuction(String actorId, String auctionId) {
         Auction auction = requireAuction(auctionId);
-        User actor = userManager.requireUserById(StringUtil.normalizeString(actorId));
+        User actor = authManager.requireUserById(StringUtil.normalizeString(actorId));
         ensureAdminOrOwningSeller(actor, auction);
 
-        if (auction.getStatus() == AuctionStatus.RUNNING || auction.getStatus() == AuctionStatus.PAID) {
-            throw new InvalidAuctionStateException("Running or paid auctions cannot be deleted.");
+        LocalDateTime now = LocalDateTime.now();
+        synchronized (auction) {
+            boolean isRunningWindow = auction.getStatus() == AuctionStatus.RUNNING
+                    && !now.isBefore(auction.getStartTime())
+                    && now.isBefore(auction.getEndTime());
+            if (isRunningWindow || auction.getStatus() == AuctionStatus.PAID) {
+                throw new InvalidAuctionStateException("Running or paid auctions cannot be deleted.");
+            }
         }
 
-        auction.cancel();
+        auction.setStatus(AuctionStatus.CANCELED);
+        auction.setWinnerBidderId(null);
+        persistAuctionState(auction);
+        broadcastAuctionStatusChanged(auction);
         auctions.remove(auctionId);
     }
 
@@ -284,15 +288,13 @@ public final class AuctionManager {
     public BidSubmissionResult submitBid(String auctionId, String bidderId, BigDecimal amount) {
         Auction auction = requireAuction(auctionId);
         String normalizedBidderId = StringUtil.normalizeString(bidderId);
-        userManager.requireBidder(normalizedBidderId);
+        authManager.requireUserById(normalizedBidderId);
         validateBidAmount(amount);
         ensureBidderIsNotSeller(auction, normalizedBidderId);
 
         refreshAuctionStatuses();
-        ensureAuctionIsRunning(auction);
-        ensureBidAmountMeetsMinimum(auction, amount);
-
         LocalDateTime now = LocalDateTime.now();
+        ensureAuctionIsRunning(auction, now);
         BidTransaction bid = new BidTransaction(
                 UUID.randomUUID().toString(),
                 amount,
@@ -304,6 +306,8 @@ public final class AuctionManager {
 
         String previousLeadingBidderId;
         synchronized (auction) {
+            ensureAuctionIsRunning(auction, now);
+            ensureBidAmountMeetsMinimum(auction, amount);
             previousLeadingBidderId = auction.getLeadingBidderId();
             if (!auction.placeBid(bid, now)) {
                 throw new InvalidBidException("Bid was rejected by auction rules.");
@@ -315,41 +319,58 @@ public final class AuctionManager {
 
     public Auction finishAuction(String auctionId) {
         Auction auction = requireAuction(auctionId);
-        auction.finish();
+        if (!settleAuctionNow(auction, LocalDateTime.now())) {
+            throw new InvalidAuctionStateException("Auction cannot be settled before end time.");
+        }
         persistAuctionState(auction);
+        broadcastAuctionStatusChanged(auction);
         return auction;
     }
 
     public Auction markAuctionPaid(String auctionId) {
         Auction auction = requireAuction(auctionId);
-        if (!auction.markPaid()) {
-            throw new InvalidAuctionStateException("Only finished auctions with a winner can be marked as paid.");
+        synchronized (auction) {
+            if (auction.getStatus() != AuctionStatus.RUNNING) {
+                throw new InvalidAuctionStateException("Only running auctions can be settled.");
+            }
+            if (LocalDateTime.now().isBefore(auction.getEndTime())) {
+                throw new InvalidAuctionStateException("Auction cannot be settled before end time.");
+            }
+            if (auction.getLeadingBidderId() == null || auction.getLeadingBidderId().isBlank()) {
+                throw new InvalidAuctionStateException("Cannot mark paid without a leading bidder.");
+            }
+            auction.setWinnerBidderId(auction.getLeadingBidderId());
+            auction.setStatus(AuctionStatus.PAID);
         }
         persistAuctionState(auction);
+        broadcastAuctionStatusChanged(auction);
         return auction;
     }
 
     public Auction cancelAuction(String actorId, String auctionId) {
         Auction auction = requireAuction(auctionId);
-        User actor = userManager.requireUserById(StringUtil.normalizeString(actorId));
+        User actor = authManager.requireUserById(StringUtil.normalizeString(actorId));
         ensureAdminOrOwningSeller(actor, auction);
 
-        if (!auction.cancel()) {
-            throw new InvalidAuctionStateException("Paid auctions cannot be canceled.");
+        synchronized (auction) {
+            if (auction.getStatus() == AuctionStatus.PAID) {
+                throw new InvalidAuctionStateException("Paid auctions cannot be canceled.");
+            }
+            auction.setStatus(AuctionStatus.CANCELED);
+            auction.setWinnerBidderId(null);
         }
         persistAuctionState(auction);
+        broadcastAuctionStatusChanged(auction);
         return auction;
     }
 
     public void refreshAuctionStatuses() {
         LocalDateTime now = LocalDateTime.now();
         for (Auction auction : auctions.values()) {
-            AuctionStatus previousStatus = auction.getStatus();
-            LocalDateTime previousEndTime = auction.getEndTime();
-            auction.refreshStatus(now);
-            if (previousStatus != auction.getStatus()
-                    || !Objects.equals(previousEndTime, auction.getEndTime())) {
+            boolean statusChanged = settleAuctionNow(auction, now);
+            if (statusChanged) {
                 persistAuctionState(auction);
+                broadcastAuctionStatusChanged(auction);
             }
         }
     }
@@ -379,17 +400,6 @@ public final class AuctionManager {
             bidViews.add(new BidView(bid.getId(), bid.getBidderId(), bid.getAmount(), bid.getTimestamp()));
         }
         return bidViews;
-    }
-
-    public List<Auction> collectNewlyEndedAuctions() {
-        refreshAuctionStatuses();
-        List<Auction> endedAuctions = new ArrayList<>();
-        for (Auction auction : auctions.values()) {
-            if (auction.getStatus() == AuctionStatus.FINISHED && announcedEndedAuctionIds.add(auction.getId())) {
-                endedAuctions.add(auction);
-            }
-        }
-        return endedAuctions;
     }
 
     private Item createItemFromRequest(CreateItemRequestMessage message) {
@@ -447,7 +457,7 @@ public final class AuctionManager {
     }
 
     private void ensureSellerOwnsAuction(String sellerId, Auction auction) {
-        User seller = userManager.requireSeller(StringUtil.normalizeString(sellerId));
+        User seller = authManager.requireUserById(StringUtil.normalizeString(sellerId));
         if (!Objects.equals(seller.getId(), auction.getSellerId())) {
             throw new AuthorizationException("Only the owning seller can modify this auction.");
         }
@@ -455,8 +465,7 @@ public final class AuctionManager {
 
     private void ensureAdminOrOwningSeller(User actor, Auction auction) {
         boolean isAdmin = actor.hasRole(UserRole.ADMIN);
-        boolean isOwningSeller = actor.hasRole(UserRole.SELLER)
-                && Objects.equals(actor.getId(), auction.getSellerId());
+        boolean isOwningSeller = Objects.equals(actor.getId(), auction.getSellerId());
         if (!isAdmin && !isOwningSeller) {
             throw new AuthorizationException("Only the seller or an admin can manage this auction.");
         }
@@ -474,10 +483,62 @@ public final class AuctionManager {
         }
     }
 
-    private void ensureAuctionIsRunning(Auction auction) {
-        if (auction.getStatus() != AuctionStatus.RUNNING) {
-            throw new InvalidAuctionStateException("Auction is not open for bidding.");
+    private void ensureAuctionIsRunning(Auction auction, LocalDateTime now) {
+        synchronized (auction) {
+            if (auction.getStatus() != AuctionStatus.RUNNING
+                    || now == null
+                    || now.isBefore(auction.getStartTime())
+                    || !now.isBefore(auction.getEndTime())) {
+                throw new InvalidAuctionStateException("Auction is not open for bidding.");
+            }
         }
+    }
+
+    private void ensureAuctionCanBeEdited(Auction auction) {
+        LocalDateTime now = LocalDateTime.now();
+        synchronized (auction) {
+            if (auction.getStatus() != AuctionStatus.RUNNING
+                    || !now.isBefore(auction.getStartTime())) {
+                throw new InvalidAuctionStateException("Only OPEN auctions can be edited.");
+            }
+        }
+    }
+
+    private boolean settleAuctionNow(Auction auction, LocalDateTime now) {
+        synchronized (auction) {
+            if (auction.getStatus() != AuctionStatus.RUNNING
+                    || now == null
+                    || now.isBefore(auction.getEndTime())) {
+                return false;
+            }
+            String leadingBidderId = StringUtil.normalizeString(auction.getLeadingBidderId());
+            if (leadingBidderId.isEmpty()) {
+                auction.setWinnerBidderId(null);
+                auction.setStatus(AuctionStatus.CANCELED);
+            } else {
+                auction.setWinnerBidderId(leadingBidderId);
+                auction.setStatus(AuctionStatus.PAID);
+            }
+            return true;
+        }
+    }
+
+    private void broadcastAuctionStatusChanged(Auction auction) {
+        if (auction == null) {
+            return;
+        }
+        AuctionStatus status = auction.getStatus();
+        if (status != AuctionStatus.PAID && status != AuctionStatus.CANCELED) {
+            return;
+        }
+        if (!announcedEndedAuctionIds.add(auction.getId())) {
+            return;
+        }
+        ServerApp.broadcast(JsonUtil.toJson(new AuctionEndedMessage(
+                auction.getId(),
+                auction.getWinnerBidderId(),
+                auction.getCurrentPrice()
+        )));
     }
 
     private void ensureBidAmountMeetsMinimum(Auction auction, BigDecimal amount) {

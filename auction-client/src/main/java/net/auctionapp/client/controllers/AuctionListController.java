@@ -126,7 +126,7 @@ public class AuctionListController implements Initializable {
                 .filter(auction -> search.isBlank() || auction.getTitle().toLowerCase(Locale.ROOT).contains(search))
                 .filter(auction -> selectedStatus == null
                         || STATUS_ALL.equalsIgnoreCase(selectedStatus)
-                        || auction.getStatus().name().equalsIgnoreCase(selectedStatus))
+                        || deriveDisplayStatus(auction).equalsIgnoreCase(selectedStatus))
                 .toList();
 
         renderAuctionCards(filtered);
@@ -157,8 +157,9 @@ public class AuctionListController implements Initializable {
     }
 
     private VBox createAuctionCard(AuctionSummary auction) {
-        Label statusLabel = new Label(auction.getStatus() == null ? "Status: N/A" : "Status: " + auction.getStatus().name());
-        statusLabel.setStyle("-fx-text-fill: " + statusColor(auction.getStatus()) + "; -fx-font-weight: bold;");
+        String displayStatus = deriveDisplayStatus(auction);
+        Label statusLabel = new Label("Status: " + displayStatus);
+        statusLabel.setStyle("-fx-text-fill: " + statusColor(displayStatus) + "; -fx-font-weight: bold;");
 
         Label titleLabel = new Label(auction.getTitle());
         titleLabel.setWrapText(true);
@@ -174,7 +175,7 @@ public class AuctionListController implements Initializable {
         Label timingLabel = new Label(formatTimingLabel(auction));
         timingLabel.setStyle("-fx-text-fill: #3f5569;");
 
-        Button bidButton = new Button(resolveButtonLabel(auction.getStatus()));
+        Button bidButton = new Button(resolveButtonLabel(displayStatus));
         bidButton.setStyle("-fx-background-color: #3bb3d1; -fx-text-fill: white; -fx-background-radius: 5;");
         bidButton.setOnAction(event -> handleViewItem(auction.getAuctionId()));
 
@@ -227,10 +228,10 @@ public class AuctionListController implements Initializable {
             return "Time: N/A";
         }
         LocalDateTime now = LocalDateTime.now();
-        if (auction.getStatus() == AuctionStatus.OPEN && auction.getStartTime() != null && now.isBefore(auction.getStartTime())) {
+        if (auction.getStartTime() != null && now.isBefore(auction.getStartTime())) {
             return "Starts in: " + DurationFormatUtil.formatRemainingDuration(Duration.between(now, auction.getStartTime()));
         }
-        if (auction.getStatus() == AuctionStatus.RUNNING && now.isBefore(auction.getEndTime())) {
+        if (auction.getStatus() == AuctionStatus.RUNNING && !now.isBefore(auction.getStartTime()) && now.isBefore(auction.getEndTime())) {
             return "Ends in: " + DurationFormatUtil.formatRemainingDuration(Duration.between(now, auction.getEndTime()));
         }
         if (now.isAfter(auction.getEndTime())) {
@@ -239,24 +240,42 @@ public class AuctionListController implements Initializable {
         return "Scheduled";
     }
 
-    private String statusColor(AuctionStatus status) {
-        if (status == null) {
-            return "#6b7280";
-        }
+    private String statusColor(String status) {
         return switch (status) {
-            case RUNNING -> "#1f8f4c";
-            case OPEN -> "#2962ff";
-            case FINISHED -> "#c13c21";
-            case PAID -> "#2e7d32";
-            case CANCELED -> "#6b7280";
+            case "RUNNING" -> "#1f8f4c";
+            case "OPEN" -> "#2962ff";
+            case "FINISHED" -> "#c13c21";
+            case "PAID" -> "#2e7d32";
+            case "CANCELED" -> "#6b7280";
+            default -> "#6b7280";
         };
     }
 
-    private String resolveButtonLabel(AuctionStatus status) {
-        if (status == AuctionStatus.RUNNING) {
+    private String resolveButtonLabel(String status) {
+        if ("RUNNING".equalsIgnoreCase(status)) {
             return "Bid now!";
         }
         return "View details";
+    }
+
+    private String deriveDisplayStatus(AuctionSummary auction) {
+        if (auction == null || auction.getStatus() == null) {
+            return "N/A";
+        }
+        if (auction.getStatus() == AuctionStatus.CANCELED) {
+            return "CANCELED";
+        }
+        if (auction.getStatus() == AuctionStatus.PAID) {
+            return "PAID";
+        }
+        LocalDateTime now = LocalDateTime.now();
+        if (auction.getStartTime() != null && now.isBefore(auction.getStartTime())) {
+            return "OPEN";
+        }
+        if (auction.getEndTime() != null && !now.isBefore(auction.getEndTime())) {
+            return "FINISHED";
+        }
+        return "RUNNING";
     }
 
     private void handleViewItem(String auctionId) {

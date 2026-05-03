@@ -315,7 +315,7 @@ public class MyBidsController implements Initializable {
         if (auctionStatus == AuctionStatus.CANCELED) {
             return STATUS_CANCELED;
         }
-        if (auctionStatus == AuctionStatus.FINISHED || auctionStatus == AuctionStatus.PAID) {
+        if (isFinished(response) || auctionStatus == AuctionStatus.PAID) {
             return currentUsername.equalsIgnoreCase(response.getWinnerBidderId()) ? STATUS_WON : STATUS_LOST;
         }
         return currentUsername.equalsIgnoreCase(response.getLeadingBidderId()) ? STATUS_LEADING : STATUS_OUTBID;
@@ -366,6 +366,13 @@ public class MyBidsController implements Initializable {
             }
         }
         return "Ended at: " + CARD_TIME_FORMATTER.format(endTime);
+    }
+
+    private boolean isFinished(AuctionDetailsResponseMessage response) {
+        return response != null
+                && response.getStatus() == AuctionStatus.RUNNING
+                && response.getEndTime() != null
+                && !LocalDateTime.now().isBefore(response.getEndTime());
     }
 
     private record BidCard(

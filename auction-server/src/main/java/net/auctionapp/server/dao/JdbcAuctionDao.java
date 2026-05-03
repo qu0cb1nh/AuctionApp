@@ -213,6 +213,7 @@ public class JdbcAuctionDao implements AuctionDao {
         };
         Item item = itemFactory.createItem(resultSet);
 
+        String winnerBidderId = resultSet.getString("winner_bidder_id");
         return new Auction(
                 resultSet.getString("id"),
                 resultSet.getString("seller_id"),
@@ -223,8 +224,8 @@ public class JdbcAuctionDao implements AuctionDao {
                 resultSet.getBigDecimal("minimum_bid_increment"),
                 resultSet.getBigDecimal("current_price"),
                 resultSet.getString("leading_bidder_id"),
-                resultSet.getString("winner_bidder_id"),
-                parseAuctionStatus(resultSet.getString("status"))
+                winnerBidderId,
+                parseAuctionStatus(resultSet.getString("status"), winnerBidderId)
         );
     }
 
@@ -250,11 +251,17 @@ public class JdbcAuctionDao implements AuctionDao {
         );
     }
 
-    private AuctionStatus parseAuctionStatus(String rawStatus) {
+    private AuctionStatus parseAuctionStatus(String rawStatus, String winnerBidderId) {
         if (rawStatus == null || rawStatus.isBlank()) {
-            return AuctionStatus.OPEN;
+            return AuctionStatus.RUNNING;
         }
-        return AuctionStatus.valueOf(rawStatus);
+        return switch (rawStatus.trim().toUpperCase()) {
+            case "OPEN" -> AuctionStatus.RUNNING;
+            case "FINISHED" -> (winnerBidderId == null || winnerBidderId.isBlank())
+                    ? AuctionStatus.CANCELED
+                    : AuctionStatus.PAID;
+            default -> AuctionStatus.valueOf(rawStatus.trim().toUpperCase());
+        };
     }
 
     private void setNullableString(PreparedStatement statement, int parameterIndex, String value) throws SQLException {
@@ -265,4 +272,3 @@ public class JdbcAuctionDao implements AuctionDao {
         statement.setString(parameterIndex, value);
     }
 }
-

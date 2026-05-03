@@ -417,7 +417,7 @@ public class MyActivityController implements Initializable {
         if (auctionStatus == AuctionStatus.CANCELED) {
             return STATUS_CANCELED;
         }
-        if (auctionStatus == AuctionStatus.FINISHED || auctionStatus == AuctionStatus.PAID) {
+        if (isFinished(response) || auctionStatus == AuctionStatus.PAID) {
             return currentUsername.equalsIgnoreCase(response.getWinnerBidderId()) ? STATUS_WON : STATUS_LOST;
         }
         return currentUsername.equalsIgnoreCase(response.getLeadingBidderId()) ? STATUS_LEADING : STATUS_OUTBID;
@@ -428,10 +428,10 @@ public class MyActivityController implements Initializable {
         if (auctionStatus == AuctionStatus.CANCELED) {
             return STATUS_CANCELED;
         }
-        if (auctionStatus == AuctionStatus.OPEN || auctionStatus == AuctionStatus.RUNNING) {
+        if (isOpen(response) || isRunning(response)) {
             return STATUS_ACTIVE;
         }
-        if (auctionStatus == AuctionStatus.FINISHED || auctionStatus == AuctionStatus.PAID) {
+        if (isFinished(response) || auctionStatus == AuctionStatus.PAID) {
             if (response.getWinnerBidderId() != null && !response.getWinnerBidderId().isBlank()) {
                 return STATUS_SOLD;
             }
@@ -496,6 +496,30 @@ public class MyActivityController implements Initializable {
             }
         }
         return "Ended at: " + CARD_TIME_FORMATTER.format(endTime);
+    }
+
+    private boolean isOpen(AuctionDetailsResponseMessage response) {
+        return response != null
+                && response.getStatus() == AuctionStatus.RUNNING
+                && response.getStartTime() != null
+                && LocalDateTime.now().isBefore(response.getStartTime());
+    }
+
+    private boolean isRunning(AuctionDetailsResponseMessage response) {
+        LocalDateTime now = LocalDateTime.now();
+        return response != null
+                && response.getStatus() == AuctionStatus.RUNNING
+                && response.getStartTime() != null
+                && response.getEndTime() != null
+                && !now.isBefore(response.getStartTime())
+                && now.isBefore(response.getEndTime());
+    }
+
+    private boolean isFinished(AuctionDetailsResponseMessage response) {
+        return response != null
+                && response.getStatus() == AuctionStatus.RUNNING
+                && response.getEndTime() != null
+                && !LocalDateTime.now().isBefore(response.getEndTime());
     }
 
     private record ActivityCard(

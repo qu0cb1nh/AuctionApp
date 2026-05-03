@@ -12,12 +12,15 @@ import net.auctionapp.common.utils.StringUtil;
 import net.auctionapp.server.ClientHandler;
 import net.auctionapp.server.dao.UserDao;
 import net.auctionapp.server.exceptions.DatabaseException;
+import net.auctionapp.server.exceptions.NotFoundException;
 import net.auctionapp.server.utils.UserRoleUtil;
 import org.mindrot.jbcrypt.BCrypt;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.Optional;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
 
 public class AuthManager {
     private static final Logger LOGGER = LoggerFactory.getLogger(AuthManager.class);
@@ -25,7 +28,7 @@ public class AuthManager {
     private static final String INVALID_LOGIN_MESSAGE = "Invalid username or password.";
 
     private volatile UserDao userDao;
-    private final UserManager userManager = UserManager.getInstance();
+    private final ConcurrentMap<String, User> usersById = new ConcurrentHashMap<>();
     private final SessionManager sessionManager = SessionManager.getInstance();
 
     private AuthManager() {
@@ -63,7 +66,7 @@ public class AuthManager {
                 return;
             }
 
-            userManager.syncAccountFromDatabase(user);
+            cacheUser(user);
             String clientRole = UserRoleUtil.toClientRole(user);
             LoginResultMessage success = new LoginResultMessage(
                     MessageType.LOGIN_SUCCESS,
@@ -113,7 +116,7 @@ public class AuthManager {
                 return;
             }
 
-            userManager.syncAccountFromDatabase(user);
+            cacheUser(user);
 
             RegisterResultMessage success = new RegisterResultMessage(
                     MessageType.REGISTER_SUCCESS,
@@ -143,5 +146,35 @@ public class AuthManager {
             throw new IllegalStateException("User DAO has not been configured.");
         }
         return userDao;
+    }
+
+    public User requireUserById(String userId) {
+        String normalizedUserId = StringUtil.normalizeString(userId);
+        if (normalizedUserId.isEmpty()) {
+            throw new NotFoundException("User not found.");
+        }
+
+        User cachedUser = usersById.get(normalizedUserId);
+        if (cachedUser != null) {
+            return cachedUser;
+        }
+
+        Optional<User> userFromDatabase = requireUserDao().findByUsername(normalizedUserId);
+        if (userFromDatabase.isEmpty()) {
+            throw new NotFoundException("User not found.");
+        }
+        return cacheUser(userFromDatabase.get());
+    }
+
+    private User cacheUser(User user) {
+        if (user == null) {
+            throw new NotFoundException("User not found.");
+        }
+        String normalizedUserId = StringUtil.normalizeString(user.getId());
+        if (normalizedUserId.isEmpty()) {
+            throw new NotFoundException("User not found.");
+        }
+        usersById.put(normalizedUserId, user);
+        return user;
     }
 }
