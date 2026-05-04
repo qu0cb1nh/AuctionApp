@@ -1,8 +1,8 @@
 package net.auctionapp.server;
 
 import net.auctionapp.common.messages.Message;
-import net.auctionapp.common.messages.MessageType;
 import net.auctionapp.common.messages.types.*;
+import net.auctionapp.common.models.users.UserRole;
 import net.auctionapp.common.utils.JsonUtil;
 import net.auctionapp.server.exceptions.AuctionAppException;
 import net.auctionapp.server.managers.AuthManager;
@@ -31,7 +31,7 @@ public class ClientHandler implements Runnable {
     private final SessionManager sessionManager;
     private final AtomicBoolean closed = new AtomicBoolean(false);
     private volatile String authenticatedUserId;
-    private volatile String authenticatedRole;
+    private volatile UserRole authenticatedRole;
 
     public ClientHandler(Socket socket) {
         this.socket = socket;
@@ -124,7 +124,7 @@ public class ClientHandler implements Runnable {
         return sendMessage(response);
     }
 
-    public void authenticate(String userId, String role) {
+    public void authenticate(String userId, UserRole role) {
         this.authenticatedUserId = userId;
         this.authenticatedRole = role;
     }

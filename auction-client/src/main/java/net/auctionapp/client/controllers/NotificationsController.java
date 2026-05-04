@@ -9,13 +9,10 @@ import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Region;
 import javafx.scene.layout.VBox;
-import net.auctionapp.client.ClientApp;
+import net.auctionapp.client.services.MessageListener;
+import net.auctionapp.client.services.NotificationService;
 import net.auctionapp.common.messages.Message;
-import net.auctionapp.common.messages.MessageType;
-import net.auctionapp.common.messages.types.ClearNotificationsRequestMessage;
 import net.auctionapp.common.messages.types.ErrorMessage;
-import net.auctionapp.common.messages.types.GetNotificationsRequestMessage;
-import net.auctionapp.common.messages.types.MarkNotificationReadRequestMessage;
 import net.auctionapp.common.messages.types.NotificationMessage;
 import net.auctionapp.common.notifications.NotificationType;
 import net.auctionapp.common.messages.types.NotificationsResponseMessage;
@@ -28,7 +25,6 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 import java.util.ResourceBundle;
-import java.util.function.Consumer;
 
 public class NotificationsController implements Initializable {
     private static final DateTimeFormatter CARD_TIME_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
@@ -80,8 +76,8 @@ public class NotificationsController implements Initializable {
     private int activeFilterIndex;
 
     private final List<Notification> allNotifications = new ArrayList<>();
-    private Consumer<Message> notificationPushHandler;
-    private boolean pushHandlerRegistered;
+    private MessageListener<NotificationMessage> notificationPushListener;
+    private boolean pushListenerRegistered;
 
     @Override
     public void initialize(URL location, ResourceBundle resources) {
@@ -94,11 +90,11 @@ public class NotificationsController implements Initializable {
                 filterUnderlineAll, filterUnderlineBids, filterUnderlineMyAuctions, filterUnderlineSystem,
                 filterUnderlineResults
         };
-        registerMessageHandlers();
+        registerMessageListeners();
         if (notificationCardsContainer != null) {
             notificationCardsContainer.sceneProperty().addListener((observable, oldScene, newScene) -> {
                 if (oldScene != null) {
-                    cleanupMessageHandlers();
+                    cleanupMessageListeners();
                 }
             });
         }
@@ -147,31 +143,27 @@ public class NotificationsController implements Initializable {
         renderNotifications();
     }
 
-    private void registerMessageHandlers() {
-        notificationPushHandler = this::handleNotificationPush;
-        ClientApp.getInstance().addMessageHandler(MessageType.NOTIFICATION, notificationPushHandler);
-        pushHandlerRegistered = true;
+    private void registerMessageListeners() {
+        notificationPushListener = this::handleNotificationPush;
+        NotificationService.getInstance().addNotificationListener(notificationPushListener);
+        pushListenerRegistered = true;
     }
 
-    private void cleanupMessageHandlers() {
-        if (!pushHandlerRegistered) {
+    private void cleanupMessageListeners() {
+        if (!pushListenerRegistered) {
             return;
         }
-        if (notificationPushHandler != null) {
-            ClientApp.getInstance().removeMessageHandler(MessageType.NOTIFICATION, notificationPushHandler);
+        if (notificationPushListener != null) {
+            NotificationService.getInstance().removeNotificationListener(notificationPushListener);
         }
-        pushHandlerRegistered = false;
+        pushListenerRegistered = false;
     }
 
     private void requestNotifications() {
-        ClientApp.getInstance().sendRequest(new GetNotificationsRequestMessage(), this::handleNotificationsResponse);
+        NotificationService.getInstance().requestNotifications(this::handleNotificationsResponse);
     }
 
-    private void handleNotificationsResponse(Message message, Throwable throwable) {
-        if (throwable != null) {
-            setStatusText("Failed to load notifications: " + throwable.getMessage(), true);
-            return;
-        }
+    private void handleNotificationsResponse(Message message) {
         if (message instanceof ErrorMessage errorMessage) {
             setStatusText(errorMessage.getErrorMessage(), true);
             return;
@@ -183,10 +175,7 @@ public class NotificationsController implements Initializable {
         updateNotifications(response.getNotifications());
     }
 
-    private void handleNotificationPush(Message message) {
-        if (!(message instanceof NotificationMessage notificationMessage)) {
-            return;
-        }
+    private void handleNotificationPush(NotificationMessage notificationMessage) {
         Notification pushedNotification = notificationMessage.getNotification();
         if (pushedNotification == null) {
             return;
@@ -284,17 +273,11 @@ public class NotificationsController implements Initializable {
     }
 
     private void markAsRead(String notificationId) {
-        ClientApp.getInstance().sendRequest(
-                new MarkNotificationReadRequestMessage(notificationId),
-                this::handleNotificationsResponse
-        );
+        NotificationService.getInstance().markAsRead(notificationId, this::handleNotificationsResponse);
     }
 
     private void clearNotification(String notificationId) {
-        ClientApp.getInstance().sendRequest(
-                new ClearNotificationsRequestMessage(notificationId),
-                this::handleNotificationsResponse
-        );
+        NotificationService.getInstance().clearNotification(notificationId, this::handleNotificationsResponse);
     }
 
     private boolean matchesActiveFilter(Notification notification) {

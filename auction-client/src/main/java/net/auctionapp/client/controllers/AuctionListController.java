@@ -12,13 +12,13 @@ import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.FlowPane;
 import javafx.scene.layout.VBox;
 import net.auctionapp.client.ClientApp;
-import net.auctionapp.client.SceneNavigator;
+import net.auctionapp.client.ui.SceneManager;
+import net.auctionapp.client.services.AuctionService;
 import net.auctionapp.client.utils.DurationFormatUtil;
 import net.auctionapp.common.messages.Message;
 import net.auctionapp.common.messages.types.AuctionListResponseMessage;
 import net.auctionapp.common.messages.types.AuctionSummary;
 import net.auctionapp.common.messages.types.ErrorMessage;
-import net.auctionapp.common.messages.types.GetAuctionListRequestMessage;
 import net.auctionapp.common.models.auction.AuctionStatus;
 
 import java.math.BigDecimal;
@@ -75,15 +75,10 @@ public class AuctionListController implements Initializable {
     private void requestAuctionList() {
         listStatusLabel.setStyle("-fx-text-fill: #666666;");
         listStatusLabel.setText("Loading auctions...");
-        ClientApp.getInstance().sendRequest(new GetAuctionListRequestMessage(), this::handleAuctionListResult);
+        AuctionService.getInstance().requestAuctionList(this::handleAuctionListResult);
     }
 
-    private void handleAuctionListResult(Message message, Throwable throwable) {
-        if (throwable != null) {
-            listStatusLabel.setStyle("-fx-text-fill: #d9534f;");
-            listStatusLabel.setText("Failed to load auctions: " + throwable.getMessage());
-            return;
-        }
+    private void handleAuctionListResult(Message message) {
         if (message instanceof ErrorMessage errorMessage) {
             handleErrorResponse(errorMessage);
             return;
@@ -280,7 +275,7 @@ public class AuctionListController implements Initializable {
 
     private void handleViewItem(String auctionId) {
         ClientApp.getInstance().setSelectedAuctionId(auctionId);
-        SceneNavigator.switchScene("AuctionItem");
+        SceneManager.switchScene("AuctionItem");
     }
 
 }

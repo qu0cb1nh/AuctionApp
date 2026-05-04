@@ -1,11 +1,11 @@
-package net.auctionapp.client;
+package net.auctionapp.client.ui;
 
 import javafx.application.Platform;
 import javafx.fxml.FXMLLoader;
 import javafx.scene.Parent;
 import javafx.scene.Scene;
 import javafx.stage.Stage;
-import net.auctionapp.client.utils.NotificationToastUtil;
+import net.auctionapp.client.ClientApp;
 
 import java.io.IOException;
 import java.net.URL;
@@ -14,14 +14,14 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 
-public final class SceneNavigator {
+public final class SceneManager {
     private static final ScheduledExecutorService SCHEDULER = Executors.newSingleThreadScheduledExecutor(r -> {
-        Thread t = new Thread(r, "SceneNavigator-Scheduler");
+        Thread t = new Thread(r, "SceneManager-Scheduler");
         t.setDaemon(true);
         return t;
     });
 
-    private SceneNavigator() {
+    private SceneManager() {
     }
 
     public static void switchScene(String fxmlFile) {
@@ -32,13 +32,13 @@ public final class SceneNavigator {
             throw new IllegalStateException("Primary stage is not initialized.");
         }
 
-        URL resource = SceneNavigator.class.getResource("/net/auctionapp/client/views/" + fxmlFile + ".fxml");
+        URL resource = SceneManager.class.getResource("/net/auctionapp/client/views/" + fxmlFile + ".fxml");
         if (resource == null) {
             throw new IllegalStateException("Missing FXML resource: " + fxmlFile);
         }
 
         Parent root = loadRoot(resource, fxmlFile);
-        Parent wrappedRoot = NotificationToastUtil.wrapWithNotificationHost(root);
+        Parent wrappedRoot = NotificationToastManager.wrapWithNotificationHost(root);
         Scene scene = stage.getScene();
         if (scene != null) {
             scene.setRoot(wrappedRoot);

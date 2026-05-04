@@ -1,4 +1,4 @@
-package net.auctionapp.client.utils;
+package net.auctionapp.client.ui;
 
 import javafx.animation.PauseTransition;
 import javafx.fxml.FXMLLoader;
@@ -18,13 +18,13 @@ import java.io.IOException;
 import java.lang.ref.WeakReference;
 import java.util.Objects;
 
-public final class NotificationToastUtil {
-    private static final Logger LOGGER = LoggerFactory.getLogger(NotificationToastUtil.class);
+public final class NotificationToastManager {
+    private static final Logger LOGGER = LoggerFactory.getLogger(NotificationToastManager.class);
     private static final double NOTIFICATION_PADDING = 20.0;
     private static final double NOTIFICATION_HIDE_AFTER_SECONDS = 4.0;
     private static WeakReference<VBox> notificationHostRef = new WeakReference<>(null);
 
-    private NotificationToastUtil() {
+    private NotificationToastManager() {
     }
 
     public static Parent wrapWithNotificationHost(Parent contentRoot) {
@@ -77,14 +77,14 @@ public final class NotificationToastUtil {
 
     private static HBox buildContent(Notification notification) {
         try {
-            FXMLLoader loader = new FXMLLoader(NotificationToastUtil.class
+            FXMLLoader loader = new FXMLLoader(NotificationToastManager.class
                     .getResource("/net/auctionapp/client/views/NotificationToast.fxml"));
             HBox toast = loader.load();
             NotificationToastController controller = loader.getController();
             controller.setNotification(notification);
             return toast;
         } catch (IOException | RuntimeException e) {
-            LOGGER.warn("Failed to load notification toast FXML; using fallback.", e);
+            LOGGER.warn("Failed to load notification toast FXML.", e);
             return null;
         }
     }

@@ -10,8 +10,8 @@ import javafx.scene.control.Label;
 import javafx.scene.control.TextArea;
 import javafx.scene.control.TextField;
 import javafx.scene.layout.VBox;
-import net.auctionapp.client.ClientApp;
-import net.auctionapp.client.SceneNavigator;
+import net.auctionapp.client.ui.SceneManager;
+import net.auctionapp.client.services.AuctionService;
 import net.auctionapp.common.messages.Message;
 import net.auctionapp.common.messages.MessageType;
 import net.auctionapp.common.messages.types.CreateItemRequestMessage;
@@ -91,12 +91,12 @@ public class CreateAuctionController implements Initializable {
 
     @FXML
     public void handleBack(ActionEvent event) {
-        SceneNavigator.switchScene("MainMenu");
+        SceneManager.switchScene("MainMenu");
     }
 
     @FXML
     public void handleCancel(ActionEvent event) {
-        SceneNavigator.switchScene("MainMenu");
+        SceneManager.switchScene("MainMenu");
     }
 
     @FXML
@@ -105,7 +105,7 @@ public class CreateAuctionController implements Initializable {
             CreateItemRequestMessage request = buildRequestFromForm();
             statusLabel.setStyle("-fx-font-size: 13px; -fx-text-fill: #666666;");
             statusLabel.setText("Creating auction...");
-            ClientApp.getInstance().sendRequest(request, this::handleCreateResponse);
+            AuctionService.getInstance().createAuction(request, this::handleCreateResponse);
         } catch (IllegalArgumentException ex) {
             statusLabel.setStyle("-fx-font-size: 13px; -fx-text-fill: #d9534f;");
             statusLabel.setText(ex.getMessage());
@@ -193,12 +193,7 @@ public class CreateAuctionController implements Initializable {
         section.setManaged(visible);
     }
 
-    private void handleCreateResponse(Message message, Throwable throwable) {
-        if (throwable != null) {
-            statusLabel.setStyle("-fx-font-size: 13px; -fx-text-fill: #d9534f;");
-            statusLabel.setText("Create auction failed: " + throwable.getMessage());
-            return;
-        }
+    private void handleCreateResponse(Message message) {
         if (message instanceof ErrorMessage errorMessage) {
             statusLabel.setStyle("-fx-font-size: 13px; -fx-text-fill: #d9534f;");
             statusLabel.setText(errorMessage.getErrorMessage());
@@ -211,7 +206,7 @@ public class CreateAuctionController implements Initializable {
         }
         statusLabel.setStyle("-fx-font-size: 13px; -fx-text-fill: #2e7d32;");
         statusLabel.setText(result.getMessage());
-        SceneNavigator.switchSceneWithDelay("AuctionList", 600);
+        SceneManager.switchSceneWithDelay("AuctionList", 600);
     }
 
     private BigDecimal parsePositiveDecimal(String input, String fieldName) {

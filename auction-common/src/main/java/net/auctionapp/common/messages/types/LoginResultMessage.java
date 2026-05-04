@@ -2,18 +2,19 @@ package net.auctionapp.common.messages.types;
 
 import net.auctionapp.common.messages.Message;
 import net.auctionapp.common.messages.MessageType;
+import net.auctionapp.common.models.users.UserRole;
 
 public class LoginResultMessage extends Message {
     private String userId;
     private String username;
-    private String role;
+    private UserRole role;
     private String message;
 
     public LoginResultMessage() {
         super();
     }
 
-    public LoginResultMessage(MessageType type, String userId, String username, String role, String message) {
+    public LoginResultMessage(MessageType type, String userId, String username, UserRole role, String message) {
         super(type);
         this.userId = userId;
         this.username = username;
@@ -37,11 +38,11 @@ public class LoginResultMessage extends Message {
         this.username = username;
     }
 
-    public String getRole() {
+    public UserRole getRole() {
         return role;
     }
 
-    public void setRole(String role) {
+    public void setRole(UserRole role) {
         this.role = role;
     }
 

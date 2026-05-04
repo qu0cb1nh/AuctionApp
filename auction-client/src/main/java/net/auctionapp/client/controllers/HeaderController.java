@@ -6,7 +6,9 @@ import javafx.scene.control.Button;
 import javafx.scene.control.Label;
 import javafx.scene.control.MenuButton;
 import net.auctionapp.client.ClientApp;
-import net.auctionapp.client.SceneNavigator;
+import net.auctionapp.client.services.AuctionService;
+import net.auctionapp.client.services.AuthService;
+import net.auctionapp.client.ui.SceneManager;
 
 public class HeaderController {
     @FXML
@@ -20,7 +22,7 @@ public class HeaderController {
 
     @FXML
     public void initialize() {
-        String username = ClientApp.getInstance() != null ? ClientApp.getInstance().getCurrentUsername() : null;
+        String username = AuthService.getInstance().getCurrentUsername();
         userMenuButton.setText((username == null || username.isBlank()) ? "Guest" : username);
     }
 
@@ -34,35 +36,33 @@ public class HeaderController {
 
     @FXML
     public void handleBack(ActionEvent event) {
-        SceneNavigator.switchScene(backTargetFxml);
+        SceneManager.switchScene(backTargetFxml);
     }
 
     @FXML
     public void handleOpenNotifications(ActionEvent event) {
-        SceneNavigator.switchScene("Notifications");
+        SceneManager.switchScene("Notifications");
     }
 
     @FXML
     public void handleOpenActivity(ActionEvent event) {
-        SceneNavigator.switchScene("MyActivity");
+        SceneManager.switchScene("MyActivity");
     }
 
     @FXML
     public void handleOpenPurchases(ActionEvent event) {
-        SceneNavigator.switchScene("Purchases");
+        SceneManager.switchScene("Purchases");
     }
 
     @FXML
     public void handleOpenSettings(ActionEvent event) {
-        SceneNavigator.switchScene("Settings");
+        SceneManager.switchScene("Settings");
     }
 
     @FXML
     public void handleLogout(ActionEvent event) {
-        if (ClientApp.getInstance() != null) {
-            ClientApp.getInstance().setCurrentUser(null, null, null);
-        }
-        SceneNavigator.switchScene("LoginMenu");
+        AuthService.getInstance().setCurrentUser(null, null, null);
+        SceneManager.switchScene("LoginMenu");
     }
 
     private void setBackButtonVisible(boolean visible) {

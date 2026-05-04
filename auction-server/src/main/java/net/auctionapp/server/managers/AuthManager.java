@@ -7,6 +7,7 @@ import net.auctionapp.common.messages.types.RegisterRequestMessage;
 import net.auctionapp.common.messages.types.RegisterResultMessage;
 import net.auctionapp.common.exceptions.ValidationException;
 import net.auctionapp.common.models.users.User;
+import net.auctionapp.common.models.users.UserRole;
 import net.auctionapp.common.utils.CredentialUtil;
 import net.auctionapp.common.utils.StringUtil;
 import net.auctionapp.server.ClientHandler;
@@ -67,7 +68,7 @@ public class AuthManager {
             }
 
             cacheUser(user);
-            String clientRole = UserRoleUtil.toClientRole(user);
+            UserRole clientRole = UserRoleUtil.toClientRole(user);
             LoginResultMessage success = new LoginResultMessage(
                     MessageType.LOGIN_SUCCESS,
                     user.getId(),

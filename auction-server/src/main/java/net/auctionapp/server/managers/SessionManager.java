@@ -1,5 +1,6 @@
 package net.auctionapp.server.managers;
 
+import net.auctionapp.common.models.users.UserRole;
 import net.auctionapp.server.ClientHandler;
 import net.auctionapp.common.utils.StringUtil;
 
@@ -25,7 +26,7 @@ public final class SessionManager {
         return INSTANCE;
     }
 
-    public void bindSession(String userId, String username, String role, ClientHandler clientHandler) {
+    public void bindSession(String userId, String username, UserRole role, ClientHandler clientHandler) {
         if (clientHandler == null) {
             return;
         }
@@ -91,6 +92,6 @@ public final class SessionManager {
         });
     }
 
-    public record SessionInfo(String userId, String username, String role) {
+    public record SessionInfo(String userId, String username, UserRole role) {
     }
 }
