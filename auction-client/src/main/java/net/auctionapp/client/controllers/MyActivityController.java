@@ -11,15 +11,15 @@ import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.FlowPane;
 import javafx.scene.layout.VBox;
 import net.auctionapp.client.ClientApp;
-import net.auctionapp.client.SceneNavigator;
+import net.auctionapp.client.services.AuthService;
+import net.auctionapp.client.ui.SceneManager;
+import net.auctionapp.client.services.AuctionService;
 import net.auctionapp.client.utils.DurationFormatUtil;
 import net.auctionapp.common.messages.Message;
 import net.auctionapp.common.messages.types.AuctionDetailsResponseMessage;
 import net.auctionapp.common.messages.types.AuctionListResponseMessage;
 import net.auctionapp.common.messages.types.BidView;
 import net.auctionapp.common.messages.types.ErrorMessage;
-import net.auctionapp.common.messages.types.GetAuctionDetailsRequestMessage;
-import net.auctionapp.common.messages.types.GetAuctionListRequestMessage;
 import net.auctionapp.common.models.auction.AuctionStatus;
 
 import java.math.BigDecimal;
@@ -118,15 +118,10 @@ public class MyActivityController implements Initializable {
         renderSellerCards(List.of());
         statusLabel.setStyle("-fx-text-fill: #3f5569; -fx-font-size: 12px;");
         statusLabel.setText("Loading your activity...");
-        ClientApp.getInstance().sendRequest(new GetAuctionListRequestMessage(), this::handleAuctionListRequestResult);
+        AuctionService.getInstance().requestAuctionList(this::handleAuctionListRequestResult);
     }
 
-    private void handleAuctionListRequestResult(Message message, Throwable throwable) {
-        if (throwable != null) {
-            statusLabel.setStyle("-fx-text-fill: #d9534f; -fx-font-size: 12px;");
-            statusLabel.setText("Failed to load activity: " + throwable.getMessage());
-            return;
-        }
+    private void handleAuctionListRequestResult(Message message) {
         if (message instanceof ErrorMessage errorMessage) {
             handleErrorResponse(errorMessage);
             return;
@@ -162,18 +157,14 @@ public class MyActivityController implements Initializable {
         pendingAuctionIds.addAll(auctionIds);
         statusLabel.setText("Loading details for " + pendingAuctionIds.size() + " auction(s)...");
         for (String auctionId : auctionIds) {
-            ClientApp.getInstance().sendRequest(
-                    new GetAuctionDetailsRequestMessage(auctionId),
-                    (detailResponse, throwable) -> handleAuctionDetailsRequestResult(auctionId, detailResponse, throwable)
+            AuctionService.getInstance().requestAuctionDetails(
+                    auctionId,
+                    (detailResponse) -> handleAuctionDetailsRequestResult(auctionId, detailResponse)
             );
         }
     }
 
-    private void handleAuctionDetailsRequestResult(String auctionId, Message message, Throwable throwable) {
-        if (throwable != null) {
-            completeLoadingAfterDetailFailure(auctionId, null);
-            return;
-        }
+    private void handleAuctionDetailsRequestResult(String auctionId, Message message) {
         if (message instanceof ErrorMessage errorMessage) {
             completeLoadingAfterDetailFailure(auctionId, errorMessage.getErrorMessage());
             return;
@@ -336,9 +327,9 @@ public class MyActivityController implements Initializable {
         Button viewButton = new Button(buttonLabelForStatus(activity.scope(), activity.status()));
         viewButton.setStyle("-fx-background-color: #3bb3d1; -fx-text-fill: white; -fx-background-radius: 5;");
         viewButton.setOnAction(event -> {
-            statusLabel.setText("Opening auction: " + activity.auctionTitle());
             ClientApp.getInstance().setSelectedAuctionId(activity.auctionId());
-            SceneNavigator.switchScene("AuctionItem");
+            statusLabel.setText("Opening auction: " + activity.auctionTitle());
+            SceneManager.switchScene("AuctionItem");
         });
 
         card.getChildren().addAll(content, viewButton);
@@ -405,11 +396,11 @@ public class MyActivityController implements Initializable {
     }
 
     private String resolveCurrentUsername() {
-        if (ClientApp.getInstance() == null || ClientApp.getInstance().getCurrentUsername() == null
-                || ClientApp.getInstance().getCurrentUsername().isBlank()) {
+        if (AuthService.getInstance().getCurrentUsername() == null
+                || AuthService.getInstance().getCurrentUsername().isBlank()) {
             return "";
         }
-        return ClientApp.getInstance().getCurrentUsername();
+        return AuthService.getInstance().getCurrentUsername();
     }
 
     private String deriveBidStatus(AuctionDetailsResponseMessage response, String currentUsername) {

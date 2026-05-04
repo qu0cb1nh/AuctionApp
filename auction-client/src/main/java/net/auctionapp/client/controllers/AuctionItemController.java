@@ -11,14 +11,15 @@ import javafx.scene.control.TextField;
 import javafx.scene.image.ImageView;
 import javafx.scene.layout.BorderPane;
 import net.auctionapp.client.ClientApp;
+import net.auctionapp.client.services.AuctionService;
+import net.auctionapp.client.services.AuthService;
+import net.auctionapp.client.services.MessageListener;
 import net.auctionapp.common.messages.Message;
 import net.auctionapp.common.messages.MessageType;
 import net.auctionapp.common.messages.types.AuctionDetailsResponseMessage;
-import net.auctionapp.common.messages.types.BidRequestMessage;
 import net.auctionapp.common.messages.types.BidResultMessage;
 import net.auctionapp.common.messages.types.BidView;
 import net.auctionapp.common.messages.types.ErrorMessage;
-import net.auctionapp.common.messages.types.GetAuctionDetailsRequestMessage;
 import net.auctionapp.common.messages.types.PriceUpdateMessage;
 import net.auctionapp.common.models.auction.AuctionStatus;
 
@@ -29,7 +30,6 @@ import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Locale;
 import java.util.ResourceBundle;
-import java.util.function.Consumer;
 
 public class AuctionItemController implements Initializable {
     @FXML
@@ -51,8 +51,8 @@ public class AuctionItemController implements Initializable {
     private BigDecimal currentHighestBid = BigDecimal.ZERO;
     private BigDecimal minimumNextBid = BigDecimal.ZERO;
     private final XYChart.Series<String, Number> priceSeries = new XYChart.Series<>();
-    private Consumer<Message> priceUpdateHandler;
-    private boolean priceUpdateHandlerRegistered;
+    private MessageListener<PriceUpdateMessage> priceUpdateListener;
+    private boolean priceUpdateListenerRegistered;
 
     @FXML
     @Override
@@ -65,7 +65,7 @@ public class AuctionItemController implements Initializable {
         priceHistoryChart.getData().add(priceSeries);
         rootPane.sceneProperty().addListener((observable, oldScene, newScene) -> {
             if (oldScene != null) {
-                cleanupEventHandlers();
+                cleanupEventListeners();
             }
         });
 
@@ -76,7 +76,7 @@ public class AuctionItemController implements Initializable {
             return;
         }
 
-        registerEventHandlers();
+        registerEventListeners();
         requestAuctionDetails();
     }
 
@@ -84,41 +84,33 @@ public class AuctionItemController implements Initializable {
     public void handlePlaceBid(ActionEvent event) {
         try {
             BigDecimal bid = parseBidAmount(bidAmountField.getText(), minimumNextBid);
-            BidRequestMessage request = new BidRequestMessage(currentAuctionId, bid.doubleValue());
-            ClientApp.getInstance().sendRequest(request, this::handleBidResult);
+            AuctionService.getInstance().placeBid(currentAuctionId, bid, this::handleBidResult);
         } catch (IllegalArgumentException e) {
             setErrorMessage(e.getMessage());
         }
     }
 
-    private void registerEventHandlers() {
-        priceUpdateHandler = this::handlePriceUpdate;
-        ClientApp.getInstance().addMessageHandler(MessageType.PRICE_UPDATE, priceUpdateHandler);
-        priceUpdateHandlerRegistered = true;
+    private void registerEventListeners() {
+        priceUpdateListener = this::handlePriceUpdate;
+        AuctionService.getInstance().addPriceUpdateListener(priceUpdateListener);
+        priceUpdateListenerRegistered = true;
     }
 
-    private void cleanupEventHandlers() {
-        if (!priceUpdateHandlerRegistered) {
+    private void cleanupEventListeners() {
+        if (!priceUpdateListenerRegistered) {
             return;
         }
-        if (priceUpdateHandler != null) {
-            ClientApp.getInstance().removeMessageHandler(MessageType.PRICE_UPDATE, priceUpdateHandler);
+        if (priceUpdateListener != null) {
+            AuctionService.getInstance().removePriceUpdateListener(priceUpdateListener);
         }
-        priceUpdateHandlerRegistered = false;
+        priceUpdateListenerRegistered = false;
     }
 
     private void requestAuctionDetails() {
-        ClientApp.getInstance().sendRequest(
-                new GetAuctionDetailsRequestMessage(currentAuctionId),
-                this::handleAuctionDetailsResponse
-        );
+        AuctionService.getInstance().requestAuctionDetails(currentAuctionId, this::handleAuctionDetailsResponse);
     }
 
-    private void handleAuctionDetailsResponse(Message message, Throwable throwable) {
-        if (throwable != null) {
-            setErrorMessage("Failed to load auction details: " + throwable.getMessage());
-            return;
-        }
+    private void handleAuctionDetailsResponse(Message message) {
         if (message instanceof ErrorMessage errorMessage) {
             setErrorMessage(errorMessage.getErrorMessage());
             return;
@@ -143,11 +135,7 @@ public class AuctionItemController implements Initializable {
         updateBidControls(response);
     }
 
-    private void handleBidResult(Message message, Throwable throwable) {
-        if (throwable != null) {
-            setErrorMessage("Failed to place bid: " + throwable.getMessage());
-            return;
-        }
+    private void handleBidResult(Message message) {
         if (message instanceof ErrorMessage errorMessage) {
             setErrorMessage(errorMessage.getErrorMessage());
             return;
@@ -177,10 +165,7 @@ public class AuctionItemController implements Initializable {
         setErrorMessage("Unexpected bid response from server.");
     }
 
-    private void handlePriceUpdate(Message message) {
-        if (!(message instanceof PriceUpdateMessage update)) {
-            return;
-        }
+    private void handlePriceUpdate(PriceUpdateMessage update) {
         if (!currentAuctionId.equals(update.getAuctionId())) {
             return;
         }
@@ -224,9 +209,7 @@ public class AuctionItemController implements Initializable {
     }
 
     private void updateBidControls(AuctionDetailsResponseMessage response) {
-        String currentUsername = ClientApp.getInstance() == null
-                ? ""
-                : ClientApp.getInstance().getCurrentUsername();
+        String currentUsername = AuthService.getInstance().getCurrentUsername();
         boolean isSellerViewingOwnAuction = response.getSellerId() != null
                 && response.getSellerId().equalsIgnoreCase(currentUsername);
 

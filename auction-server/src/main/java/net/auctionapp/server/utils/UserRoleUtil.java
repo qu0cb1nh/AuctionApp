@@ -21,8 +21,8 @@ public final class UserRoleUtil {
         return hasAdminRole(user == null ? null : user.getRole()) ? ADMIN_ROLE : USER_ROLE;
     }
 
-    public static String toClientRole(User user) {
-        return hasAdminRole(user == null ? null : user.getRole()) ? ADMIN_ROLE : USER_ROLE;
+    public static UserRole toClientRole(User user) {
+        return hasAdminRole(user == null ? null : user.getRole()) ? UserRole.ADMIN : UserRole.USER;
     }
 
     private static boolean hasAdminRole(UserRole role) {

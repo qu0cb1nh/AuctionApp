@@ -11,12 +11,16 @@ import com.google.gson.stream.JsonWriter;
 import net.auctionapp.common.messages.Message;
 import net.auctionapp.common.messages.MessageType;
 import net.auctionapp.common.messages.types.*;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeParseException;
 
 public final class JsonUtil {
+
+    private static final Logger LOGGER = LoggerFactory.getLogger(JsonUtil.class);
 
     private JsonUtil() { }
 
@@ -64,13 +68,12 @@ public final class JsonUtil {
                 case PING -> GSON.fromJson(json, PingMessage.class);
                 case PONG -> GSON.fromJson(json, PongMessage.class);
                 default -> {
-                    System.err.println("Unhandled message type: " + type);
+                    LOGGER.warn("Invalid JSON or unhandled message type: {}", json);
                     yield null;
                 }
             };
         } catch (Exception e) {
-            System.err.println("Critical error while parsing JSON: " + json);
-            e.printStackTrace();
+            LOGGER.error("Error while parsing JSON object", e);
             return null;
         }
     }

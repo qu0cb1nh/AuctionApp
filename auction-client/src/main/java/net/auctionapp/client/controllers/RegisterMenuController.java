@@ -6,13 +6,12 @@ import javafx.scene.control.Button;
 import javafx.scene.control.PasswordField;
 import javafx.scene.control.TextField;
 import javafx.scene.input.MouseEvent;
-import net.auctionapp.client.ClientApp;
-import net.auctionapp.client.SceneNavigator;
+import net.auctionapp.client.ui.SceneManager;
+import net.auctionapp.client.services.AuthService;
 import net.auctionapp.common.exceptions.ValidationException;
 import net.auctionapp.common.messages.Message;
 import net.auctionapp.common.messages.MessageType;
 import net.auctionapp.common.messages.types.ErrorMessage;
-import net.auctionapp.common.messages.types.RegisterRequestMessage;
 import net.auctionapp.common.messages.types.RegisterResultMessage;
 import net.auctionapp.common.utils.CredentialUtil;
 
@@ -20,6 +19,7 @@ import java.net.URL;
 import java.util.ResourceBundle;
 
 public class RegisterMenuController implements Initializable {
+    private final AuthService authService = AuthService.getInstance();
 
     // Fields for the registration form.
     @FXML
@@ -39,7 +39,7 @@ public class RegisterMenuController implements Initializable {
 
     @Override
     public void initialize(URL url, ResourceBundle resourceBundle) {
-        // No persistent message handlers are required for register request/response flow.
+        // No persistent message listeners are required for register request/response flow.
     }
 
     // Triggered when the user clicks "Register".
@@ -55,14 +55,10 @@ public class RegisterMenuController implements Initializable {
             assistantPanelController.speak(e.getMessage(), "#e67e22");
             return;
         }
-        ClientApp.getInstance().sendRequest(new RegisterRequestMessage(username, password), this::handleServerResponse);
+        authService.register(username, password, this::handleServerResponse);
     }
 
-    private void handleServerResponse(Message message, Throwable throwable) {
-        if (throwable != null) {
-            assistantPanelController.speak("Registration failed: " + throwable.getMessage(), "#e74c3c");
-            return;
-        }
+    private void handleServerResponse(Message message) {
         if (message instanceof ErrorMessage errorMessage) {
             assistantPanelController.speak(errorMessage.getErrorMessage(), "#e74c3c");
             return;
@@ -74,7 +70,7 @@ public class RegisterMenuController implements Initializable {
 
         if (message.getType() == MessageType.REGISTER_SUCCESS) {
             assistantPanelController.speak(result.getMessage(), "#27ae60");
-            SceneNavigator.switchSceneWithDelay("LoginMenu", 1500);
+            SceneManager.switchSceneWithDelay("LoginMenu", 1500);
         } else if (message.getType() == MessageType.REGISTER_FAILURE) {
             assistantPanelController.speak(result.getMessage(), "#e74c3c");
         }
@@ -82,6 +78,6 @@ public class RegisterMenuController implements Initializable {
 
     @FXML
     public void switchToLogin(MouseEvent event) {
-        SceneNavigator.switchScene("LoginMenu");
+        SceneManager.switchScene("LoginMenu");
     }
 }

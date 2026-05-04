@@ -11,7 +11,8 @@ import javafx.scene.control.Spinner;
 import javafx.scene.control.SpinnerValueFactory;
 import javafx.scene.control.TextField;
 import net.auctionapp.client.ClientApp;
-import net.auctionapp.client.SceneNavigator;
+import net.auctionapp.client.services.AuthService;
+import net.auctionapp.client.ui.SceneManager;
 
 import java.net.URL;
 import java.util.ResourceBundle;
@@ -41,14 +42,14 @@ public class SettingsController implements Initializable {
         autoRefreshSpinner.setValueFactory(new SpinnerValueFactory.IntegerSpinnerValueFactory(5, 120, 15, 5));
         applyDefaults();
 
-        String username = ClientApp.getInstance() != null ? ClientApp.getInstance().getCurrentUsername() : "";
+        String username = AuthService.getInstance().getCurrentUsername();
         displayNameField.setText(username == null ? "" : username);
         statusLabel.setText("Ready.");
     }
 
     @FXML
     public void handleBack(ActionEvent event) {
-        SceneNavigator.switchScene("MainMenu");
+        SceneManager.switchScene("MainMenu");
     }
 
     @FXML

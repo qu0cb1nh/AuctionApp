@@ -37,6 +37,8 @@ build/
 ### VS Code ###
 .vscode/
 
+AGENTS.md
+
 ### Local environment ###
 .env
 .env.*

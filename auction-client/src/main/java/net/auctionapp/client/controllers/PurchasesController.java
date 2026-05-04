@@ -11,13 +11,13 @@ import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.FlowPane;
 import javafx.scene.layout.VBox;
 import net.auctionapp.client.ClientApp;
-import net.auctionapp.client.SceneNavigator;
+import net.auctionapp.client.services.AuthService;
+import net.auctionapp.client.ui.SceneManager;
+import net.auctionapp.client.services.AuctionService;
 import net.auctionapp.common.messages.Message;
 import net.auctionapp.common.messages.types.AuctionDetailsResponseMessage;
 import net.auctionapp.common.messages.types.AuctionListResponseMessage;
 import net.auctionapp.common.messages.types.ErrorMessage;
-import net.auctionapp.common.messages.types.GetAuctionDetailsRequestMessage;
-import net.auctionapp.common.messages.types.GetAuctionListRequestMessage;
 import net.auctionapp.common.models.auction.AuctionStatus;
 
 import java.math.BigDecimal;
@@ -74,7 +74,7 @@ public class PurchasesController implements Initializable {
     @FXML
     public void handleBack(ActionEvent event) {
         cleanupHandlers();
-        SceneNavigator.switchScene("MainMenu");
+        SceneManager.switchScene("MainMenu");
     }
 
     @FXML
@@ -98,15 +98,10 @@ public class PurchasesController implements Initializable {
         renderPurchaseCards(allPurchases);
         statusLabel.setStyle(STATUS_TEXT_STYLE);
         statusLabel.setText("Loading your purchases...");
-        ClientApp.getInstance().sendRequest(new GetAuctionListRequestMessage(), this::handleAuctionListRequestResult);
+        AuctionService.getInstance().requestAuctionList(this::handleAuctionListRequestResult);
     }
 
-    private void handleAuctionListRequestResult(Message message, Throwable throwable) {
-        if (throwable != null) {
-            statusLabel.setStyle("-fx-text-fill: #d9534f; -fx-font-size: 12px; -fx-font-weight: bold;");
-            statusLabel.setText("Failed to load purchases: " + throwable.getMessage());
-            return;
-        }
+    private void handleAuctionListRequestResult(Message message) {
         if (message instanceof ErrorMessage errorMessage) {
             handleErrorResponse(errorMessage);
             return;
@@ -139,18 +134,14 @@ public class PurchasesController implements Initializable {
         pendingAuctionIds.addAll(auctionIds);
         statusLabel.setText("Loading details for " + pendingAuctionIds.size() + " auction(s)...");
         for (String auctionId : auctionIds) {
-            ClientApp.getInstance().sendRequest(
-                    new GetAuctionDetailsRequestMessage(auctionId),
-                    (detailResponse, throwable) -> handleAuctionDetailsRequestResult(auctionId, detailResponse, throwable)
+            AuctionService.getInstance().requestAuctionDetails(
+                    auctionId,
+                    (detailResponse) -> handleAuctionDetailsRequestResult(auctionId, detailResponse)
             );
         }
     }
 
-    private void handleAuctionDetailsRequestResult(String auctionId, Message message, Throwable throwable) {
-        if (throwable != null) {
-            completeLoadingAfterDetailFailure(auctionId, null);
-            return;
-        }
+    private void handleAuctionDetailsRequestResult(String auctionId, Message message) {
         if (message instanceof ErrorMessage errorMessage) {
             completeLoadingAfterDetailFailure(auctionId, errorMessage.getErrorMessage());
             return;
@@ -258,7 +249,7 @@ public class PurchasesController implements Initializable {
         viewButton.setOnAction(event -> {
             statusLabel.setText("Opening purchase: " + purchase.title());
             ClientApp.getInstance().setSelectedAuctionId(purchase.auctionId());
-            SceneNavigator.switchScene("AuctionItem");
+            SceneManager.switchScene("AuctionItem");
         });
 
         card.getChildren().addAll(title, orderStatus, finalPrice, seller, endedAt, viewButton);
@@ -288,11 +279,10 @@ public class PurchasesController implements Initializable {
     }
 
     private String resolveCurrentUsername() {
-        if (ClientApp.getInstance() == null || ClientApp.getInstance().getCurrentUsername() == null
-                || ClientApp.getInstance().getCurrentUsername().isBlank()) {
+        if (AuthService.getInstance().getCurrentUsername() == null || AuthService.getInstance().getCurrentUsername().isBlank()) {
             return "";
         }
-        return ClientApp.getInstance().getCurrentUsername();
+        return AuthService.getInstance().getCurrentUsername();
     }
 
     private String derivePurchaseStatus(AuctionDetailsResponseMessage response) {
