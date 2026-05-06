@@ -10,7 +10,6 @@ public class Notification {
     private String body;
     private String auctionId;
     private LocalDateTime createdAt;
-    private boolean read;
 
     public Notification() {
     }
@@ -22,8 +21,7 @@ public class Notification {
             String title,
             String body,
             String auctionId,
-            LocalDateTime createdAt,
-            boolean read
+            LocalDateTime createdAt
     ) {
         this.id = id;
         this.userId = userId;
@@ -32,7 +30,6 @@ public class Notification {
         this.body = body;
         this.auctionId = auctionId;
         this.createdAt = createdAt;
-        this.read = read;
     }
 
     public String getId() {
@@ -63,7 +60,4 @@ public class Notification {
         return createdAt;
     }
 
-    public boolean isRead() {
-        return read;
-    }
 }

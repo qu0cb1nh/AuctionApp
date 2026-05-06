@@ -166,9 +166,6 @@ public class ClientHandler implements Runnable {
             case BID_REQUEST:
                 auctionManager.handleBidRequest((BidRequestMessage) message, this);
                 break;
-            case MARK_NOTIFICATION_READ_REQUEST:
-                notificationManager.handleMarkNotificationRead((MarkNotificationReadRequestMessage) message, this);
-                break;
             case CLEAR_NOTIFICATIONS_REQUEST:
                 notificationManager.handleClearNotifications((ClearNotificationsRequestMessage) message, this);
                 break;

@@ -1,5 +1,7 @@
 package net.auctionapp.common.notifications;
 
 public enum NotificationType {
-    OUTBID
+    OUTBID,
+    AUCTION_WON,
+    AUCTION_SELLER_RESULT
 }

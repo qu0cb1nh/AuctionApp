@@ -43,11 +43,6 @@ public enum MessageType {
     CREATE_ITEM_REQUEST,
 
     /**
-     * Mark a specific notification as read.
-     */
-    MARK_NOTIFICATION_READ_REQUEST,
-
-    /**
      * Clear one notification.
      */
     CLEAR_NOTIFICATIONS_REQUEST,

@@ -25,30 +25,18 @@ public class JdbcNotificationDao implements NotificationDao {
                 title VARCHAR(255) NOT NULL,
                 body TEXT NOT NULL,
                 auction_id VARCHAR(64),
-                is_read BOOLEAN NOT NULL DEFAULT FALSE,
                 created_at DATETIME NOT NULL
             )
             """;
     private static final String INSERT_NOTIFICATION_QUERY = """
-            INSERT INTO notifications (id, user_id, type, title, body, auction_id, is_read, created_at)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            INSERT INTO notifications (id, user_id, type, title, body, auction_id, created_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
             """;
     private static final String FIND_BY_USER_ID_QUERY = """
-            SELECT id, user_id, type, title, body, auction_id, is_read, created_at
+            SELECT id, user_id, type, title, body, auction_id, created_at
             FROM notifications
             WHERE user_id = ?
             ORDER BY created_at DESC
-            """;
-    private static final String MARK_AS_READ_QUERY = """
-            UPDATE notifications
-            SET is_read = TRUE
-            WHERE id = ? AND user_id = ?
-            """;
-    private static final String EXISTS_BY_ID_QUERY = """
-            SELECT 1
-            FROM notifications
-            WHERE id = ? AND user_id = ?
-            LIMIT 1
             """;
     private static final String CLEAR_BY_ID_QUERY = """
             DELETE FROM notifications
@@ -85,13 +73,12 @@ public class JdbcNotificationDao implements NotificationDao {
             statement.setString(4, title);
             statement.setString(5, body);
             setNullableString(statement, 6, auctionId);
-            statement.setBoolean(7, false);
-            statement.setTimestamp(8, Timestamp.valueOf(timestamp));
+            statement.setTimestamp(7, Timestamp.valueOf(timestamp));
             int updatedRows = statement.executeUpdate();
             if (updatedRows != 1) {
                 throw new DatabaseException("Notification could not be created.", new IllegalStateException());
             }
-            return new Notification(id, userId, type, title, body, auctionId, timestamp, false);
+            return new Notification(id, userId, type, title, body, auctionId, timestamp);
         } catch (SQLException e) {
             throw new DatabaseException("Failed to create notification.", e);
         }
@@ -115,23 +102,6 @@ public class JdbcNotificationDao implements NotificationDao {
     }
 
     @Override
-    public boolean markAsRead(String userId, String notificationId) {
-        try (Connection connection = databaseManager.getConnection()) {
-            if (!existsById(connection, userId, notificationId)) {
-                return false;
-            }
-            try (PreparedStatement statement = connection.prepareStatement(MARK_AS_READ_QUERY)) {
-                statement.setString(1, notificationId);
-                statement.setString(2, userId);
-                statement.executeUpdate();
-                return true;
-            }
-        } catch (SQLException e) {
-            throw new DatabaseException("Failed to mark notification as read.", e);
-        }
-    }
-
-    @Override
     public boolean clearById(String userId, String notificationId) {
         try (Connection connection = databaseManager.getConnection();
              PreparedStatement statement = connection.prepareStatement(CLEAR_BY_ID_QUERY)) {
@@ -140,16 +110,6 @@ public class JdbcNotificationDao implements NotificationDao {
             return statement.executeUpdate() == 1;
         } catch (SQLException e) {
             throw new DatabaseException("Failed to clear notification.", e);
-        }
-    }
-
-    private boolean existsById(Connection connection, String userId, String notificationId) throws SQLException {
-        try (PreparedStatement statement = connection.prepareStatement(EXISTS_BY_ID_QUERY)) {
-            statement.setString(1, notificationId);
-            statement.setString(2, userId);
-            try (ResultSet resultSet = statement.executeQuery()) {
-                return resultSet.next();
-            }
         }
     }
 
@@ -174,8 +134,7 @@ public class JdbcNotificationDao implements NotificationDao {
                 resultSet.getString("title"),
                 resultSet.getString("body"),
                 resultSet.getString("auction_id"),
-                createdAt.toLocalDateTime(),
-                resultSet.getBoolean("is_read")
+                createdAt.toLocalDateTime()
         );
     }
 
