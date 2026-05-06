@@ -534,6 +534,7 @@ public final class AuctionManager {
         if (!announcedEndedAuctionIds.add(auction.getId())) {
             return;
         }
+        trySendAuctionEndedNotifications(auction);
         ServerApp.broadcast(JsonUtil.toJson(new AuctionEndedMessage(
                 auction.getId(),
                 auction.getWinnerBidderId(),
@@ -599,6 +600,23 @@ public final class AuctionManager {
             );
         } catch (AuctionAppException e) {
             LOGGER.warn("Failed to send outbid notification for auction {}: {}", updatedAuction.getId(), e.getMessage());
+        }
+    }
+
+    private void trySendAuctionEndedNotifications(Auction auction) {
+        if (auction == null) {
+            return;
+        }
+        try {
+            notificationManager.sendAuctionEndedNotifications(
+                    auction.getId(),
+                    auction.getItem() == null ? null : auction.getItem().getTitle(),
+                    auction.getSellerId(),
+                    auction.getWinnerBidderId(),
+                    auction.getCurrentPrice()
+            );
+        } catch (AuctionAppException e) {
+            LOGGER.warn("Failed to send auction-ended notifications for {}: {}", auction.getId(), e.getMessage());
         }
     }
 

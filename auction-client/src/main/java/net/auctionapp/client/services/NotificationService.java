@@ -4,7 +4,6 @@ import net.auctionapp.common.messages.Message;
 import net.auctionapp.common.messages.MessageType;
 import net.auctionapp.common.messages.types.ClearNotificationsRequestMessage;
 import net.auctionapp.common.messages.types.GetNotificationsRequestMessage;
-import net.auctionapp.common.messages.types.MarkNotificationReadRequestMessage;
 import net.auctionapp.common.messages.types.NotificationMessage;
 
 public final class NotificationService {
@@ -21,10 +20,6 @@ public final class NotificationService {
         NetworkService.getInstance().sendRequest(new GetNotificationsRequestMessage(), callback);
     }
 
-    public void markAsRead(String notificationId, MessageListener<Message> callback) {
-        NetworkService.getInstance().sendRequest(new MarkNotificationReadRequestMessage(notificationId), callback);
-    }
-
     public void clearNotification(String notificationId, MessageListener<Message> callback) {
         NetworkService.getInstance().sendRequest(new ClearNotificationsRequestMessage(notificationId), callback);
     }
@@ -37,4 +32,3 @@ public final class NotificationService {
         NetworkService.getInstance().removeMessageListener(MessageType.NOTIFICATION, listener);
     }
 }
-

@@ -3,7 +3,6 @@ package net.auctionapp.server.managers;
 import net.auctionapp.common.messages.types.ClearNotificationsRequestMessage;
 import net.auctionapp.common.messages.types.ErrorMessage;
 import net.auctionapp.common.messages.types.GetNotificationsRequestMessage;
-import net.auctionapp.common.messages.types.MarkNotificationReadRequestMessage;
 import net.auctionapp.common.messages.types.NotificationMessage;
 import net.auctionapp.common.notifications.NotificationType;
 import net.auctionapp.common.messages.types.NotificationsResponseMessage;
@@ -48,21 +47,6 @@ public final class NotificationManager {
         }
     }
 
-    public void handleMarkNotificationRead(MarkNotificationReadRequestMessage request, ClientHandler handler) {
-        try {
-            handler.ensureAuthenticated();
-            String userId = requireAuthenticatedUserId(handler);
-            String notificationId = requireNotificationId(request == null ? null : request.getNotificationId());
-            boolean marked = requireNotificationDao().markAsRead(userId, notificationId);
-            if (!marked) {
-                throw new NotFoundException("Notification not found.");
-            }
-            sendCurrentInbox(userId, request, handler);
-        } catch (AuctionAppException e) {
-            handler.sendResponse(new ErrorMessage(e.getMessage()), request);
-        }
-    }
-
     public void handleClearNotifications(ClearNotificationsRequestMessage request, ClientHandler handler) {
         try {
             handler.ensureAuthenticated();
@@ -102,6 +86,48 @@ public final class NotificationManager {
                 LocalDateTime.now()
         );
         pushToOnlineClients(targetUserId, notification);
+    }
+
+    public void sendAuctionEndedNotifications(
+            String auctionId,
+            String auctionTitle,
+            String sellerId,
+            String winnerBidderId,
+            BigDecimal finalPrice
+    ) {
+        String normalizedSellerId = StringUtil.normalizeString(sellerId);
+        String normalizedWinnerId = StringUtil.normalizeString(winnerBidderId);
+        String safeTitle = auctionTitle == null || auctionTitle.isBlank() ? "an auction" : "\"" + auctionTitle + "\"";
+        String priceText = finalPrice == null ? "N/A" : "$" + finalPrice.stripTrailingZeros().toPlainString();
+
+        if (!normalizedWinnerId.isEmpty()) {
+            Notification winnerNotification = requireNotificationDao().createNotification(
+                    normalizedWinnerId,
+                    NotificationType.AUCTION_WON,
+                    "You won an auction",
+                    "You won " + safeTitle + ". Final price: " + priceText + ".",
+                    auctionId,
+                    LocalDateTime.now()
+            );
+            pushToOnlineClients(normalizedWinnerId, winnerNotification);
+        }
+
+        if (normalizedSellerId.isEmpty()) {
+            return;
+        }
+
+        String sellerBody = normalizedWinnerId.isEmpty()
+                ? "Your auction " + safeTitle + " ended with no bids."
+                : "Your auction " + safeTitle + " ended. Winner: " + normalizedWinnerId + ". Final price: " + priceText + ".";
+        Notification sellerNotification = requireNotificationDao().createNotification(
+                normalizedSellerId,
+                NotificationType.AUCTION_SELLER_RESULT,
+                "Your auction ended",
+                sellerBody,
+                auctionId,
+                LocalDateTime.now()
+        );
+        pushToOnlineClients(normalizedSellerId, sellerNotification);
     }
 
     private void sendCurrentInbox(String userId, net.auctionapp.common.messages.Message request, ClientHandler handler) {

@@ -4,7 +4,7 @@ import javafx.application.Platform;
 import net.auctionapp.client.services.MessageListener;
 import net.auctionapp.client.services.NetworkService;
 import net.auctionapp.client.services.NotificationService;
-import net.auctionapp.client.ui.NotificationToastManager;
+import net.auctionapp.client.ui.managers.NotificationToastManager;
 import net.auctionapp.common.messages.types.NotificationMessage;
 import net.auctionapp.common.notifications.Notification;
 import net.auctionapp.common.utils.ConfigUtil;

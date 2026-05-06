@@ -18,7 +18,5 @@ public interface NotificationDao {
 
     List<Notification> findByUserId(String userId);
 
-    boolean markAsRead(String userId, String notificationId);
-
     boolean clearById(String userId, String notificationId);
 }
