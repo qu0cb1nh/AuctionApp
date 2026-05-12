@@ -24,22 +24,29 @@ public class JdbcUserDao implements UserDao {
                 password_hash VARCHAR(255) NOT NULL,
                 role VARCHAR(64) NOT NULL,
                 balance DECIMAL(19, 2) NOT NULL DEFAULT 0,
+                pending_balance DECIMAL(19, 2) NOT NULL DEFAULT 0,
                 is_banned BOOLEAN NOT NULL DEFAULT FALSE
             )
             """;
 
     private static final String FIND_BY_USERNAME_QUERY =
-            "SELECT username, password_hash, role, balance, is_banned FROM users WHERE lower(username) = ? LIMIT 1";
+            "SELECT username, password_hash, role, balance, pending_balance, is_banned FROM users WHERE lower(username) = ? LIMIT 1";
     private static final String FIND_ALL_USERS_QUERY =
-            "SELECT username, password_hash, role, balance, is_banned FROM users ORDER BY username ASC";
+            "SELECT username, password_hash, role, balance, pending_balance, is_banned FROM users ORDER BY username ASC";
     private static final String CREATE_USER_QUERY =
-            "INSERT INTO users (username, password_hash, role, balance) VALUES (?, ?, ?, ?)";
+            "INSERT INTO users (username, password_hash, role, balance, pending_balance) VALUES (?, ?, ?, ?, ?)";
     private static final String UPDATE_BAN_STATUS_QUERY =
             "UPDATE users SET is_banned = ? WHERE lower(username) = ?";
     private static final String INCREASE_BALANCE_QUERY =
             "UPDATE users SET balance = balance + ? WHERE lower(username) = ?";
     private static final String TRY_DECREASE_BALANCE_QUERY =
             "UPDATE users SET balance = balance - ? WHERE lower(username) = ? AND balance >= ?";
+    private static final String LOCK_FUNDS_QUERY =
+            "UPDATE users SET balance = balance - ?, pending_balance = pending_balance + ? WHERE lower(username) = ? AND balance >= ?";
+    private static final String RELEASE_FUNDS_QUERY =
+            "UPDATE users SET balance = balance + ?, pending_balance = pending_balance - ? WHERE lower(username) = ? AND pending_balance >= ?";
+    private static final String TRANSFER_PENDING_QUERY =
+            "UPDATE users SET pending_balance = pending_balance - ? WHERE lower(username) = ? AND pending_balance >= ?";
 
     private final DatabaseManager databaseManager;
 
@@ -55,6 +62,7 @@ public class JdbcUserDao implements UserDao {
     private void ensureUsersSchema() {
         ensureUsersTable();
         ensureBalanceColumn();
+        ensurePendingBalanceColumn();
     }
 
     private void ensureUsersTable() {
@@ -77,6 +85,20 @@ public class JdbcUserDao implements UserDao {
             }
         } catch (SQLException e) {
             throw new DatabaseException("Failed to add balance column to users table.", e);
+        }
+    }
+
+    private void ensurePendingBalanceColumn() {
+        try (Connection connection = databaseManager.getConnection()) {
+            if (columnExists(connection, "users", "pending_balance")) {
+                return;
+            }
+            try (Statement statement = connection.createStatement()) {
+                statement.executeUpdate(
+                        "ALTER TABLE users ADD COLUMN pending_balance DECIMAL(19, 2) NOT NULL DEFAULT 0");
+            }
+        } catch (SQLException e) {
+            throw new DatabaseException("Failed to add pending_balance column to users table.", e);
         }
     }
 
@@ -105,6 +127,10 @@ public class JdbcUserDao implements UserDao {
                 if (balance == null) {
                     balance = BigDecimal.ZERO;
                 }
+                BigDecimal pendingBalance = resultSet.getBigDecimal("pending_balance");
+                if (pendingBalance == null) {
+                    pendingBalance = BigDecimal.ZERO;
+                }
                 boolean banned = resultSet.getBoolean("is_banned");
                 return Optional.of(new User(
                         normalizedUsername,
@@ -112,6 +138,7 @@ public class JdbcUserDao implements UserDao {
                         passwordHash,
                         UserRoleUtil.fromDatabaseRole(databaseRole),
                         balance,
+                        pendingBalance,
                         banned
                 ));
             }
@@ -134,6 +161,10 @@ public class JdbcUserDao implements UserDao {
                 if (balance == null) {
                     balance = BigDecimal.ZERO;
                 }
+                BigDecimal pendingBalance = resultSet.getBigDecimal("pending_balance");
+                if (pendingBalance == null) {
+                    pendingBalance = BigDecimal.ZERO;
+                }
                 boolean banned = resultSet.getBoolean("is_banned");
                 users.add(new User(
                         StringUtil.normalizeString(username),
@@ -141,6 +172,7 @@ public class JdbcUserDao implements UserDao {
                         passwordHash,
                         UserRoleUtil.fromDatabaseRole(databaseRole),
                         balance,
+                        pendingBalance,
                         banned
                 ));
             }
@@ -172,6 +204,8 @@ public class JdbcUserDao implements UserDao {
             statement.setString(3, UserRoleUtil.toDatabaseRole(user));
             BigDecimal balance = Objects.requireNonNullElse(user.getBalance(), BigDecimal.ZERO);
             statement.setBigDecimal(4, balance);
+            BigDecimal pendingBalance = Objects.requireNonNullElse(user.getPendingBalance(), BigDecimal.ZERO);
+            statement.setBigDecimal(5, pendingBalance);
             return statement.executeUpdate() == 1;
         } catch (SQLException e) {
             throw new DatabaseException("Failed to create user.", e);
@@ -202,6 +236,47 @@ public class JdbcUserDao implements UserDao {
             return statement.executeUpdate() == 1;
         } catch (SQLException e) {
             throw new DatabaseException("Failed to decrease balance.", e);
+        }
+    }
+
+    public boolean lockFunds(String normalizedUsername, BigDecimal amount) {
+        requirePositiveMoney(amount);
+        try (Connection connection = databaseManager.getConnection();
+             PreparedStatement statement = connection.prepareStatement(LOCK_FUNDS_QUERY)) {
+            statement.setBigDecimal(1, amount);
+            statement.setBigDecimal(2, amount);
+            statement.setString(3, normalizedUsername);
+            statement.setBigDecimal(4, amount);
+            return statement.executeUpdate() == 1;
+        } catch (SQLException e) {
+            throw new DatabaseException("Failed to lock funds.", e);
+        }
+    }
+
+    public boolean releaseFunds(String normalizedUsername, BigDecimal amount) {
+        requirePositiveMoney(amount);
+        try (Connection connection = databaseManager.getConnection();
+             PreparedStatement statement = connection.prepareStatement(RELEASE_FUNDS_QUERY)) {
+            statement.setBigDecimal(1, amount);
+            statement.setBigDecimal(2, amount);
+            statement.setString(3, normalizedUsername);
+            statement.setBigDecimal(4, amount);
+            return statement.executeUpdate() == 1;
+        } catch (SQLException e) {
+            throw new DatabaseException("Failed to release funds.", e);
+        }
+    }
+
+    public boolean transferPendingFunds(String normalizedUsername, BigDecimal amount) {
+        requirePositiveMoney(amount);
+        try (Connection connection = databaseManager.getConnection();
+             PreparedStatement statement = connection.prepareStatement(TRANSFER_PENDING_QUERY)) {
+            statement.setBigDecimal(1, amount);
+            statement.setString(2, normalizedUsername);
+            statement.setBigDecimal(3, amount);
+            return statement.executeUpdate() == 1;
+        } catch (SQLException e) {
+            throw new DatabaseException("Failed to transfer pending funds.", e);
         }
     }
 
