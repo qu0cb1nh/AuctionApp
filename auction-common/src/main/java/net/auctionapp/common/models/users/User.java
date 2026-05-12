@@ -12,18 +12,24 @@ public class User extends Entity {
     private final UserRole role;
     private AutoBidConfig autoBidConfig;
     private BigDecimal balance;
+    private BigDecimal pendingBalance;
     private boolean banned;
 
     public User(String id, String username, String passwordHash, UserRole role, boolean banned) {
-        this(id, username, passwordHash, role, BigDecimal.ZERO, banned);
+        this(id, username, passwordHash, role, BigDecimal.ZERO, BigDecimal.ZERO, banned);
     }
 
     public User(String id, String username, String passwordHash, UserRole role, BigDecimal balance, boolean banned) {
+        this(id, username, passwordHash, role, balance, BigDecimal.ZERO, banned);
+    }
+
+    public User(String id, String username, String passwordHash, UserRole role, BigDecimal balance, BigDecimal pendingBalance, boolean banned) {
         super(id);
         this.username = username;
         this.passwordHash = passwordHash;
         this.role = role == null ? UserRole.USER : role;
         this.balance = Objects.requireNonNullElse(balance, BigDecimal.ZERO);
+        this.pendingBalance = Objects.requireNonNullElse(pendingBalance, BigDecimal.ZERO);
         this.banned = banned;
     }
 
@@ -57,6 +63,14 @@ public class User extends Entity {
 
     public void setBalance(BigDecimal balance) {
         this.balance = Objects.requireNonNullElse(balance, BigDecimal.ZERO);
+    }
+
+    public BigDecimal getPendingBalance() {
+        return pendingBalance;
+    }
+
+    public void setPendingBalance(BigDecimal pendingBalance) {
+        this.pendingBalance = Objects.requireNonNullElse(pendingBalance, BigDecimal.ZERO);
     }
 
     public boolean isBanned() {
