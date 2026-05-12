@@ -34,20 +34,32 @@ import java.util.ResourceBundle;
 public class AuctionItemController implements Initializable {
     @FXML
     private HeaderController appHeaderController;
-
-    @FXML private BorderPane rootPane;
-    @FXML private ImageView productImageView;
-    @FXML private Label productNameLabel;
-    @FXML private Label descriptionLabel;
-    @FXML private Label currentBidLabel;
-    @FXML private Label leadingBidderLabel;
-    @FXML private Label auctionStatusLabel;
-    @FXML private Label timeRemainingLabel;
-    @FXML private Label minimumNextBidLabel;
-    @FXML private TextField bidAmountField;
-    @FXML private Button placeBidButton;
-    @FXML private Label messageLabel;
-    @FXML private LineChart<String, Number> priceHistoryChart;
+    @FXML
+    private BorderPane rootPane;
+    @FXML
+    private ImageView productImageView;
+    @FXML
+    private Label productNameLabel;
+    @FXML
+    private Label descriptionLabel;
+    @FXML
+    private Label currentBidLabel;
+    @FXML
+    private Label leadingBidderLabel;
+    @FXML
+    private Label auctionStatusLabel;
+    @FXML
+    private Label timeRemainingLabel;
+    @FXML
+    private Label minimumNextBidLabel;
+    @FXML
+    private TextField bidAmountField;
+    @FXML
+    private Button placeBidButton;
+    @FXML
+    private Label messageLabel;
+    @FXML
+    private LineChart<String, Number> priceHistoryChart;
 
     private String currentAuctionId;
     private BigDecimal currentHighestBid = BigDecimal.ZERO;
@@ -56,7 +68,6 @@ public class AuctionItemController implements Initializable {
     private MessageListener<PriceUpdateMessage> priceUpdateListener;
     private boolean priceUpdateListenerRegistered;
 
-    @FXML
     @Override
     public void initialize(URL location, ResourceBundle resources) {
         appHeaderController.setupHeader("Auction Details", true, "AuctionList");
@@ -67,6 +78,7 @@ public class AuctionItemController implements Initializable {
         priceHistoryChart.getData().clear();
         priceSeries.setName("Bid price");
         priceHistoryChart.getData().add(priceSeries);
+
         rootPane.sceneProperty().addListener((observable, oldScene, newScene) -> {
             if (oldScene != null) {
                 cleanupEventListeners();

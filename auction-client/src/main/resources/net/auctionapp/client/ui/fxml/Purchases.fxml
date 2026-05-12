@@ -41,7 +41,7 @@
                         <Label style="-fx-font-size: 20px; -fx-font-weight: bold; -fx-text-fill: #153e5c;" text="Purchase History" />
                         <Label fx:id="statusLabel" style="-fx-text-fill: #666666;" text="Loading purchases..." />
                         <Label fx:id="summaryLabel" style="-fx-text-fill: #3f5569; -fx-font-size: 12px;" text="" />
-                        <FlowPane fx:id="purchaseFlowPane" hgap="20.0" vgap="20.0" />
+                        <FlowPane fx:id="purchaseFlowPane" hgap="16.0" prefWrapLength="930.0" vgap="16.0" />
                     </children>
                 </VBox>
             </content>

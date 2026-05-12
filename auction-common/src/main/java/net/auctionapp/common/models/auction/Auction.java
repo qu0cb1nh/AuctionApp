@@ -217,6 +217,20 @@ public class Auction extends Entity {
         this.winnerBidderId = winnerBidderId;
     }
 
+    public synchronized void resetForRerun(LocalDateTime newStartTime, LocalDateTime newEndTime) {
+        if (newStartTime == null || newEndTime == null || !newEndTime.isAfter(newStartTime)) {
+            throw new IllegalArgumentException("Reset window is invalid.");
+        }
+        startTime = newStartTime;
+        endTime = newEndTime;
+        currentPrice = startingPrice;
+        leadingBidderId = null;
+        winnerBidderId = null;
+        status = AuctionStatus.RUNNING;
+        bidHistory.clear();
+        autoBidRegistry.clear();
+    }
+
     public synchronized BigDecimal getMinimumNextBid() {
         if (currentPrice == null || minimumBidIncrement == null) {
             return null;

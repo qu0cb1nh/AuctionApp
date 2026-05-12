@@ -44,10 +44,10 @@
                <VBox.margin>
                   <Insets top="50.0" />
                </VBox.margin>
-               <padding>
-                   <Insets bottom="20.0" top="20.0" />
-                </padding>
-             </Button>
+                <padding>
+                    <Insets bottom="20.0" top="20.0" />
+                 </padding>
+              </Button>
          </children>
       </VBox>
    </center>

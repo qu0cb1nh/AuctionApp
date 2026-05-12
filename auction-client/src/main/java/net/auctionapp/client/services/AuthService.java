@@ -26,8 +26,8 @@ public final class AuthService {
 
     public void setCurrentUser(String userId, String username, UserRole role) {
         this.currentUserId = userId;
-        this.currentUsername = username;
-        this.currentUserRole = role;
+        this.currentUsername = (username == null || username.isBlank()) ? "Guest" : username;
+        this.currentUserRole = role == null ? UserRole.USER : role;
     }
 
     private AuthService() {
@@ -45,4 +45,3 @@ public final class AuthService {
         NetworkService.getInstance().sendRequest(new RegisterRequestMessage(username, password), callback);
     }
 }
-

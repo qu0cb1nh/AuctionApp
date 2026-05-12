@@ -104,6 +104,28 @@ public class JdbcAuctionDao implements AuctionDao {
                 end_time = ?
             WHERE id = ?
             """;
+    private static final String UPDATE_AUCTION_QUERY = """
+            UPDATE auctions
+            SET
+                title = ?,
+                description = ?,
+                starting_price = ?,
+                minimum_bid_increment = ?,
+                current_price = ?,
+                status = ?,
+                leading_bidder_id = ?,
+                winner_bidder_id = ?,
+                start_time = ?,
+                end_time = ?,
+                brand = ?,
+                model = ?,
+                warranty_months = ?,
+                author = ?,
+                year_created = ?
+            WHERE id = ?
+            """;
+    private static final String DELETE_AUCTION_BY_ID_QUERY =
+            "DELETE FROM auctions WHERE id = ?";
 
     private final DatabaseManager databaseManager;
 
@@ -150,28 +172,7 @@ public class JdbcAuctionDao implements AuctionDao {
             setNullableString(statement, 12, auction.getWinnerBidderId());
             statement.setTimestamp(13, Timestamp.valueOf(auction.getStartTime()));
             statement.setTimestamp(14, Timestamp.valueOf(auction.getEndTime()));
-
-            if (item instanceof Electronics electronics) {
-                statement.setString(15, electronics.getBrand());
-                statement.setString(16, electronics.getModel());
-                statement.setInt(17, electronics.getWarrantyMonths());
-                statement.setNull(18, java.sql.Types.VARCHAR);
-                statement.setNull(19, java.sql.Types.INTEGER);
-            } else if (item instanceof Vehicle vehicle) {
-                statement.setString(15, vehicle.getBrand());
-                statement.setString(16, vehicle.getModel());
-                statement.setNull(17, java.sql.Types.INTEGER);
-                statement.setNull(18, java.sql.Types.VARCHAR);
-                statement.setInt(19, vehicle.getYearCreated());
-            } else if (item instanceof Art art) {
-                statement.setNull(15, java.sql.Types.VARCHAR);
-                statement.setNull(16, java.sql.Types.VARCHAR);
-                statement.setNull(17, java.sql.Types.INTEGER);
-                statement.setString(18, art.getAuthor());
-                statement.setInt(19, art.getYearCreated());
-            } else {
-                throw unsupportedItemTypeError(item.getClass().getName());
-            }
+            bindItemAttributes(statement, 15, item);
 
             return statement.executeUpdate() == 1;
         } catch (SQLException e) {
@@ -192,6 +193,40 @@ public class JdbcAuctionDao implements AuctionDao {
             return statement.executeUpdate() == 1;
         } catch (SQLException e) {
             throw new DatabaseException("Failed to update auction state.", e);
+        }
+    }
+
+    @Override
+    public boolean updateAuction(Auction auction) {
+        Item item = auction.getItem();
+        try (Connection connection = databaseManager.getConnection();
+             PreparedStatement statement = connection.prepareStatement(UPDATE_AUCTION_QUERY)) {
+            statement.setString(1, item.getTitle());
+            statement.setString(2, item.getDescription());
+            statement.setBigDecimal(3, auction.getStartingPrice());
+            statement.setBigDecimal(4, auction.getMinimumBidIncrement());
+            statement.setBigDecimal(5, auction.getCurrentPrice());
+            statement.setString(6, auction.getStatus().name());
+            setNullableString(statement, 7, auction.getLeadingBidderId());
+            setNullableString(statement, 8, auction.getWinnerBidderId());
+            statement.setTimestamp(9, Timestamp.valueOf(auction.getStartTime()));
+            statement.setTimestamp(10, Timestamp.valueOf(auction.getEndTime()));
+            bindItemAttributes(statement, 11, item);
+            statement.setString(16, auction.getId());
+            return statement.executeUpdate() == 1;
+        } catch (SQLException e) {
+            throw new DatabaseException("Failed to update auction.", e);
+        }
+    }
+
+    @Override
+    public boolean deleteAuctionById(String auctionId) {
+        try (Connection connection = databaseManager.getConnection();
+             PreparedStatement statement = connection.prepareStatement(DELETE_AUCTION_BY_ID_QUERY)) {
+            statement.setString(1, auctionId);
+            return statement.executeUpdate() == 1;
+        } catch (SQLException e) {
+            throw new DatabaseException("Failed to delete auction.", e);
         }
     }
 
@@ -249,6 +284,34 @@ public class JdbcAuctionDao implements AuctionDao {
                 "Unsupported item class: " + itemTypeName,
                 new IllegalArgumentException(itemTypeName)
         );
+    }
+
+    private void bindItemAttributes(PreparedStatement statement, int startIndex, Item item) throws SQLException {
+        if (item instanceof Electronics electronics) {
+            statement.setString(startIndex, electronics.getBrand());
+            statement.setString(startIndex + 1, electronics.getModel());
+            statement.setInt(startIndex + 2, electronics.getWarrantyMonths());
+            statement.setNull(startIndex + 3, java.sql.Types.VARCHAR);
+            statement.setNull(startIndex + 4, java.sql.Types.INTEGER);
+            return;
+        }
+        if (item instanceof Vehicle vehicle) {
+            statement.setString(startIndex, vehicle.getBrand());
+            statement.setString(startIndex + 1, vehicle.getModel());
+            statement.setNull(startIndex + 2, java.sql.Types.INTEGER);
+            statement.setNull(startIndex + 3, java.sql.Types.VARCHAR);
+            statement.setInt(startIndex + 4, vehicle.getYearCreated());
+            return;
+        }
+        if (item instanceof Art art) {
+            statement.setNull(startIndex, java.sql.Types.VARCHAR);
+            statement.setNull(startIndex + 1, java.sql.Types.VARCHAR);
+            statement.setNull(startIndex + 2, java.sql.Types.INTEGER);
+            statement.setString(startIndex + 3, art.getAuthor());
+            statement.setInt(startIndex + 4, art.getYearCreated());
+            return;
+        }
+        throw unsupportedItemTypeError(item.getClass().getName());
     }
 
     private AuctionStatus parseAuctionStatus(String rawStatus, String winnerBidderId) {

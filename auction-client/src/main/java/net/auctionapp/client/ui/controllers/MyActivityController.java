@@ -7,6 +7,7 @@ import javafx.scene.control.Button;
 import javafx.scene.control.ComboBox;
 import javafx.scene.control.Label;
 import javafx.scene.control.TextField;
+import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.FlowPane;
 import javafx.scene.layout.VBox;
@@ -70,12 +71,21 @@ public class MyActivityController implements Initializable {
     private Label bidSectionLabel;
     @FXML
     private Label sellerSectionLabel;
+    @FXML
+    private Label bidsNavLabel;
+    @FXML
+    private Label auctionsNavLabel;
+    @FXML
+    private VBox bidPageBox;
+    @FXML
+    private VBox sellerPageBox;
 
     private final List<ActivityCard> allBidActivities = new ArrayList<>();
     private final List<ActivityCard> loadedBidActivities = new ArrayList<>();
     private final List<ActivityCard> allSellerActivities = new ArrayList<>();
     private final List<ActivityCard> loadedSellerActivities = new ArrayList<>();
     private final Set<String> pendingAuctionIds = new HashSet<>();
+    private ActivitySection activeSection = ActivitySection.BIDS;
 
     @Override
     public void initialize(URL location, ResourceBundle resources) {
@@ -93,6 +103,7 @@ public class MyActivityController implements Initializable {
                 STATUS_CANCELED
         );
         statusFilterComboBox.getSelectionModel().selectFirst();
+        setActiveSection(ActivitySection.BIDS);
         rootPane.sceneProperty().addListener((observable, oldScene, newScene) -> {
             if (oldScene != null) {
                 // No persistent request handlers to clean up.
@@ -119,6 +130,16 @@ public class MyActivityController implements Initializable {
         applyFilters();
     }
 
+    @FXML
+    public void handleShowBidPage(MouseEvent event) {
+        setActiveSection(ActivitySection.BIDS);
+    }
+
+    @FXML
+    public void handleShowAuctionPage(MouseEvent event) {
+        setActiveSection(ActivitySection.AUCTIONS);
+    }
+
     private void loadActivity() {
         pendingAuctionIds.clear();
         allBidActivities.clear();
@@ -127,8 +148,7 @@ public class MyActivityController implements Initializable {
         loadedSellerActivities.clear();
         renderBidCards(List.of(), false);
         renderSellerCards(List.of(), false);
-        statusLabel.setStyle("-fx-text-fill: #3f5569; -fx-font-size: 12px;");
-        statusLabel.setText("Loading your activity...");
+        setNeutralStatus("Loading your activity...");
         AuctionService.getInstance().requestAuctionList(this::handleAuctionListRequestResult);
     }
 
@@ -138,8 +158,7 @@ public class MyActivityController implements Initializable {
             return;
         }
         if (!(message instanceof AuctionListResponseMessage response)) {
-            statusLabel.setStyle("-fx-text-fill: #d9534f; -fx-font-size: 12px;");
-            statusLabel.setText("Unexpected response from server.");
+            setErrorStatus("Unexpected response from server.");
             return;
         }
         handleAuctionListResponse(response);
@@ -161,12 +180,12 @@ public class MyActivityController implements Initializable {
             allSellerActivities.clear();
             renderBidCards(List.of(), false);
             renderSellerCards(List.of(), false);
-            statusLabel.setText("No auctions available yet.");
+            setNeutralStatus("No auctions available yet.");
             return;
         }
 
         pendingAuctionIds.addAll(auctionIds);
-        statusLabel.setText("Loading details for " + pendingAuctionIds.size() + " auction(s)...");
+        setNeutralStatus("Loading auction details...");
         for (String auctionId : auctionIds) {
             AuctionService.getInstance().requestAuctionDetails(
                     auctionId,
@@ -196,7 +215,7 @@ public class MyActivityController implements Initializable {
         toSellerActivity(response, currentUsername).ifPresent(loadedSellerActivities::add);
 
         if (!pendingAuctionIds.isEmpty()) {
-            statusLabel.setText("Loading details for " + pendingAuctionIds.size() + " auction(s)...");
+            setNeutralStatus("Loading auction details...");
             return;
         }
 
@@ -208,11 +227,10 @@ public class MyActivityController implements Initializable {
             pendingAuctionIds.remove(auctionId);
         }
         if (errorMessage != null && !errorMessage.isBlank()) {
-            statusLabel.setStyle("-fx-text-fill: #d9534f; -fx-font-size: 12px;");
-            statusLabel.setText(errorMessage);
+            setErrorStatus(errorMessage);
         }
         if (!pendingAuctionIds.isEmpty()) {
-            statusLabel.setText("Loading details for " + pendingAuctionIds.size() + " auction(s)...");
+            setNeutralStatus("Loading auction details...");
             return;
         }
         finalizeLoadedActivities();
@@ -241,8 +259,7 @@ public class MyActivityController implements Initializable {
     }
 
     private void handleErrorResponse(ErrorMessage errorMessage) {
-        statusLabel.setStyle("-fx-text-fill: #d9534f; -fx-font-size: 12px;");
-        statusLabel.setText(errorMessage.getErrorMessage());
+        setErrorStatus(errorMessage.getErrorMessage());
     }
 
     private void applyFilters() {
@@ -263,12 +280,9 @@ public class MyActivityController implements Initializable {
 
         renderBidCards(filteredBids, !allBidActivities.isEmpty());
         renderSellerCards(filteredSellerAuctions, !allSellerActivities.isEmpty());
-        bidSectionLabel.setText("Your Bids (" + filteredBids.size() + "/" + allBidActivities.size() + ")");
-        sellerSectionLabel.setText("Your Auctions (" + filteredSellerAuctions.size() + "/" + allSellerActivities.size() + ")");
-        statusLabel.setStyle("-fx-text-fill: #3f5569; -fx-font-size: 12px;");
-        statusLabel.setText("Showing "
-                + filteredBids.size() + "/" + allBidActivities.size() + " bids and "
-                + filteredSellerAuctions.size() + "/" + allSellerActivities.size() + " auctions.");
+        bidSectionLabel.setText("Your Bids");
+        sellerSectionLabel.setText("Your Auctions");
+        updateSectionSummary();
     }
 
     private boolean matchesStatusFilter(String status, String selectedStatus) {
@@ -309,7 +323,7 @@ public class MyActivityController implements Initializable {
 
     private VBox createActivityCard(ActivityCard activity) {
         VBox card = new VBox(8.0);
-        card.setPrefSize(260.0, 270.0);
+        card.setPrefSize(299.0, 272.0);
         card.setStyle("-fx-background-color: white; -fx-background-radius: 12; "
                 + "-fx-border-color: #d4e1ee; -fx-border-width: 1; -fx-border-radius: 12; "
                 + "-fx-effect: dropshadow(three-pass-box, rgba(0,0,0,0.12), 8, 0, 0, 0); "
@@ -532,6 +546,59 @@ public class MyActivityController implements Initializable {
                 && !LocalDateTime.now().isBefore(response.getEndTime());
     }
 
+    private void setActiveSection(ActivitySection section) {
+        activeSection = section;
+        boolean showBidPage = section == ActivitySection.BIDS;
+        bidPageBox.setVisible(showBidPage);
+        bidPageBox.setManaged(showBidPage);
+        sellerPageBox.setVisible(!showBidPage);
+        sellerPageBox.setManaged(!showBidPage);
+
+        bidsNavLabel.setStyle(showBidPage
+                ? "-fx-font-size: 15px; -fx-font-weight: bold; -fx-underline: true; -fx-text-fill: #153e5c; -fx-cursor: hand; -fx-padding: 6 10 6 10;"
+                : "-fx-font-size: 15px; -fx-text-fill: #53677a; -fx-cursor: hand; -fx-padding: 6 10 6 10;");
+        auctionsNavLabel.setStyle(showBidPage
+                ? "-fx-font-size: 15px; -fx-text-fill: #53677a; -fx-cursor: hand; -fx-padding: 6 10 6 10;"
+                : "-fx-font-size: 15px; -fx-font-weight: bold; -fx-underline: true; -fx-text-fill: #153e5c; -fx-cursor: hand; -fx-padding: 6 10 6 10;");
+        updateSectionSummary();
+    }
+
+    private void updateSectionSummary() {
+        if (!pendingAuctionIds.isEmpty()) {
+            setNeutralStatus("Loading auction details...");
+            return;
+        }
+        if (statusLabel.getStyle() != null && statusLabel.getStyle().contains("#d9534f")) {
+            return;
+        }
+        hideStatus();
+    }
+
+    private void setNeutralStatus(String text) {
+        setStatus(text, "-fx-text-fill: #3f5569; -fx-font-size: 12px;");
+    }
+
+    private void setErrorStatus(String text) {
+        setStatus(text, "-fx-text-fill: #d9534f; -fx-font-size: 12px;");
+    }
+
+    private void hideStatus() {
+        statusLabel.setText("");
+        statusLabel.setManaged(false);
+        statusLabel.setVisible(false);
+    }
+
+    private void setStatus(String text, String style) {
+        if (text == null || text.isBlank()) {
+            hideStatus();
+            return;
+        }
+        statusLabel.setManaged(true);
+        statusLabel.setVisible(true);
+        statusLabel.setStyle(style);
+        statusLabel.setText(text);
+    }
+
     private record ActivityCard(
             String auctionId,
             String auctionTitle,
@@ -546,5 +613,10 @@ public class MyActivityController implements Initializable {
             String winnerBidderId,
             LocalDateTime endTime
     ) {
+    }
+
+    private enum ActivitySection {
+        BIDS,
+        AUCTIONS
     }
 }
