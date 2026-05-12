@@ -225,6 +225,40 @@ public class AuthManager {
         return target;
     }
 
+    public User deposit(String userId, java.math.BigDecimal amount) {
+        if (amount == null || amount.signum() <= 0) {
+            throw new ValidationException("Deposit amount must be positive.");
+        }
+        String normalizedUserId = StringUtil.normalizeString(userId);
+        User user = requireUserById(normalizedUserId);
+        
+        if (requireUserDao().increaseBalance(normalizedUserId, amount)) {
+            user.setBalance(user.getBalance().add(amount));
+            cacheUser(user);
+            return user;
+        }
+        throw new DatabaseException("Failed to process deposit.");
+    }
+
+    public User withdraw(String userId, java.math.BigDecimal amount) {
+        if (amount == null || amount.signum() <= 0) {
+            throw new ValidationException("Withdrawal amount must be positive.");
+        }
+        String normalizedUserId = StringUtil.normalizeString(userId);
+        User user = requireUserById(normalizedUserId);
+        
+        if (user.getBalance().compareTo(amount) < 0) {
+            throw new ValidationException("Insufficient liquid balance for withdrawal.");
+        }
+
+        if (requireUserDao().tryDecreaseBalance(normalizedUserId, amount)) {
+            user.setBalance(user.getBalance().subtract(amount));
+            cacheUser(user);
+            return user;
+        }
+        throw new DatabaseException("Failed to process withdrawal.");
+    }
+
     private User cacheUser(User user) {
         if (user == null) {
             throw new NotFoundException("User not found.");
