@@ -65,6 +65,7 @@ public final class AuctionManager {
     private final AuthManager authManager;
     private final NotificationManager notificationManager;
     private volatile AuctionDao auctionDao;
+    private volatile net.auctionapp.server.dao.UserDao userDao;
 
     private AuctionManager() {
         this.authManager = AuthManager.getInstance();
@@ -76,6 +77,17 @@ public final class AuctionManager {
             instance = new AuctionManager();
         }
         return instance;
+    }
+
+    public void setUserDao(net.auctionapp.server.dao.UserDao userDao) {
+        this.userDao = userDao;
+    }
+
+    private net.auctionapp.server.dao.UserDao requireUserDao() {
+        if (userDao == null) {
+            throw new IllegalStateException("User DAO has not been configured.");
+        }
+        return userDao;
     }
 
     // --- Message Handling Logic ---
@@ -370,13 +382,33 @@ public final class AuctionManager {
     public BidSubmissionResult submitBid(String auctionId, String bidderId, BigDecimal amount) {
         Auction auction = requireAuction(auctionId);
         String normalizedBidderId = StringUtil.normalizeString(bidderId);
-        authManager.requireUserById(normalizedBidderId);
+        User bidder = authManager.requireUserById(normalizedBidderId);
         validateBidAmount(amount);
         ensureBidderIsNotSeller(auction, normalizedBidderId);
 
         refreshAuctionStatuses();
         LocalDateTime now = LocalDateTime.now();
         ensureAuctionIsRunning(auction, now);
+
+        // Check if bidder is already the leading bidder to apply the "High Water Mark" rule
+        BigDecimal incrementalAmount = amount;
+        String previousLeadingBidderId = auction.getLeadingBidderId();
+        boolean isAlreadyLeading = normalizedBidderId.equalsIgnoreCase(previousLeadingBidderId);
+        
+        if (isAlreadyLeading) {
+            BigDecimal previousBidAmount = auction.getCurrentPrice();
+            incrementalAmount = amount.subtract(previousBidAmount);
+            
+            if (incrementalAmount.signum() <= 0) {
+                throw new InvalidBidException("Your new bid must be higher than your current leading bid.");
+            }
+        }
+
+        // Check if bidder has sufficient balance for the incremental amount
+        if (bidder.getBalance().compareTo(incrementalAmount) < 0) {
+            throw new InvalidBidException("Insufficient balance. You need an additional " + incrementalAmount + " but have " + bidder.getBalance() + ".");
+        }
+
         BidTransaction bid = new BidTransaction(
                 UUID.randomUUID().toString(),
                 amount,
@@ -386,15 +418,26 @@ public final class AuctionManager {
                 false
         );
 
-        String previousLeadingBidderId;
         synchronized (auction) {
             ensureAuctionIsRunning(auction, now);
             ensureBidAmountMeetsMinimum(auction, amount);
-            previousLeadingBidderId = auction.getLeadingBidderId();
+            
+            // Lock only the incremental funds
+            if (!requireUserDao().lockFunds(normalizedBidderId, incrementalAmount)) {
+                throw new InvalidBidException("Failed to lock funds. Please check your balance.");
+            }
+
             if (!auction.placeBid(bid, now)) {
+                // Rollback fund locking if auction rules reject the bid
+                requireUserDao().releaseFunds(normalizedBidderId, incrementalAmount);
                 throw new InvalidBidException("Bid was rejected by auction rules.");
             }
+
+            // Update cached balance for the bidder
+            bidder.setBalance(bidder.getBalance().subtract(incrementalAmount));
+            bidder.setPendingBalance(bidder.getPendingBalance().add(incrementalAmount));
         }
+
         persistAuctionState(auction);
         return new BidSubmissionResult(bid, previousLeadingBidderId);
     }
@@ -423,6 +466,7 @@ public final class AuctionManager {
             }
             auction.setWinnerBidderId(auction.getLeadingBidderId());
             auction.setStatus(AuctionStatus.PAID);
+            settleFundsForAuction(auction);
         }
         persistAuctionState(auction);
         broadcastAuctionStatusChanged(auction);
@@ -440,6 +484,7 @@ public final class AuctionManager {
             }
             auction.setStatus(AuctionStatus.CANCELED);
             auction.setWinnerBidderId(null);
+            settleFundsForAuction(auction);
         }
         persistAuctionState(auction);
         broadcastAuctionStatusChanged(auction);
@@ -626,7 +671,48 @@ public final class AuctionManager {
                 auction.setWinnerBidderId(leadingBidderId);
                 auction.setStatus(AuctionStatus.PAID);
             }
+            settleFundsForAuction(auction);
             return true;
+        }
+    }
+
+    private void settleFundsForAuction(Auction auction) {
+        String winnerId = StringUtil.normalizeString(auction.getWinnerBidderId());
+        String sellerId = StringUtil.normalizeString(auction.getSellerId());
+        BigDecimal winningAmount = auction.getCurrentPrice();
+        List<BidTransaction> history = auction.getBidHistory();
+
+        // 1. If there's a winner, transfer winner's pending funds to seller's liquid balance
+        if (!winnerId.isEmpty() && auction.getStatus() == AuctionStatus.PAID) {
+            // Deduct from winner's pending
+            if (requireUserDao().transferPendingFunds(winnerId, winningAmount)) {
+                User winner = authManager.requireUserById(winnerId);
+                winner.setPendingBalance(winner.getPendingBalance().subtract(winningAmount));
+                
+                // Add to seller's liquid balance
+                if (requireUserDao().increaseBalance(sellerId, winningAmount)) {
+                    User seller = authManager.requireUserById(sellerId);
+                    seller.setBalance(seller.getBalance().add(winningAmount));
+                    LOGGER.info("Winner {} paid {}. Seller {} received funds for auction {}", 
+                            winnerId, winningAmount, sellerId, auction.getId());
+                }
+            }
+        }
+
+        // 2. Release all other bids (refund to liquid balance)
+        for (BidTransaction bid : history) {
+            boolean isTheWinningBid = bid.getBidderId().equalsIgnoreCase(winnerId) 
+                                   && bid.getAmount().compareTo(winningAmount) == 0;
+            
+            if (isTheWinningBid && auction.getStatus() == AuctionStatus.PAID) {
+                continue; // Already handled by transfer/seller increase
+            }
+
+            if (requireUserDao().releaseFunds(bid.getBidderId(), bid.getAmount())) {
+                User user = authManager.requireUserById(bid.getBidderId());
+                user.setBalance(user.getBalance().add(bid.getAmount()));
+                user.setPendingBalance(user.getPendingBalance().subtract(bid.getAmount()));
+            }
         }
     }
 

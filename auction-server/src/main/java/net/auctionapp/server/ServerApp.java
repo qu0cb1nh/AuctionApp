@@ -48,8 +48,10 @@ public class ServerApp {
 
         try {
             DatabaseManager.getInstance().createConnectionPool(); // Initializes database connection pool
-            AuthManager.getInstance().setUserDao(new JdbcUserDao());
+            JdbcUserDao jdbcUserDao = new JdbcUserDao();
+            AuthManager.getInstance().setUserDao(jdbcUserDao);
             AuctionManager.getInstance().setAuctionDao(new JdbcAuctionDao());
+            AuctionManager.getInstance().setUserDao(jdbcUserDao);
             NotificationManager.getInstance().setNotificationDao(new JdbcNotificationDao());
 
             serverSocket = new ServerSocket(ConfigUtil.getServerPort(), MAX_CLIENTS);
