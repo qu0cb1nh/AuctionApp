@@ -1,6 +1,7 @@
 package net.auctionapp.server.dao;
 
 import net.auctionapp.common.models.users.User;
+import net.auctionapp.common.utils.StringUtil;
 import net.auctionapp.server.exceptions.DatabaseException;
 import net.auctionapp.server.managers.DatabaseManager;
 import net.auctionapp.server.utils.UserRoleUtil;
@@ -11,6 +12,8 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
 
@@ -20,14 +23,19 @@ public class JdbcUserDao implements UserDao {
                 username VARCHAR(255) PRIMARY KEY,
                 password_hash VARCHAR(255) NOT NULL,
                 role VARCHAR(64) NOT NULL,
-                balance DECIMAL(19, 2) NOT NULL DEFAULT 0
+                balance DECIMAL(19, 2) NOT NULL DEFAULT 0,
+                is_banned BOOLEAN NOT NULL DEFAULT FALSE
             )
             """;
 
     private static final String FIND_BY_USERNAME_QUERY =
-            "SELECT username, password_hash, role, balance FROM users WHERE lower(username) = ? LIMIT 1";
+            "SELECT username, password_hash, role, balance, is_banned FROM users WHERE lower(username) = ? LIMIT 1";
+    private static final String FIND_ALL_USERS_QUERY =
+            "SELECT username, password_hash, role, balance, is_banned FROM users ORDER BY username ASC";
     private static final String CREATE_USER_QUERY =
             "INSERT INTO users (username, password_hash, role, balance) VALUES (?, ?, ?, ?)";
+    private static final String UPDATE_BAN_STATUS_QUERY =
+            "UPDATE users SET is_banned = ? WHERE lower(username) = ?";
     private static final String INCREASE_BALANCE_QUERY =
             "UPDATE users SET balance = balance + ? WHERE lower(username) = ?";
     private static final String TRY_DECREASE_BALANCE_QUERY =
@@ -93,13 +101,18 @@ public class JdbcUserDao implements UserDao {
                 String username = resultSet.getString("username");
                 String passwordHash = resultSet.getString("password_hash");
                 String databaseRole = resultSet.getString("role");
-                BigDecimal balance = readBalance(resultSet);
+                BigDecimal balance = resultSet.getBigDecimal("balance");
+                if (balance == null) {
+                    balance = BigDecimal.ZERO;
+                }
+                boolean banned = resultSet.getBoolean("is_banned");
                 return Optional.of(new User(
                         normalizedUsername,
                         username,
                         passwordHash,
                         UserRoleUtil.fromDatabaseRole(databaseRole),
-                        balance
+                        balance,
+                        banned
                 ));
             }
         } catch (SQLException e) {
@@ -107,9 +120,46 @@ public class JdbcUserDao implements UserDao {
         }
     }
 
-    private static BigDecimal readBalance(ResultSet resultSet) throws SQLException {
-        BigDecimal raw = resultSet.getBigDecimal("balance");
-        return raw == null ? BigDecimal.ZERO : raw;
+    @Override
+    public List<User> findAllUsers() {
+        List<User> users = new ArrayList<>();
+        try (Connection connection = databaseManager.getConnection();
+             PreparedStatement statement = connection.prepareStatement(FIND_ALL_USERS_QUERY);
+             ResultSet resultSet = statement.executeQuery()) {
+            while (resultSet.next()) {
+                String username = resultSet.getString("username");
+                String passwordHash = resultSet.getString("password_hash");
+                String databaseRole = resultSet.getString("role");
+                BigDecimal balance = resultSet.getBigDecimal("balance");
+                if (balance == null) {
+                    balance = BigDecimal.ZERO;
+                }
+                boolean banned = resultSet.getBoolean("is_banned");
+                users.add(new User(
+                        StringUtil.normalizeString(username),
+                        username,
+                        passwordHash,
+                        UserRoleUtil.fromDatabaseRole(databaseRole),
+                        balance,
+                        banned
+                ));
+            }
+            return users;
+        } catch (SQLException e) {
+            throw new DatabaseException("Failed to load users.", e);
+        }
+    }
+
+    @Override
+    public boolean updateBanStatus(String normalizedUsername, boolean banned) {
+        try (Connection connection = databaseManager.getConnection();
+             PreparedStatement statement = connection.prepareStatement(UPDATE_BAN_STATUS_QUERY)) {
+            statement.setBoolean(1, banned);
+            statement.setString(2, normalizedUsername);
+            return statement.executeUpdate() == 1;
+        } catch (SQLException e) {
+            throw new DatabaseException("Failed to update user ban status.", e);
+        }
     }
 
     @Override

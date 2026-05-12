@@ -3,6 +3,7 @@ package net.auctionapp.server.dao;
 import net.auctionapp.common.models.users.User;
 
 import java.math.BigDecimal;
+import java.util.List;
 import java.util.Optional;
 
 public interface UserDao {
@@ -10,18 +11,11 @@ public interface UserDao {
 
     boolean createUser(User user);
 
-    /**
-     * Adds {@code amount} to the user's balance. {@code amount} must be positive.
-     *
-     * @return true if the user existed and one row was updated
-     */
+    List<User> findAllUsers();
+
+    boolean updateBanStatus(String normalizedUsername, boolean banned);
+
     boolean increaseBalance(String normalizedUsername, BigDecimal amount);
 
-    /**
-     * Subtracts {@code amount} from the user's balance if it is sufficient.
-     * {@code amount} must be positive.
-     *
-     * @return true if the debit succeeded
-     */
     boolean tryDecreaseBalance(String normalizedUsername, BigDecimal amount);
 }

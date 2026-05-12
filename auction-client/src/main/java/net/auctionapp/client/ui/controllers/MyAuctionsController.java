@@ -96,8 +96,7 @@ public class MyAuctionsController implements Initializable {
         allUserAuctions.clear();
         loadedUserAuctions.clear();
         renderAuctionCards(allUserAuctions);
-        statusLabel.setStyle(STATUS_TEXT_STYLE);
-        statusLabel.setText("Loading your auctions...");
+        showStatus("Loading your auctions...", STATUS_TEXT_STYLE);
         AuctionService.getInstance().requestAuctionList(this::handleAuctionListRequestResult);
     }
 
@@ -107,8 +106,7 @@ public class MyAuctionsController implements Initializable {
             return;
         }
         if (!(message instanceof AuctionListResponseMessage response)) {
-            statusLabel.setStyle("-fx-text-fill: #d9534f; -fx-font-size: 12px; -fx-font-weight: bold;");
-            statusLabel.setText("Unexpected response from server.");
+            showStatus("Unexpected response from server.", "-fx-text-fill: #d9534f; -fx-font-size: 12px; -fx-font-weight: bold;");
             return;
         }
         handleAuctionListResponse(response);
@@ -127,12 +125,12 @@ public class MyAuctionsController implements Initializable {
         if (auctionIds.isEmpty()) {
             allUserAuctions.clear();
             renderAuctionCards(allUserAuctions);
-            statusLabel.setText("No auctions available yet.");
+            showStatus("No auctions available yet.", STATUS_TEXT_STYLE);
             return;
         }
 
         pendingAuctionIds.addAll(auctionIds);
-        statusLabel.setText("Loading details for " + pendingAuctionIds.size() + " auction(s)...");
+        showStatus("Loading auction details...", STATUS_TEXT_STYLE);
         for (String auctionId : auctionIds) {
             AuctionService.getInstance().requestAuctionDetails(
                     auctionId,
@@ -159,7 +157,7 @@ public class MyAuctionsController implements Initializable {
 
         toAuctionCard(response, resolveCurrentUsername()).ifPresent(loadedUserAuctions::add);
         if (!pendingAuctionIds.isEmpty()) {
-            statusLabel.setText("Loading details for " + pendingAuctionIds.size() + " auction(s)...");
+            showStatus("Loading auction details...", STATUS_TEXT_STYLE);
             return;
         }
 
@@ -171,11 +169,10 @@ public class MyAuctionsController implements Initializable {
             pendingAuctionIds.remove(auctionId);
         }
         if (errorMessage != null && !errorMessage.isBlank()) {
-            statusLabel.setStyle("-fx-text-fill: #d9534f; -fx-font-size: 12px; -fx-font-weight: bold;");
-            statusLabel.setText(errorMessage);
+            showStatus(errorMessage, "-fx-text-fill: #d9534f; -fx-font-size: 12px; -fx-font-weight: bold;");
         }
         if (!pendingAuctionIds.isEmpty()) {
-            statusLabel.setText("Loading details for " + pendingAuctionIds.size() + " auction(s)...");
+            showStatus("Loading auction details...", STATUS_TEXT_STYLE);
             return;
         }
         finalizeLoadedAuctions();
@@ -194,8 +191,7 @@ public class MyAuctionsController implements Initializable {
     }
 
     private void handleErrorResponse(ErrorMessage errorMessage) {
-        statusLabel.setStyle("-fx-text-fill: #d9534f; -fx-font-size: 12px; -fx-font-weight: bold;");
-        statusLabel.setText(errorMessage.getErrorMessage());
+        showStatus(errorMessage.getErrorMessage(), "-fx-text-fill: #d9534f; -fx-font-size: 12px; -fx-font-weight: bold;");
     }
 
     private void applyFilters() {
@@ -210,8 +206,7 @@ public class MyAuctionsController implements Initializable {
                 .toList();
 
         renderAuctionCards(filtered);
-        statusLabel.setStyle(STATUS_TEXT_STYLE);
-        statusLabel.setText("Showing " + filtered.size() + " of " + allUserAuctions.size() + " auctions.");
+        hideStatus();
     }
 
     private void renderAuctionCards(List<AuctionCard> auctions) {
@@ -230,7 +225,7 @@ public class MyAuctionsController implements Initializable {
 
     private VBox createAuctionCard(AuctionCard auction) {
         VBox card = new VBox(8.0);
-        card.setPrefSize(240.0, 240.0);
+        card.setPrefSize(299.0, 255.0);
         card.setStyle("-fx-background-color: white; -fx-background-radius: 10; "
                 + "-fx-effect: dropshadow(three-pass-box, rgba(0,0,0,0.2), 10, 0, 0, 0); "
                 + "-fx-padding: 10;");
@@ -397,5 +392,22 @@ public class MyAuctionsController implements Initializable {
             LocalDateTime endTime,
             String winnerBidderId
     ) {
+    }
+
+    private void hideStatus() {
+        statusLabel.setText("");
+        statusLabel.setManaged(false);
+        statusLabel.setVisible(false);
+    }
+
+    private void showStatus(String text, String style) {
+        if (text == null || text.isBlank()) {
+            hideStatus();
+            return;
+        }
+        statusLabel.setManaged(true);
+        statusLabel.setVisible(true);
+        statusLabel.setStyle(style);
+        statusLabel.setText(text);
     }
 }

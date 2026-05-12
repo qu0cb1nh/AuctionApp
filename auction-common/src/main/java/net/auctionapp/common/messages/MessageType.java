@@ -47,6 +47,36 @@ public enum MessageType {
      */
     CLEAR_NOTIFICATIONS_REQUEST,
 
+    /**
+     * (Admin) Request to load all users.
+     */
+    ADMIN_GET_USERS_REQUEST,
+
+    /**
+     * (Admin) Request to update banned state of a user.
+     */
+    ADMIN_SET_USER_BAN_REQUEST,
+
+    /**
+     * (Admin) Request to edit auction information.
+     */
+    ADMIN_UPDATE_AUCTION_REQUEST,
+
+    /**
+     * (Admin) Request to delete an auction.
+     */
+    ADMIN_DELETE_AUCTION_REQUEST,
+
+    /**
+     * (Admin) Request to force-close an auction immediately.
+     */
+    ADMIN_FORCE_CLOSE_AUCTION_REQUEST,
+
+    /**
+     * (Admin) Request to reset an auction for rerun.
+     */
+    ADMIN_RESET_AUCTION_REQUEST,
+
 
     // === Server -> Client Messages ===
 
@@ -89,6 +119,16 @@ public enum MessageType {
      * Response after creating a new auction successfully.
      */
     CREATE_ITEM_SUCCESS,
+
+    /**
+     * (Admin) Response containing all users with moderation metadata.
+     */
+    ADMIN_GET_USERS_RESPONSE,
+
+    /**
+     * (Admin) Generic success response for mutating actions.
+     */
+    ADMIN_ACTION_SUCCESS,
 
     /**
      * Response to the bidding client that their bid was accepted.

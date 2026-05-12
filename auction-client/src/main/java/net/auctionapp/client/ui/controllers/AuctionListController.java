@@ -10,16 +10,19 @@ import javafx.scene.control.Label;
 import javafx.scene.control.TextField;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.FlowPane;
+import javafx.scene.layout.HBox;
 import javafx.scene.layout.VBox;
 import net.auctionapp.client.ClientApp;
 import net.auctionapp.client.ui.managers.SceneManager;
 import net.auctionapp.client.services.AuctionService;
+import net.auctionapp.client.services.AuthService;
 import net.auctionapp.client.utils.DurationFormatUtil;
 import net.auctionapp.common.messages.Message;
 import net.auctionapp.common.messages.types.AuctionListResponseMessage;
 import net.auctionapp.common.messages.types.AuctionSummary;
 import net.auctionapp.common.messages.types.ErrorMessage;
 import net.auctionapp.common.models.auction.AuctionStatus;
+import net.auctionapp.common.models.users.UserRole;
 
 import java.math.BigDecimal;
 import java.net.URL;
@@ -55,11 +58,13 @@ public class AuctionListController implements Initializable {
     private ComboBox<String> sortComboBox;
 
     private final List<AuctionSummary> allAuctions = new ArrayList<>();
+    private boolean adminUser;
 
     @FXML
     @Override
     public void initialize(URL location, ResourceBundle resources) {
         appHeaderController.setupHeader("Explore Auctions", true, "MainMenu");
+        adminUser = AuthService.getInstance().getCurrentUserRole() == UserRole.ADMIN;
         statusFilterComboBox.getItems().setAll(
                 STATUS_ALL,
                 "OPEN",
@@ -81,8 +86,7 @@ public class AuctionListController implements Initializable {
     }
 
     private void requestAuctionList() {
-        listStatusLabel.setStyle("-fx-text-fill: #666666;");
-        listStatusLabel.setText("Loading auctions...");
+        showListStatus("Loading auctions...", "-fx-text-fill: #666666;");
         AuctionService.getInstance().requestAuctionList(this::handleAuctionListResult);
     }
 
@@ -92,8 +96,7 @@ public class AuctionListController implements Initializable {
             return;
         }
         if (!(message instanceof AuctionListResponseMessage response)) {
-            listStatusLabel.setStyle("-fx-text-fill: #d9534f;");
-            listStatusLabel.setText("Unexpected response from server.");
+            showListStatus("Unexpected response from server.", "-fx-text-fill: #d9534f;");
             return;
         }
 
@@ -107,8 +110,7 @@ public class AuctionListController implements Initializable {
     }
 
     private void handleErrorResponse(ErrorMessage errorMessage) {
-        listStatusLabel.setStyle("-fx-text-fill: #d9534f;");
-        listStatusLabel.setText(errorMessage.getErrorMessage());
+        showListStatus(errorMessage.getErrorMessage(), "-fx-text-fill: #d9534f;");
     }
 
     @FXML
@@ -143,19 +145,16 @@ public class AuctionListController implements Initializable {
 
         List<AuctionSummary> sorted = sortAuctions(filtered, selectedSort);
         renderAuctionCards(sorted);
-        listStatusLabel.setStyle("-fx-text-fill: #666666;");
+        showListStatus(null, "-fx-text-fill: #666666;");
         if (allAuctions.isEmpty()) {
-            listStatusLabel.setText("No auctions available.");
+            showListStatus("No auctions available.", "-fx-text-fill: #666666;");
             return;
         }
         if (filtered.isEmpty()) {
-            listStatusLabel.setText("No auctions match your search/filter.");
+            showListStatus("No auctions match your search/filter.", "-fx-text-fill: #666666;");
             return;
         }
-        listStatusLabel.setText(
-                "Showing " + filtered.size() + " of " + allAuctions.size() + " auction(s) "
-                        + "- sorted by " + resolveSortLabel(selectedSort) + "."
-        );
+        hideListStatus();
     }
 
     private void renderAuctionCards(List<AuctionSummary> auctions) {
@@ -191,10 +190,20 @@ public class AuctionListController implements Initializable {
         Label timingLabel = new Label(formatTimingLabel(auction));
         timingLabel.setStyle("-fx-text-fill: #3f5569;");
 
-        Button bidButton = new Button(resolveButtonLabel(displayStatus));
-        bidButton.setStyle("-fx-background-color: #3bb3d1; -fx-text-fill: white; "
+        Button viewButton = new Button(resolveButtonLabel(displayStatus));
+        viewButton.setStyle("-fx-background-color: #3bb3d1; -fx-text-fill: white; "
                 + "-fx-background-radius: 8; -fx-font-weight: bold; -fx-cursor: hand;");
-        bidButton.setOnAction(event -> handleViewItem(auction.getAuctionId()));
+        viewButton.setOnAction(event -> handleViewItem(auction.getAuctionId()));
+
+        HBox actions = new HBox(8.0);
+        actions.getChildren().add(viewButton);
+        if (adminUser) {
+            Button manageButton = new Button("Manage auction");
+            manageButton.setStyle("-fx-background-color: #153e5c; -fx-text-fill: white; "
+                    + "-fx-background-radius: 8; -fx-font-weight: bold; -fx-cursor: hand;");
+            manageButton.setOnAction(event -> handleManageAuction(auction.getAuctionId()));
+            actions.getChildren().add(manageButton);
+        }
 
         VBox card = new VBox(
                 8.0,
@@ -206,11 +215,11 @@ public class AuctionListController implements Initializable {
                 startLabel,
                 endLabel,
                 timingLabel,
-                bidButton
+                actions
         );
         card.setPadding(new Insets(10.0));
-        card.setPrefWidth(222.0);
-        card.setPrefHeight(260.0);
+        card.setPrefWidth(299.0);
+        card.setPrefHeight(268.0);
         card.setStyle(
                 "-fx-background-color: white; "
                         + "-fx-border-color: #d4e1ee; "
@@ -250,13 +259,6 @@ public class AuctionListController implements Initializable {
             case "OPEN" -> 1;
             default -> 2;
         };
-    }
-
-    private String resolveSortLabel(String selectedSort) {
-        if (selectedSort == null || selectedSort.isBlank()) {
-            return SORT_ENDING_SOON.toLowerCase(Locale.ROOT);
-        }
-        return selectedSort.toLowerCase(Locale.ROOT);
     }
 
     private String formatPrice(BigDecimal value) {
@@ -338,6 +340,28 @@ public class AuctionListController implements Initializable {
     private void handleViewItem(String auctionId) {
         ClientApp.getInstance().setSelectedAuctionId(auctionId);
         SceneManager.switchScene("AuctionItem");
+    }
+
+    private void handleManageAuction(String auctionId) {
+        ClientApp.getInstance().setSelectedAuctionId(auctionId);
+        SceneManager.switchScene("ManageAuction");
+    }
+
+    private void hideListStatus() {
+        listStatusLabel.setText("");
+        listStatusLabel.setManaged(false);
+        listStatusLabel.setVisible(false);
+    }
+
+    private void showListStatus(String text, String style) {
+        if (text == null || text.isBlank()) {
+            hideListStatus();
+            return;
+        }
+        listStatusLabel.setManaged(true);
+        listStatusLabel.setVisible(true);
+        listStatusLabel.setStyle(style);
+        listStatusLabel.setText(text);
     }
 
 }

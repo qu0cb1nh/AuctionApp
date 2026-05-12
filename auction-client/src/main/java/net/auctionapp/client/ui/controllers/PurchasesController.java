@@ -64,6 +64,8 @@ public class PurchasesController implements Initializable {
         appHeaderController.setupHeader("Purchases", true, "MainMenu");
         statusFilterComboBox.getItems().setAll(STATUS_ALL, STATUS_PENDING_PAYMENT, STATUS_PAID);
         statusFilterComboBox.getSelectionModel().selectFirst();
+        summaryLabel.setManaged(false);
+        summaryLabel.setVisible(false);
         rootPane.sceneProperty().addListener((observable, oldScene, newScene) -> {
             if (oldScene != null) {
                 // No persistent request handlers to clean up.
@@ -105,9 +107,7 @@ public class PurchasesController implements Initializable {
         allPurchases.clear();
         loadedPurchases.clear();
         renderPurchaseCards(allPurchases, false);
-        statusLabel.setStyle(STATUS_TEXT_STYLE);
-        statusLabel.setText("Loading your purchases...");
-        summaryLabel.setText("");
+        showStatus("Loading your purchases...", STATUS_TEXT_STYLE);
         AuctionService.getInstance().requestAuctionList(this::handleAuctionListRequestResult);
     }
 
@@ -117,8 +117,7 @@ public class PurchasesController implements Initializable {
             return;
         }
         if (!(message instanceof AuctionListResponseMessage response)) {
-            statusLabel.setStyle("-fx-text-fill: #d9534f; -fx-font-size: 12px; -fx-font-weight: bold;");
-            statusLabel.setText("Unexpected response from server.");
+            showStatus("Unexpected response from server.", "-fx-text-fill: #d9534f; -fx-font-size: 12px; -fx-font-weight: bold;");
             return;
         }
         handleAuctionListResponse(response);
@@ -137,13 +136,12 @@ public class PurchasesController implements Initializable {
         if (auctionIds.isEmpty()) {
             allPurchases.clear();
             renderPurchaseCards(allPurchases, false);
-            statusLabel.setText("No auctions available yet.");
-            summaryLabel.setText("");
+            showStatus("No auctions available yet.", STATUS_TEXT_STYLE);
             return;
         }
 
         pendingAuctionIds.addAll(auctionIds);
-        statusLabel.setText("Loading details for " + pendingAuctionIds.size() + " auction(s)...");
+        showStatus("Loading auction details...", STATUS_TEXT_STYLE);
         for (String auctionId : auctionIds) {
             AuctionService.getInstance().requestAuctionDetails(
                     auctionId,
@@ -170,7 +168,7 @@ public class PurchasesController implements Initializable {
 
         toPurchaseCard(response, resolveCurrentUsername()).ifPresent(loadedPurchases::add);
         if (!pendingAuctionIds.isEmpty()) {
-            statusLabel.setText("Loading details for " + pendingAuctionIds.size() + " auction(s)...");
+            showStatus("Loading auction details...", STATUS_TEXT_STYLE);
             return;
         }
 
@@ -182,11 +180,10 @@ public class PurchasesController implements Initializable {
             pendingAuctionIds.remove(auctionId);
         }
         if (errorMessage != null && !errorMessage.isBlank()) {
-            statusLabel.setStyle("-fx-text-fill: #d9534f; -fx-font-size: 12px; -fx-font-weight: bold;");
-            statusLabel.setText(errorMessage);
+            showStatus(errorMessage, "-fx-text-fill: #d9534f; -fx-font-size: 12px; -fx-font-weight: bold;");
         }
         if (!pendingAuctionIds.isEmpty()) {
-            statusLabel.setText("Loading details for " + pendingAuctionIds.size() + " auction(s)...");
+            showStatus("Loading auction details...", STATUS_TEXT_STYLE);
             return;
         }
         finalizeLoadedPurchases();
@@ -205,8 +202,7 @@ public class PurchasesController implements Initializable {
     }
 
     private void handleErrorResponse(ErrorMessage errorMessage) {
-        statusLabel.setStyle("-fx-text-fill: #d9534f; -fx-font-size: 12px; -fx-font-weight: bold;");
-        statusLabel.setText(errorMessage.getErrorMessage());
+        showStatus(errorMessage.getErrorMessage(), "-fx-text-fill: #d9534f; -fx-font-size: 12px; -fx-font-weight: bold;");
     }
 
     private void applyFilters() {
@@ -221,15 +217,7 @@ public class PurchasesController implements Initializable {
                 .toList();
 
         renderPurchaseCards(filtered, !allPurchases.isEmpty());
-        statusLabel.setStyle(STATUS_TEXT_STYLE);
-        statusLabel.setText("Showing " + filtered.size() + " of " + allPurchases.size() + " purchases.");
-        long pendingCount = allPurchases.stream()
-                .filter(purchase -> STATUS_PENDING_PAYMENT.equalsIgnoreCase(purchase.purchaseStatus()))
-                .count();
-        long paidCount = allPurchases.stream()
-                .filter(purchase -> STATUS_PAID.equalsIgnoreCase(purchase.purchaseStatus()))
-                .count();
-        summaryLabel.setText("Pending payment: " + pendingCount + " | Paid: " + paidCount);
+        hideStatus();
     }
 
     private void renderPurchaseCards(List<PurchaseCard> purchases, boolean hasAnyPurchases) {
@@ -249,7 +237,7 @@ public class PurchasesController implements Initializable {
 
     private VBox createPurchaseCard(PurchaseCard purchase) {
         VBox card = new VBox(8.0);
-        card.setPrefSize(255.0, 238.0);
+        card.setPrefSize(299.0, 250.0);
         card.setStyle("-fx-background-color: white; -fx-background-radius: 12; "
                 + "-fx-border-color: #d4e1ee; -fx-border-width: 1; -fx-border-radius: 12; "
                 + "-fx-effect: dropshadow(three-pass-box, rgba(0,0,0,0.12), 8, 0, 0, 0); "
@@ -368,5 +356,22 @@ public class PurchasesController implements Initializable {
             String purchaseStatus,
             LocalDateTime endTime
     ) {
+    }
+
+    private void hideStatus() {
+        statusLabel.setText("");
+        statusLabel.setManaged(false);
+        statusLabel.setVisible(false);
+    }
+
+    private void showStatus(String text, String style) {
+        if (text == null || text.isBlank()) {
+            hideStatus();
+            return;
+        }
+        statusLabel.setManaged(true);
+        statusLabel.setVisible(true);
+        statusLabel.setStyle(style);
+        statusLabel.setText(text);
     }
 }

@@ -10,4 +10,8 @@ public interface AuctionDao {
     boolean createAuction(Auction auction);
 
     boolean updateAuctionState(Auction auction);
+
+    boolean updateAuction(Auction auction);
+
+    boolean deleteAuctionById(String auctionId);
 }

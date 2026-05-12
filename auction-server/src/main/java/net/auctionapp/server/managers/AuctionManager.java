@@ -41,6 +41,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.math.BigDecimal;
+import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
@@ -242,6 +243,7 @@ public final class AuctionManager {
         if (!updated) {
             throw new InvalidAuctionStateException("Auction draft update data is invalid.");
         }
+        persistAuctionDetails(auction);
         return auction;
     }
 
@@ -272,6 +274,86 @@ public final class AuctionManager {
         persistAuctionState(auction);
         broadcastAuctionStatusChanged(auction);
         auctions.remove(auctionId);
+    }
+
+    public Auction adminUpdateAuction(
+            String actorId,
+            String auctionId,
+            String title,
+            String description,
+            BigDecimal startingPrice,
+            BigDecimal minimumBidIncrement,
+            LocalDateTime startTime,
+            LocalDateTime endTime
+    ) {
+        authManager.requireAdminUser(StringUtil.normalizeString(actorId));
+        Auction auction = requireAuction(auctionId);
+        synchronized (auction) {
+            boolean updated = auction.updateListingDetails(
+                    title,
+                    description,
+                    startingPrice,
+                    minimumBidIncrement,
+                    startTime,
+                    endTime
+            );
+            if (!updated) {
+                throw new InvalidAuctionStateException("Auction update data is invalid.");
+            }
+            auction.setStatus(AuctionStatus.RUNNING);
+        }
+        announcedEndedAuctionIds.remove(auction.getId());
+        persistAuctionDetails(auction);
+        return auction;
+    }
+
+    public void adminDeleteAuction(String actorId, String auctionId) {
+        authManager.requireAdminUser(StringUtil.normalizeString(actorId));
+        Auction auction = requireAuction(auctionId);
+        if (!deleteAuctionFromPersistence(auction.getId())) {
+            throw new AuctionAppException("Auction could not be deleted.");
+        }
+        auctions.remove(auction.getId());
+        announcedEndedAuctionIds.remove(auction.getId());
+    }
+
+    public Auction adminForceCloseAuction(String actorId, String auctionId) {
+        authManager.requireAdminUser(StringUtil.normalizeString(actorId));
+        Auction auction = requireAuction(auctionId);
+        synchronized (auction) {
+            if (auction.getStatus() == AuctionStatus.PAID || auction.getStatus() == AuctionStatus.CANCELED) {
+                throw new InvalidAuctionStateException("Auction is already closed.");
+            }
+            String leadingBidderId = StringUtil.normalizeString(auction.getLeadingBidderId());
+            if (leadingBidderId.isEmpty()) {
+                auction.setWinnerBidderId(null);
+                auction.setStatus(AuctionStatus.CANCELED);
+            } else {
+                auction.setWinnerBidderId(leadingBidderId);
+                auction.setStatus(AuctionStatus.PAID);
+            }
+        }
+        persistAuctionState(auction);
+        broadcastAuctionStatusChanged(auction);
+        return auction;
+    }
+
+    public Auction adminResetAuction(String actorId, String auctionId) {
+        authManager.requireAdminUser(StringUtil.normalizeString(actorId));
+        Auction auction = requireAuction(auctionId);
+        LocalDateTime now = LocalDateTime.now();
+        synchronized (auction) {
+            Duration originalDuration = Duration.between(auction.getStartTime(), auction.getEndTime());
+            if (originalDuration.isNegative() || originalDuration.isZero()) {
+                originalDuration = Duration.ofHours(1);
+            }
+            LocalDateTime resetEndTime = now.plus(originalDuration);
+            auction.resetForRerun(now, resetEndTime);
+        }
+        announcedEndedAuctionIds.remove(auction.getId());
+        persistAuctionDetails(auction);
+        broadcastPriceUpdate(auction);
+        return auction;
     }
 
     public boolean placeBid(String auctionId, BidTransaction bid) {
@@ -443,6 +525,31 @@ public final class AuctionManager {
             throw new AuctionAppException("Failed to persist auction state.");
         }
         throw new AuctionAppException("Auction state could not be persisted.");
+    }
+
+    private void persistAuctionDetails(Auction auction) {
+        if (auctionDao == null) {
+            return;
+        }
+        try {
+            if (auctionDao.updateAuction(auction)) {
+                return;
+            }
+        } catch (DatabaseException e) {
+            throw new AuctionAppException("Failed to persist auction details.");
+        }
+        throw new AuctionAppException("Auction details could not be persisted.");
+    }
+
+    private boolean deleteAuctionFromPersistence(String auctionId) {
+        if (auctionDao == null) {
+            return true;
+        }
+        try {
+            return auctionDao.deleteAuctionById(auctionId);
+        } catch (DatabaseException e) {
+            throw new AuctionAppException("Failed to delete auction.");
+        }
     }
 
     private Auction requireAuction(String auctionId) {

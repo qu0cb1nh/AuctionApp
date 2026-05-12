@@ -5,8 +5,10 @@ import javafx.fxml.FXML;
 import javafx.scene.control.Button;
 import javafx.scene.control.Label;
 import javafx.scene.control.MenuButton;
+import javafx.scene.control.MenuItem;
 import net.auctionapp.client.services.AuthService;
 import net.auctionapp.client.ui.managers.SceneManager;
+import net.auctionapp.common.models.users.UserRole;
 
 public class HeaderController {
     @FXML
@@ -15,6 +17,8 @@ public class HeaderController {
     private Label titleLabel;
     @FXML
     private MenuButton userMenuButton;
+    @FXML
+    private MenuItem adminPanelMenuItem;
 
     private String backTargetFxml = "MainMenu";
 
@@ -22,6 +26,8 @@ public class HeaderController {
     public void initialize() {
         String username = AuthService.getInstance().getCurrentUsername();
         userMenuButton.setText((username == null || username.isBlank()) ? "Guest" : username);
+        boolean isAdmin = AuthService.getInstance().getCurrentUserRole() == UserRole.ADMIN;
+        adminPanelMenuItem.setVisible(isAdmin);
     }
 
     public void setupHeader(String title, boolean showBackButton, String backTarget) {
@@ -50,6 +56,11 @@ public class HeaderController {
     @FXML
     public void handleOpenPurchases(ActionEvent event) {
         SceneManager.switchScene("Purchases");
+    }
+
+    @FXML
+    public void handleOpenAdminPanel(ActionEvent event) {
+        SceneManager.switchScene("AdminPanel");
     }
 
     @FXML

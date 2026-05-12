@@ -12,17 +12,19 @@ public class User extends Entity {
     private final UserRole role;
     private AutoBidConfig autoBidConfig;
     private BigDecimal balance;
+    private boolean banned;
 
-    public User(String id, String username, String passwordHash, UserRole role) {
-        this(id, username, passwordHash, role, BigDecimal.ZERO);
+    public User(String id, String username, String passwordHash, UserRole role, boolean banned) {
+        this(id, username, passwordHash, role, BigDecimal.ZERO, banned);
     }
 
-    public User(String id, String username, String passwordHash, UserRole role, BigDecimal balance) {
+    public User(String id, String username, String passwordHash, UserRole role, BigDecimal balance, boolean banned) {
         super(id);
         this.username = username;
         this.passwordHash = passwordHash;
         this.role = role == null ? UserRole.USER : role;
         this.balance = Objects.requireNonNullElse(balance, BigDecimal.ZERO);
+        this.banned = banned;
     }
 
     public String getUsername() {
@@ -55,5 +57,13 @@ public class User extends Entity {
 
     public void setBalance(BigDecimal balance) {
         this.balance = Objects.requireNonNullElse(balance, BigDecimal.ZERO);
+    }
+
+    public boolean isBanned() {
+        return banned;
+    }
+
+    public void setBanned(boolean banned) {
+        this.banned = banned;
     }
 }

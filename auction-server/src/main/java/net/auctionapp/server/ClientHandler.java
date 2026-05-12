@@ -1,10 +1,12 @@
 package net.auctionapp.server;
 
 import net.auctionapp.common.messages.Message;
+import net.auctionapp.common.messages.MessageType;
 import net.auctionapp.common.messages.types.*;
 import net.auctionapp.common.models.users.UserRole;
 import net.auctionapp.common.utils.JsonUtil;
 import net.auctionapp.server.exceptions.AuctionAppException;
+import net.auctionapp.server.managers.AdminManager;
 import net.auctionapp.server.managers.AuthManager;
 import net.auctionapp.server.managers.AuctionManager;
 import net.auctionapp.server.managers.NotificationManager;
@@ -27,6 +29,7 @@ public class ClientHandler implements Runnable {
     private BufferedReader in;
     private final AuctionManager auctionManager;
     private final AuthManager authManager;
+    private final AdminManager adminManager;
     private final NotificationManager notificationManager;
     private final SessionManager sessionManager;
     private final AtomicBoolean closed = new AtomicBoolean(false);
@@ -37,6 +40,7 @@ public class ClientHandler implements Runnable {
         this.socket = socket;
         this.auctionManager = AuctionManager.getInstance();
         this.authManager = AuthManager.getInstance();
+        this.adminManager = AdminManager.getInstance();
         this.notificationManager = NotificationManager.getInstance();
         this.sessionManager = SessionManager.getInstance();
     }
@@ -82,6 +86,12 @@ public class ClientHandler implements Runnable {
         LOGGER.info("Closing connection for client {}", socket.getInetAddress());
         try {
             socket.close();
+            if (out != null) {
+                out.close();
+            }
+            if (in != null) {
+                in.close();
+            }
         } catch (IOException e) {
             LOGGER.warn("Error while closing socket for {}: {}", socket.getInetAddress(), e.getMessage());
         } finally {
@@ -137,10 +147,14 @@ public class ClientHandler implements Runnable {
         if (authenticatedUserId == null || authenticatedRole == null) {
             throw new AuctionAppException("You must log in before using auction features.");
         }
+        authManager.requireActiveUserById(authenticatedUserId);
     }
 
     private void handleMessagesFromClient(Message message) {
         auctionManager.broadcastEndedAuctions();
+        if (shouldEnforceBannedAccess(message.getType()) && !enforceAuthenticatedSessionAccess(message)) {
+            return;
+        }
         switch (message.getType()) {
             case PING:
                 sendResponse(new PongMessage(), message);
@@ -169,10 +183,48 @@ public class ClientHandler implements Runnable {
             case CLEAR_NOTIFICATIONS_REQUEST:
                 notificationManager.handleClearNotifications((ClearNotificationsRequestMessage) message, this);
                 break;
+            case ADMIN_GET_USERS_REQUEST:
+                adminManager.handleGetUsers((AdminGetUsersRequestMessage) message, this);
+                break;
+            case ADMIN_SET_USER_BAN_REQUEST:
+                adminManager.handleSetUserBan((AdminSetUserBanRequestMessage) message, this);
+                break;
+            case ADMIN_UPDATE_AUCTION_REQUEST:
+                adminManager.handleUpdateAuction((AdminUpdateAuctionRequestMessage) message, this);
+                break;
+            case ADMIN_DELETE_AUCTION_REQUEST:
+                adminManager.handleDeleteAuction((AdminDeleteAuctionRequestMessage) message, this);
+                break;
+            case ADMIN_FORCE_CLOSE_AUCTION_REQUEST:
+                adminManager.handleForceCloseAuction((AdminForceCloseAuctionRequestMessage) message, this);
+                break;
+            case ADMIN_RESET_AUCTION_REQUEST:
+                adminManager.handleResetAuction((AdminResetAuctionRequestMessage) message, this);
+                break;
             default:
                 LOGGER.warn("Received unsupported message type: {} from {}", message.getType(), socket.getInetAddress());
                 sendResponse(new ErrorMessage("Unsupported message type."), message);
                 break;
+        }
+    }
+
+    private boolean shouldEnforceBannedAccess(MessageType messageType) {
+        return messageType != MessageType.LOGIN_REQUEST
+                && messageType != MessageType.REGISTER_REQUEST
+                && messageType != MessageType.PING;
+    }
+
+    private boolean enforceAuthenticatedSessionAccess(Message message) {
+        if (authenticatedUserId == null || authenticatedRole == null) {
+            return true;
+        }
+        try {
+            authManager.requireActiveUserById(authenticatedUserId);
+            return true;
+        } catch (AuctionAppException e) {
+            sendResponse(new ErrorMessage(e.getMessage()), message);
+            closeConnection();
+            return false;
         }
     }
 

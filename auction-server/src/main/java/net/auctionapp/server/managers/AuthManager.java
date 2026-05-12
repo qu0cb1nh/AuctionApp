@@ -1,6 +1,7 @@
 package net.auctionapp.server.managers;
 
 import net.auctionapp.common.messages.MessageType;
+import net.auctionapp.common.messages.types.ErrorMessage;
 import net.auctionapp.common.messages.types.LoginRequestMessage;
 import net.auctionapp.common.messages.types.LoginResultMessage;
 import net.auctionapp.common.messages.types.RegisterRequestMessage;
@@ -12,6 +13,8 @@ import net.auctionapp.common.utils.CredentialUtil;
 import net.auctionapp.common.utils.StringUtil;
 import net.auctionapp.server.ClientHandler;
 import net.auctionapp.server.dao.UserDao;
+import net.auctionapp.server.exceptions.AuthenticationException;
+import net.auctionapp.server.exceptions.AuthorizationException;
 import net.auctionapp.server.exceptions.DatabaseException;
 import net.auctionapp.server.exceptions.NotFoundException;
 import net.auctionapp.server.utils.UserRoleUtil;
@@ -19,7 +22,9 @@ import org.mindrot.jbcrypt.BCrypt;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 
@@ -66,6 +71,10 @@ public class AuthManager {
                 sendLoginFailure(request, clientHandler, INVALID_LOGIN_MESSAGE);
                 return;
             }
+            if (user.isBanned()) {
+                sendLoginFailure(request, clientHandler, "This account is banned.");
+                return;
+            }
 
             cacheUser(user);
             UserRole clientRole = UserRoleUtil.toClientRole(user);
@@ -110,7 +119,8 @@ public class AuthManager {
                     normalizedUsername,
                     username,
                     passwordHash,
-                    UserRoleUtil.fromDatabaseRole("user")
+                    UserRoleUtil.fromDatabaseRole("user"),
+                    false
             );
             if (!dao.createUser(user)) {
                 sendRegisterFailure(request, clientHandler, "Registration could not be completed.");
@@ -167,6 +177,54 @@ public class AuthManager {
         return cacheUser(userFromDatabase.get());
     }
 
+    public User requireActiveUserById(String userId) {
+        User user = requireUserById(userId);
+        if (user.isBanned()) {
+            throw new AuthenticationException("Your account is banned.");
+        }
+        return user;
+    }
+
+    public User requireAdminUser(String userId) {
+        User user = requireActiveUserById(userId);
+        if (!user.hasRole(UserRole.ADMIN)) {
+            throw new AuthorizationException("Admin privileges are required.");
+        }
+        return user;
+    }
+
+    public List<User> getAllUsers(String actorId) {
+        requireAdminUser(actorId);
+        List<User> users = requireUserDao().findAllUsers();
+        for (User user : users) {
+            cacheUser(user);
+        }
+        return users;
+    }
+
+    public User updateUserBanStatus(String actorId, String targetUserId, boolean banned) {
+        User actor = requireAdminUser(actorId);
+        String normalizedTargetUserId = StringUtil.normalizeString(targetUserId);
+        if (normalizedTargetUserId.isEmpty()) {
+            throw new NotFoundException("User not found.");
+        }
+        if (actor.getId().equals(normalizedTargetUserId) && banned) {
+            throw new AuthorizationException("Admin cannot ban own account.");
+        }
+
+        User target = requireUserById(normalizedTargetUserId);
+        if (!requireUserDao().updateBanStatus(normalizedTargetUserId, banned)) {
+            throw new NotFoundException("User not found.");
+        }
+
+        target.setBanned(banned);
+        cacheUser(target);
+        if (banned) {
+            disconnectBannedUserSessions(normalizedTargetUserId);
+        }
+        return target;
+    }
+
     private User cacheUser(User user) {
         if (user == null) {
             throw new NotFoundException("User not found.");
@@ -177,5 +235,17 @@ public class AuthManager {
         }
         usersById.put(normalizedUserId, user);
         return user;
+    }
+
+    private void disconnectBannedUserSessions(String userId) {
+        Set<ClientHandler> sessions = sessionManager.getClientsByUserId(userId);
+        if (sessions.isEmpty()) {
+            return;
+        }
+        List<ClientHandler> sessionSnapshot = List.copyOf(sessions);
+        for (ClientHandler clientHandler : sessionSnapshot) {
+            clientHandler.sendMessage(new ErrorMessage("Your account has been banned. You have been disconnected."));
+            clientHandler.closeConnection();
+        }
     }
 }
