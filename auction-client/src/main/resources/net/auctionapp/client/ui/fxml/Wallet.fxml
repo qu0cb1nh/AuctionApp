@@ -1,0 +1,78 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.scene.control.Button?>
+<?import javafx.scene.control.Label?>
+<?import javafx.scene.control.TextField?>
+<?import javafx.scene.layout.AnchorPane?>
+<?import javafx.scene.layout.HBox?>
+<?import javafx.scene.layout.VBox?>
+<?import javafx.scene.text.Font?>
+
+<AnchorPane prefHeight="720.0" prefWidth="500.0" style="-fx-background-color: #F5F9FF;" xmlns="http://javafx.com/javafx/25" xmlns:fx="http://javafx.com/fxml/1">
+
+    <!-- TOP BLUE HEADER -->
+    <VBox alignment="CENTER" layoutX="0.0" layoutY="0.0" prefHeight="86.0" prefWidth="500.0" style="-fx-background-color: linear-gradient(to right, #0066FF, #2F80FF);">
+
+        <Label text="Wallet" textFill="WHITE">
+            <font>
+                <Font name="System Bold" size="36.0" />
+            </font>
+        </Label>
+
+    </VBox>
+
+    <!-- BALANCE CARD -->
+    <VBox alignment="CENTER" layoutX="40.0" layoutY="160.0" prefHeight="156.0" prefWidth="420.0" spacing="15.0" style="                 -fx-background-color: white;                 -fx-background-radius: 20;                 -fx-border-radius: 20;                 -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.08), 15, 0, 0, 4);           ">
+
+        <Label prefHeight="35.0" prefWidth="140.0" style="-fx-text-fill: #2F80FF;" text="Your Balance">
+            <font>
+                <Font size="24.0" />
+            </font>
+        </Label>
+
+        <!-- BALANCE CAN CHANGE DYNAMICALLY -->
+        <TextField fx:id="balanceField" alignment="CENTER" editable="false" focusTraversable="false" prefHeight="87.0" prefWidth="420.0" style="                         -fx-background-color: transparent;                         -fx-border-color: transparent;                         -fx-text-fill: #0066FF;                         -fx-font-size: 52px;                         -fx-font-weight: bold;                    " text="100.000" />
+
+    </VBox>
+
+    <!-- DEPOSIT SECTION -->
+    <VBox layoutX="40.0" layoutY="390.0" spacing="15.0">
+
+        <Label style="-fx-text-fill: #0066FF;" text="Deposit">
+            <font>
+                <Font size="28.0" />
+            </font>
+        </Label>
+
+        <HBox alignment="CENTER_LEFT" spacing="15.0">
+
+            <!-- USER CAN TYPE HERE -->
+            <TextField fx:id="depositField" editable="true" prefHeight="55.0" prefWidth="260.0" promptText="Enter amount" style="                             -fx-background-color: white;                             -fx-background-radius: 12;                             -fx-border-radius: 12;                             -fx-border-color: #B7D4FF;                             -fx-font-size: 18px;                        " />
+
+            <Button fx:id="depositButton" prefHeight="55.0" prefWidth="145.0" style="                         -fx-background-color: linear-gradient(to right, #0066FF, #2F80FF);                         -fx-background-radius: 12;                         -fx-text-fill: white;                         -fx-font-size: 20px;                         -fx-font-weight: bold;                     " text="Deposit" />
+
+        </HBox>
+
+    </VBox>
+
+    <!-- WITHDRAW SECTION -->
+    <VBox layoutX="40.0" layoutY="540.0" spacing="15.0">
+
+        <Label style="-fx-text-fill: #0066FF;" text="Withdraw">
+            <font>
+                <Font size="28.0" />
+            </font>
+        </Label>
+
+        <HBox alignment="CENTER_LEFT" spacing="15.0">
+
+            <!-- USER CAN TYPE HERE -->
+            <TextField fx:id="withdrawField" editable="true" prefHeight="55.0" prefWidth="260.0" promptText="Enter amount" style="                             -fx-background-color: white;                             -fx-background-radius: 12;                             -fx-border-radius: 12;                             -fx-border-color: #B7D4FF;                             -fx-font-size: 18px;                        " />
+
+            <Button fx:id="withdrawButton" prefHeight="55.0" prefWidth="145.0" style="                         -fx-background-color: linear-gradient(to right, #0066FF, #2F80FF);                         -fx-background-radius: 12;                         -fx-text-fill: white;                         -fx-font-size: 20px;                         -fx-font-weight: bold;                     " text="Withdraw" />
+
+        </HBox>
+
+    </VBox>
+
+</AnchorPane>

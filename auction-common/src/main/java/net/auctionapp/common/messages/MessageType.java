@@ -77,6 +77,16 @@ public enum MessageType {
      */
     ADMIN_RESET_AUCTION_REQUEST,
 
+    /**
+     * Request to deposit funds.
+     */
+    DEPOSIT_REQUEST,
+
+    /**
+     * Request to withdraw funds.
+     */
+    WITHDRAW_REQUEST,
+
 
     // === Server -> Client Messages ===
 
@@ -159,6 +169,16 @@ public enum MessageType {
      * Sends a simple text-based notification message.
      */
     NOTIFICATION,
+
+    /**
+     * Response containing wallet balance info.
+     */
+    WALLET_RESPONSE,
+
+    /**
+     * (Push) Notifies client of real-time balance change.
+     */
+    BALANCE_UPDATE,
 
     /**
      * Sent by the Client to the Server at regular intervals (e.g., every 30 seconds).
