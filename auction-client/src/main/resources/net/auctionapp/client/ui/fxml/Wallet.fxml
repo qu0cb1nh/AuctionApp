@@ -8,7 +8,7 @@
 <?import javafx.scene.layout.VBox?>
 <?import javafx.scene.text.Font?>
 
-<AnchorPane prefHeight="720.0" prefWidth="500.0" style="-fx-background-color: #F5F9FF;" xmlns="http://javafx.com/javafx/25" xmlns:fx="http://javafx.com/fxml/1">
+<AnchorPane prefHeight="720.0" prefWidth="500.0" style="-fx-background-color: #F5F9FF;" xmlns="http://javafx.com/javafx/25" xmlns:fx="http://javafx.com/fxml/1" fx:controller="net.auctionapp.client.ui.controllers.WalletController">
 
     <!-- TOP BLUE HEADER -->
     <VBox alignment="CENTER" layoutX="0.0" layoutY="0.0" prefHeight="86.0" prefWidth="500.0" style="-fx-background-color: linear-gradient(to right, #0066FF, #2F80FF);">
@@ -49,7 +49,7 @@
             <!-- USER CAN TYPE HERE -->
             <TextField fx:id="depositField" editable="true" prefHeight="55.0" prefWidth="260.0" promptText="Enter amount" style="                             -fx-background-color: white;                             -fx-background-radius: 12;                             -fx-border-radius: 12;                             -fx-border-color: #B7D4FF;                             -fx-font-size: 18px;                        " />
 
-            <Button fx:id="depositButton" prefHeight="55.0" prefWidth="145.0" style="                         -fx-background-color: linear-gradient(to right, #0066FF, #2F80FF);                         -fx-background-radius: 12;                         -fx-text-fill: white;                         -fx-font-size: 20px;                         -fx-font-weight: bold;                     " text="Deposit" />
+            <Button fx:id="depositButton" onAction="#handleDeposit" prefHeight="55.0" prefWidth="145.0" style="                         -fx-background-color: linear-gradient(to right, #0066FF, #2F80FF);                         -fx-background-radius: 12;                         -fx-text-fill: white;                         -fx-font-size: 20px;                         -fx-font-weight: bold;                     " text="Deposit" />
 
         </HBox>
 
@@ -69,7 +69,7 @@
             <!-- USER CAN TYPE HERE -->
             <TextField fx:id="withdrawField" editable="true" prefHeight="55.0" prefWidth="260.0" promptText="Enter amount" style="                             -fx-background-color: white;                             -fx-background-radius: 12;                             -fx-border-radius: 12;                             -fx-border-color: #B7D4FF;                             -fx-font-size: 18px;                        " />
 
-            <Button fx:id="withdrawButton" prefHeight="55.0" prefWidth="145.0" style="                         -fx-background-color: linear-gradient(to right, #0066FF, #2F80FF);                         -fx-background-radius: 12;                         -fx-text-fill: white;                         -fx-font-size: 20px;                         -fx-font-weight: bold;                     " text="Withdraw" />
+            <Button fx:id="withdrawButton" onAction="#handleWithdraw" prefHeight="55.0" prefWidth="145.0" style="                         -fx-background-color: linear-gradient(to right, #0066FF, #2F80FF);                         -fx-background-radius: 12;                         -fx-text-fill: white;                         -fx-font-size: 20px;                         -fx-font-weight: bold;                     " text="Withdraw" />
 
         </HBox>
 

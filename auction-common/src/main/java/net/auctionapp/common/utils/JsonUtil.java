@@ -74,6 +74,9 @@ public final class JsonUtil {
                 case ERROR -> GSON.fromJson(json, ErrorMessage.class);
                 case PING -> GSON.fromJson(json, PingMessage.class);
                 case PONG -> GSON.fromJson(json, PongMessage.class);
+                case DEPOSIT_REQUEST -> GSON.fromJson(json, DepositRequestMessage.class);
+                case WITHDRAW_REQUEST -> GSON.fromJson(json, WithdrawRequestMessage.class);
+                case WALLET_RESPONSE -> GSON.fromJson(json, WalletResponseMessage.class);
                 default -> {
                     LOGGER.warn("Invalid JSON or unhandled message type: {}", json);
                     yield null;
