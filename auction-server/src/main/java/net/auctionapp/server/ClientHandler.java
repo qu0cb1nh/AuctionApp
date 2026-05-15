@@ -9,6 +9,7 @@ import net.auctionapp.server.exceptions.AuctionAppException;
 import net.auctionapp.server.managers.AdminManager;
 import net.auctionapp.server.managers.AuthManager;
 import net.auctionapp.server.managers.AuctionManager;
+import net.auctionapp.server.managers.BalanceManager;
 import net.auctionapp.server.managers.NotificationManager;
 import net.auctionapp.server.managers.SessionManager;
 import org.slf4j.Logger;
@@ -31,6 +32,7 @@ public class ClientHandler implements Runnable {
     private final AuthManager authManager;
     private final AdminManager adminManager;
     private final NotificationManager notificationManager;
+    private final BalanceManager balanceManager;
     private final SessionManager sessionManager;
     private final AtomicBoolean closed = new AtomicBoolean(false);
     private volatile String authenticatedUserId;
@@ -42,6 +44,7 @@ public class ClientHandler implements Runnable {
         this.authManager = AuthManager.getInstance();
         this.adminManager = AdminManager.getInstance();
         this.notificationManager = NotificationManager.getInstance();
+        this.balanceManager = BalanceManager.getInstance();
         this.sessionManager = SessionManager.getInstance();
     }
 
@@ -200,6 +203,12 @@ public class ClientHandler implements Runnable {
                 break;
             case ADMIN_RESET_AUCTION_REQUEST:
                 adminManager.handleResetAuction((AdminResetAuctionRequestMessage) message, this);
+                break;
+            case DEPOSIT_REQUEST:
+                balanceManager.handleDeposit((DepositRequestMessage) message, this);
+                break;
+            case WITHDRAW_REQUEST:
+                balanceManager.handleWithdraw((WithdrawRequestMessage) message, this);
                 break;
             default:
                 LOGGER.warn("Received unsupported message type: {} from {}", message.getType(), socket.getInetAddress());
