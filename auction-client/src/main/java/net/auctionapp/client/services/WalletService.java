@@ -2,7 +2,6 @@ package net.auctionapp.client.services;
 
 import net.auctionapp.common.messages.Message;
 import net.auctionapp.common.messages.types.DepositRequestMessage;
-import net.auctionapp.common.messages.types.GetWalletRequestMessage;
 import net.auctionapp.common.messages.types.WithdrawRequestMessage;
 
 import java.math.BigDecimal;
@@ -15,10 +14,6 @@ public final class WalletService {
     }
 
     private WalletService() {
-    }
-
-    public void getWallet(MessageListener<Message> callback) {
-        NetworkService.getInstance().sendRequest(new GetWalletRequestMessage(), callback);
     }
 
     public void deposit(BigDecimal amount, MessageListener<Message> callback) {
