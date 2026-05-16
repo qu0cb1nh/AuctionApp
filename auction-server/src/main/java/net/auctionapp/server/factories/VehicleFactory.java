@@ -32,7 +32,8 @@ public class VehicleFactory extends ItemFactory {
                 resultSet.getBigDecimal("starting_price"),
                 resultSet.getString("brand"),
                 resultSet.getString("model"),
-                resultSet.getInt("year_created")
+                resultSet.getInt("year_created"),
+                resultSet.getString("image_url")
         );
     }
 }

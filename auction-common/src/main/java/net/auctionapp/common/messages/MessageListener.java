@@ -1,6 +1,4 @@
-package net.auctionapp.client.services;
-
-import net.auctionapp.common.messages.Message;
+package net.auctionapp.common.messages;
 
 @FunctionalInterface
 public interface MessageListener<T extends Message> {

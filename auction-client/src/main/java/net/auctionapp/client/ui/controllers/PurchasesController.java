@@ -2,13 +2,13 @@ package net.auctionapp.client.ui.controllers;
 
 import javafx.event.ActionEvent;
 import javafx.fxml.FXML;
+import javafx.fxml.FXMLLoader;
 import javafx.fxml.Initializable;
-import javafx.scene.control.Button;
 import javafx.scene.control.ComboBox;
 import javafx.scene.control.Label;
 import javafx.scene.control.TextField;
 import javafx.scene.layout.BorderPane;
-import javafx.scene.layout.FlowPane;
+import javafx.scene.layout.HBox;
 import javafx.scene.layout.VBox;
 import net.auctionapp.client.ClientApp;
 import net.auctionapp.client.services.AuthService;
@@ -20,6 +20,7 @@ import net.auctionapp.common.messages.types.AuctionListResponseMessage;
 import net.auctionapp.common.messages.types.ErrorMessage;
 import net.auctionapp.common.models.auction.AuctionStatus;
 
+import java.io.IOException;
 import java.math.BigDecimal;
 import java.net.URL;
 import java.time.LocalDateTime;
@@ -45,7 +46,7 @@ public class PurchasesController implements Initializable {
     @FXML
     private BorderPane rootPane;
     @FXML
-    private FlowPane purchaseFlowPane;
+    private VBox purchaseFlowPane;
     @FXML
     private TextField searchField;
     @FXML
@@ -231,43 +232,55 @@ public class PurchasesController implements Initializable {
             return;
         }
         for (PurchaseCard purchase : purchases) {
-            purchaseFlowPane.getChildren().add(createPurchaseCard(purchase));
+            purchaseFlowPane.getChildren().add(loadPurchaseCard(purchase));
         }
     }
 
-    private VBox createPurchaseCard(PurchaseCard purchase) {
-        VBox card = new VBox(8.0);
-        card.setPrefSize(299.0, 250.0);
-        card.setStyle("-fx-background-color: white; -fx-background-radius: 12; "
-                + "-fx-border-color: #d4e1ee; -fx-border-width: 1; -fx-border-radius: 12; "
-                + "-fx-effect: dropshadow(three-pass-box, rgba(0,0,0,0.12), 8, 0, 0, 0); "
-                + "-fx-padding: 12;");
-
-        Label title = new Label(purchase.title());
-        title.setWrapText(true);
-        title.setStyle("-fx-font-weight: bold; -fx-font-size: 13px;");
-
-        Label orderStatus = new Label("Order status: " + purchase.purchaseStatus());
-        orderStatus.setStyle("-fx-text-fill: " + statusColor(purchase.purchaseStatus()) + "; -fx-font-weight: bold;");
-        Label finalPrice = new Label("Final price: " + formatMoney(purchase.finalPrice()));
-        Label seller = new Label("Seller: " + safeText(purchase.sellerId()));
-        Label endedAt = new Label("Ended at: " + formatEndTime(purchase.endTime()));
-        Label actionHint = new Label(STATUS_PENDING_PAYMENT.equalsIgnoreCase(purchase.purchaseStatus())
+    private HBox loadPurchaseCard(PurchaseCard purchase) {
+        String actionHint = STATUS_PENDING_PAYMENT.equalsIgnoreCase(purchase.purchaseStatus())
                 ? "Action needed: complete payment."
-                : "Payment completed.");
-        actionHint.setStyle("-fx-text-fill: " + statusColor(purchase.purchaseStatus()) + "; -fx-font-weight: bold;");
-
-        Button viewButton = new Button("View auction");
-        viewButton.setStyle("-fx-background-color: #3bb3d1; -fx-text-fill: white; "
-                + "-fx-background-radius: 8; -fx-font-weight: bold; -fx-cursor: hand;");
-        viewButton.setOnAction(event -> {
+                : "Payment completed.";
+        AuctionListCardController.CardData cardData = new AuctionListCardController.CardData(
+                purchase.imageUrl(),
+                purchase.title(),
+                "Order status: " + purchase.purchaseStatus(),
+                statusColor(purchase.purchaseStatus()),
+                "Seller: " + safeText(purchase.sellerId()),
+                "Ended at: " + formatEndTime(purchase.endTime()),
+                null,
+                "Final Price",
+                formatMoney(purchase.finalPrice()),
+                "#0057ff",
+                "Payment",
+                actionHint,
+                statusColor(purchase.purchaseStatus()),
+                "",
+                "",
+                "#1f2933",
+                "View auction",
+                () -> {
             statusLabel.setText("Opening purchase: " + purchase.title());
             ClientApp.getInstance().setSelectedAuctionId(purchase.auctionId());
             SceneManager.switchScene("AuctionItem");
-        });
+        },
+                null,
+                null
+        );
+        return loadAuctionCardComponent(cardData);
+    }
 
-        card.getChildren().addAll(title, orderStatus, finalPrice, seller, endedAt, actionHint, viewButton);
-        return card;
+    private HBox loadAuctionCardComponent(AuctionListCardController.CardData cardData) {
+        try {
+            FXMLLoader loader = new FXMLLoader(getClass().getResource("/net/auctionapp/client/ui/fxml/AuctionCard.fxml"));
+            HBox card = loader.load();
+            AuctionListCardController controller = loader.getController();
+            controller.bindCard(cardData);
+            return card;
+        } catch (IOException | RuntimeException e) {
+            Label fallback = new Label("Failed to load purchase card.");
+            fallback.setStyle("-fx-text-fill: #d9534f;");
+            return new HBox(fallback);
+        }
     }
 
     private Optional<PurchaseCard> toPurchaseCard(AuctionDetailsResponseMessage response, String currentUsername) {
@@ -288,7 +301,8 @@ public class PurchasesController implements Initializable {
                 response.getSellerId(),
                 response.getCurrentPrice(),
                 purchaseStatus,
-                response.getEndTime()
+                response.getEndTime(),
+                response.getImageUrl()
         ));
     }
 
@@ -354,7 +368,8 @@ public class PurchasesController implements Initializable {
             String sellerId,
             BigDecimal finalPrice,
             String purchaseStatus,
-            LocalDateTime endTime
+            LocalDateTime endTime,
+            String imageUrl
     ) {
     }
 

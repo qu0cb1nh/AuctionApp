@@ -30,7 +30,8 @@ public class ArtFactory extends ItemFactory {
                 resultSet.getString("description"),
                 resultSet.getBigDecimal("starting_price"),
                 resultSet.getString("author"),
-                resultSet.getInt("year_created")
+                resultSet.getInt("year_created"),
+                resultSet.getString("image_url")
         );
     }
 }

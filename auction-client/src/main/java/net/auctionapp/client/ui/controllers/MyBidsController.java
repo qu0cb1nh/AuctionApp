@@ -2,13 +2,13 @@ package net.auctionapp.client.ui.controllers;
 
 import javafx.event.ActionEvent;
 import javafx.fxml.FXML;
+import javafx.fxml.FXMLLoader;
 import javafx.fxml.Initializable;
-import javafx.scene.control.Button;
 import javafx.scene.control.ComboBox;
 import javafx.scene.control.Label;
 import javafx.scene.control.TextField;
 import javafx.scene.layout.BorderPane;
-import javafx.scene.layout.FlowPane;
+import javafx.scene.layout.HBox;
 import javafx.scene.layout.VBox;
 import net.auctionapp.client.ClientApp;
 import net.auctionapp.client.services.AuthService;
@@ -22,6 +22,7 @@ import net.auctionapp.common.messages.types.BidView;
 import net.auctionapp.common.messages.types.ErrorMessage;
 import net.auctionapp.common.models.auction.AuctionStatus;
 
+import java.io.IOException;
 import java.math.BigDecimal;
 import java.net.URL;
 import java.time.Duration;
@@ -51,7 +52,7 @@ public class MyBidsController implements Initializable {
     @FXML
     private BorderPane rootPane;
     @FXML
-    private FlowPane bidFlowPane;
+    private VBox bidFlowPane;
     @FXML
     private TextField searchField;
     @FXML
@@ -223,38 +224,52 @@ public class MyBidsController implements Initializable {
         }
 
         for (BidCard bid : bids) {
-            bidFlowPane.getChildren().add(createBidCard(bid));
+            bidFlowPane.getChildren().add(loadBidCard(bid));
         }
     }
 
-    private VBox createBidCard(BidCard bid) {
-        VBox card = new VBox(8.0);
-        card.setPrefSize(299.0, 250.0);
-        card.setStyle("-fx-background-color: white; -fx-background-radius: 10; "
-                + "-fx-effect: dropshadow(three-pass-box, rgba(0,0,0,0.2), 10, 0, 0, 0); "
-                + "-fx-padding: 10;");
-
-        Label title = new Label(bid.auctionTitle());
-        title.setWrapText(true);
-        title.setStyle("-fx-font-weight: bold; -fx-font-size: 13px;");
-
-        Label yourBid = new Label("Your max bid: " + formatMoney(bid.yourMaxBid()));
-        Label highestBid = new Label("Current price: " + formatMoney(bid.currentPrice()));
-        Label nextBid = new Label("Minimum next bid: " + formatMoney(bid.minimumNextBid()));
-        Label endTime = new Label(formatTimingLabel(bid.endTime(), bid.auctionStatus()));
-        Label status = new Label("Status: " + bid.status());
-        status.setStyle("-fx-text-fill: " + statusColor(bid.status()) + "; -fx-font-weight: bold;");
-
-        Button viewButton = new Button(buttonLabelForStatus(bid.status()));
-        viewButton.setStyle("-fx-background-color: #3bb3d1; -fx-text-fill: white; -fx-background-radius: 5;");
-        viewButton.setOnAction(event -> {
+    private HBox loadBidCard(BidCard bid) {
+        AuctionListCardController.CardData cardData = new AuctionListCardController.CardData(
+                bid.imageUrl(),
+                bid.auctionTitle(),
+                "Status: " + bid.status(),
+                statusColor(bid.status()),
+                "Minimum next bid: " + formatMoney(bid.minimumNextBid()),
+                formatTimingLabel(bid.endTime(), bid.auctionStatus()),
+                null,
+                "Your Max Bid",
+                formatMoney(bid.yourMaxBid()),
+                "#0057ff",
+                "Current Price",
+                formatMoney(bid.currentPrice()),
+                "#e03621",
+                "",
+                "",
+                "#1f2933",
+                buttonLabelForStatus(bid.status()),
+                () -> {
             statusLabel.setText("Opening auction: " + bid.auctionTitle());
             ClientApp.getInstance().setSelectedAuctionId(bid.auctionId());
             SceneManager.switchScene("AuctionItem");
-        });
+        },
+                null,
+                null
+        );
+        return loadAuctionCardComponent(cardData);
+    }
 
-        card.getChildren().addAll(title, yourBid, highestBid, nextBid, endTime, status, viewButton);
-        return card;
+    private HBox loadAuctionCardComponent(AuctionListCardController.CardData cardData) {
+        try {
+            FXMLLoader loader = new FXMLLoader(getClass().getResource("/net/auctionapp/client/ui/fxml/AuctionCard.fxml"));
+            HBox card = loader.load();
+            AuctionListCardController controller = loader.getController();
+            controller.bindCard(cardData);
+            return card;
+        } catch (IOException | RuntimeException e) {
+            Label fallback = new Label("Failed to load bid card.");
+            fallback.setStyle("-fx-text-fill: #d9534f;");
+            return new HBox(fallback);
+        }
     }
 
     private java.util.Optional<BidCard> toBidCard(AuctionDetailsResponseMessage response, String currentUsername) {
@@ -284,7 +299,8 @@ public class MyBidsController implements Initializable {
                 response.getMinimumNextBid(),
                 response.getEndTime(),
                 status,
-                response.getStatus()
+                response.getStatus(),
+                response.getImageUrl()
         ));
     }
 
@@ -368,7 +384,8 @@ public class MyBidsController implements Initializable {
             BigDecimal minimumNextBid,
             LocalDateTime endTime,
             String status,
-            AuctionStatus auctionStatus
+            AuctionStatus auctionStatus,
+            String imageUrl
     ) {
     }
 

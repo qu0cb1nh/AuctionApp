@@ -26,7 +26,7 @@ public final class NetworkService {
     private static final Duration DEFAULT_REQUEST_TIMEOUT = Duration.ofSeconds(10);
     private static final Logger LOGGER = LoggerFactory.getLogger(NetworkService.class);
 
-    private final Map<MessageType, List<MessageListener<? extends Message>>> messageListeners = new ConcurrentHashMap<>();
+    private final Map<MessageType, List<net.auctionapp.common.messages.MessageListener<? extends Message>>> messageListeners = new ConcurrentHashMap<>();
     private final Map<String, CompletableFuture<Message>> pendingRequests = new ConcurrentHashMap<>();
 
     private PrintWriter out;
@@ -103,7 +103,7 @@ public final class NetworkService {
         }
     }
 
-    public void sendRequest(Message request, MessageListener<Message> callback, Consumer<Throwable> onError) {
+    public void sendRequest(Message request, net.auctionapp.common.messages.MessageListener<Message> callback, Consumer<Throwable> onError) {
         Objects.requireNonNull(request, "request must not be null");
         Objects.requireNonNull(callback, "callback must not be null");
 
@@ -118,7 +118,7 @@ public final class NetworkService {
                 });
     }
 
-    public void sendRequest(Message request, MessageListener<Message> callback) {
+    public void sendRequest(Message request, net.auctionapp.common.messages.MessageListener<Message> callback) {
         Objects.requireNonNull(request, "request must not be null");
         Objects.requireNonNull(callback, "callback must not be null");
 
@@ -173,7 +173,7 @@ public final class NetworkService {
         return future;
     }
 
-    public <T extends Message> void addMessageListener(MessageType type, MessageListener<T> listener) {
+    public <T extends Message> void addMessageListener(MessageType type, net.auctionapp.common.messages.MessageListener<T> listener) {
         if (type == null || listener == null) {
             return;
         }
@@ -183,12 +183,12 @@ public final class NetworkService {
                 .add(listener);
     }
 
-    public void removeMessageListener(MessageType type, MessageListener<?> listener) {
+    public void removeMessageListener(MessageType type, net.auctionapp.common.messages.MessageListener<?> listener) {
         if (type == null || listener == null) {
             return;
         }
 
-        List<MessageListener<? extends Message>> listeners = messageListeners.get(type);
+        List<net.auctionapp.common.messages.MessageListener<? extends Message>> listeners = messageListeners.get(type);
         if (listeners != null) {
             listeners.remove(listener);
         }
@@ -243,15 +243,15 @@ public final class NetworkService {
 
     @SuppressWarnings("unchecked")
     private void routeMessageToListeners(Message message) {
-        List<MessageListener<? extends Message>> listeners = messageListeners.get(message.getType());
+        List<net.auctionapp.common.messages.MessageListener<? extends Message>> listeners = messageListeners.get(message.getType());
         if (listeners == null) {
             return;
         }
 
-        for (MessageListener<? extends Message> listener : listeners) {
+        for (net.auctionapp.common.messages.MessageListener<? extends Message> listener : listeners) {
             // Unchecked cast is necessary because we store listeners in a type-erased way,
             // but it's safe as long as we ensure that listeners are registered with the correct MessageType and Message class.
-            ((MessageListener<Message>) listener).onMessage(message);
+            ((net.auctionapp.common.messages.MessageListener<Message>) listener).onMessage(message);
         }
     }
 

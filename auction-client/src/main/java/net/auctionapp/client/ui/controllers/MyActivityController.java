@@ -2,14 +2,14 @@ package net.auctionapp.client.ui.controllers;
 
 import javafx.event.ActionEvent;
 import javafx.fxml.FXML;
+import javafx.fxml.FXMLLoader;
 import javafx.fxml.Initializable;
-import javafx.scene.control.Button;
 import javafx.scene.control.ComboBox;
 import javafx.scene.control.Label;
 import javafx.scene.control.TextField;
 import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.BorderPane;
-import javafx.scene.layout.FlowPane;
+import javafx.scene.layout.HBox;
 import javafx.scene.layout.VBox;
 import net.auctionapp.client.ClientApp;
 import net.auctionapp.client.services.AuthService;
@@ -23,6 +23,7 @@ import net.auctionapp.common.messages.types.BidView;
 import net.auctionapp.common.messages.types.ErrorMessage;
 import net.auctionapp.common.models.auction.AuctionStatus;
 
+import java.io.IOException;
 import java.math.BigDecimal;
 import java.net.URL;
 import java.time.Duration;
@@ -58,9 +59,9 @@ public class MyActivityController implements Initializable {
     @FXML
     private BorderPane rootPane;
     @FXML
-    private FlowPane bidActivityFlowPane;
+    private VBox bidActivityFlowPane;
     @FXML
-    private FlowPane sellerActivityFlowPane;
+    private VBox sellerActivityFlowPane;
     @FXML
     private TextField searchField;
     @FXML
@@ -302,7 +303,7 @@ public class MyActivityController implements Initializable {
             return;
         }
         for (ActivityCard activity : activities) {
-            bidActivityFlowPane.getChildren().add(createActivityCard(activity));
+            bidActivityFlowPane.getChildren().add(loadActivityCard(activity));
         }
     }
 
@@ -317,56 +318,73 @@ public class MyActivityController implements Initializable {
             return;
         }
         for (ActivityCard activity : activities) {
-            sellerActivityFlowPane.getChildren().add(createActivityCard(activity));
+            sellerActivityFlowPane.getChildren().add(loadActivityCard(activity));
         }
     }
 
-    private VBox createActivityCard(ActivityCard activity) {
-        VBox card = new VBox(8.0);
-        card.setPrefSize(299.0, 272.0);
-        card.setStyle("-fx-background-color: white; -fx-background-radius: 12; "
-                + "-fx-border-color: #d4e1ee; -fx-border-width: 1; -fx-border-radius: 12; "
-                + "-fx-effect: dropshadow(three-pass-box, rgba(0,0,0,0.12), 8, 0, 0, 0); "
-                + "-fx-padding: 12;");
-
-        Label title = new Label(activity.auctionTitle());
-        title.setWrapText(true);
-        title.setStyle("-fx-font-weight: bold; -fx-font-size: 13px;");
-
-        Label role = new Label("Role: " + (SCOPE_BIDDING.equals(activity.scope()) ? "Bidder" : "Seller"));
-        role.setStyle("-fx-text-fill: #2962ff; -fx-font-weight: bold;");
-
-        Label status = new Label("Status: " + activity.status());
-        status.setStyle("-fx-text-fill: " + statusColor(activity.status()) + "; -fx-font-weight: bold;");
-
-        Label currentPrice = new Label("Current price: " + formatMoney(activity.currentPrice()));
-
-        VBox content = new VBox(4.0, title, role, status, currentPrice);
+    private HBox loadActivityCard(ActivityCard activity) {
+        String metricOneCaption;
+        String metricOneValue;
+        String metricOneColor;
+        String metricTwoCaption;
+        String metricTwoValue;
+        String metricTwoColor;
         if (SCOPE_BIDDING.equals(activity.scope())) {
-            content.getChildren().addAll(
-                    new Label("Your max bid: " + formatMoney(activity.yourMaxBid())),
-                    new Label("Minimum next bid: " + formatMoney(activity.minimumNextBid()))
-            );
+            metricOneCaption = "Your Max Bid";
+            metricOneValue = formatMoney(activity.yourMaxBid());
+            metricOneColor = "#e03621";
+            metricTwoCaption = "Minimum Next";
+            metricTwoValue = formatMoney(activity.minimumNextBid());
+            metricTwoColor = "#1f2933";
         } else {
-            content.getChildren().addAll(
-                    new Label("Starting price: " + formatMoney(activity.startingPrice())),
-                    new Label("Bid count: " + activity.bidCount()),
-                    new Label("Winner: " + safeWinnerName(activity.winnerBidderId()))
-            );
+            metricOneCaption = "Bids";
+            metricOneValue = String.valueOf(activity.bidCount());
+            metricOneColor = "#1f2933";
+            metricTwoCaption = "Winner";
+            metricTwoValue = safeWinnerName(activity.winnerBidderId());
+            metricTwoColor = "#1f2933";
         }
-        content.getChildren().add(new Label(formatTimingLabel(activity.endTime(), activity.auctionStatus())));
-
-        Button viewButton = new Button(buttonLabelForStatus(activity.scope(), activity.status()));
-        viewButton.setStyle("-fx-background-color: #3bb3d1; -fx-text-fill: white; "
-                + "-fx-background-radius: 8; -fx-font-weight: bold; -fx-cursor: hand;");
-        viewButton.setOnAction(event -> {
+        AuctionListCardController.CardData cardData = new AuctionListCardController.CardData(
+                activity.imageUrl(),
+                activity.auctionTitle(),
+                "Status: " + activity.status(),
+                statusColor(activity.status()),
+                "Role: " + (SCOPE_BIDDING.equals(activity.scope()) ? "Bidder" : "Seller"),
+                formatTimingLabel(activity.endTime(), activity.auctionStatus()),
+                null,
+                "Current Price",
+                formatMoney(activity.currentPrice()),
+                "#0057ff",
+                metricOneCaption,
+                metricOneValue,
+                metricOneColor,
+                metricTwoCaption,
+                metricTwoValue,
+                metricTwoColor,
+                buttonLabelForStatus(activity.scope(), activity.status()),
+                () -> {
             ClientApp.getInstance().setSelectedAuctionId(activity.auctionId());
             statusLabel.setText("Opening auction: " + activity.auctionTitle());
             SceneManager.switchScene("AuctionItem");
-        });
+        },
+                null,
+                null
+        );
+        return loadAuctionCardComponent(cardData);
+    }
 
-        card.getChildren().addAll(content, viewButton);
-        return card;
+    private HBox loadAuctionCardComponent(AuctionListCardController.CardData cardData) {
+        try {
+            FXMLLoader loader = new FXMLLoader(getClass().getResource("/net/auctionapp/client/ui/fxml/AuctionCard.fxml"));
+            HBox card = loader.load();
+            AuctionListCardController controller = loader.getController();
+            controller.bindCard(cardData);
+            return card;
+        } catch (IOException | RuntimeException e) {
+            Label fallback = new Label("Failed to load activity card.");
+            fallback.setStyle("-fx-text-fill: #d9534f;");
+            return new HBox(fallback);
+        }
     }
 
     private Optional<ActivityCard> toBidActivity(AuctionDetailsResponseMessage response, String currentUsername) {
@@ -400,7 +418,8 @@ public class MyActivityController implements Initializable {
                 response.getMinimumNextBid(),
                 bidHistory.size(),
                 response.getWinnerBidderId(),
-                response.getEndTime()
+                response.getEndTime(),
+                response.getImageUrl()
         ));
     }
 
@@ -424,7 +443,8 @@ public class MyActivityController implements Initializable {
                 response.getMinimumNextBid(),
                 bidCount,
                 response.getWinnerBidderId(),
-                response.getEndTime()
+                response.getEndTime(),
+                response.getImageUrl()
         ));
     }
 
@@ -611,7 +631,8 @@ public class MyActivityController implements Initializable {
             BigDecimal minimumNextBid,
             int bidCount,
             String winnerBidderId,
-            LocalDateTime endTime
+            LocalDateTime endTime,
+            String imageUrl
     ) {
     }
 

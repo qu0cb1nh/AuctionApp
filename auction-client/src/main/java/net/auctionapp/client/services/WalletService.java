@@ -16,12 +16,12 @@ public final class WalletService {
     private WalletService() {
     }
 
-    public void deposit(BigDecimal amount, MessageListener<Message> callback) {
+    public void deposit(BigDecimal amount, net.auctionapp.common.messages.MessageListener<Message> callback) {
         DepositRequestMessage request = new DepositRequestMessage(amount);
         NetworkService.getInstance().sendRequest(request, callback);
     }
 
-    public void withdraw(BigDecimal amount, MessageListener<Message> callback) {
+    public void withdraw(BigDecimal amount, net.auctionapp.common.messages.MessageListener<Message> callback) {
         WithdrawRequestMessage request = new WithdrawRequestMessage(amount);
         NetworkService.getInstance().sendRequest(request, callback);
     }

@@ -9,7 +9,10 @@ import javafx.scene.control.DatePicker;
 import javafx.scene.control.Label;
 import javafx.scene.control.TextArea;
 import javafx.scene.control.TextField;
+import javafx.scene.image.Image;
+import javafx.scene.image.ImageView;
 import javafx.scene.layout.VBox;
+import javafx.stage.FileChooser;
 import net.auctionapp.client.ui.managers.SceneManager;
 import net.auctionapp.client.services.AuctionService;
 import net.auctionapp.common.messages.Message;
@@ -20,16 +23,21 @@ import net.auctionapp.common.messages.types.ErrorMessage;
 import net.auctionapp.common.models.items.ItemType;
 
 import java.math.BigDecimal;
+import java.io.File;
+import java.io.IOException;
 import java.net.URL;
+import java.nio.file.Files;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
+import java.util.Base64;
 import java.util.ResourceBundle;
 
 public class CreateAuctionController implements Initializable {
     private static final DateTimeFormatter TIME_FORMATTER = DateTimeFormatter.ofPattern("HH:mm");
+    private static final long MAX_IMAGE_BYTES = 5L * 1024L * 1024L;
 
     @FXML
     private HeaderController appHeaderController;
@@ -71,6 +79,12 @@ public class CreateAuctionController implements Initializable {
     private TextArea descriptionArea;
     @FXML
     private Label statusLabel;
+    @FXML
+    private ImageView previewImageView;
+    @FXML
+    private Label imageStatusLabel;
+
+    private File selectedImageFile;
 
     @Override
     public void initialize(URL location, ResourceBundle resources) {
@@ -97,6 +111,35 @@ public class CreateAuctionController implements Initializable {
     @FXML
     public void handleCancel(ActionEvent event) {
         SceneManager.switchScene("MainMenu");
+    }
+
+    @FXML
+    public void handleChooseImage(ActionEvent event) {
+        FileChooser fileChooser = new FileChooser();
+        fileChooser.setTitle("Choose auction item image");
+        fileChooser.getExtensionFilters().add(new FileChooser.ExtensionFilter(
+                "Image files",
+                "*.jpg",
+                "*.jpeg",
+                "*.png",
+                "*.gif",
+                "*.webp"
+        ));
+        File chosenFile = fileChooser.showOpenDialog(itemNameField.getScene().getWindow());
+        if (chosenFile == null) {
+            return;
+        }
+        if (!chosenFile.isFile()) {
+            setImageStatus("Selected path is not a file.", true);
+            return;
+        }
+        if (chosenFile.length() > MAX_IMAGE_BYTES) {
+            setImageStatus("Image must be 5 MB or smaller.", true);
+            return;
+        }
+        selectedImageFile = chosenFile;
+        previewImageView.setImage(new Image(chosenFile.toURI().toString(), true));
+        setImageStatus(chosenFile.getName(), false);
     }
 
     @FXML
@@ -154,7 +197,47 @@ public class CreateAuctionController implements Initializable {
         request.setStartTime(startDateTime);
         request.setEndTime(endDateTime);
         applyTypeSpecificFields(request);
+        applyImageFields(request);
         return request;
+    }
+
+    private void applyImageFields(CreateItemRequestMessage request) {
+        if (selectedImageFile == null) {
+            throw new IllegalArgumentException("Product image is required.");
+        }
+        try {
+            String contentType = resolveImageContentType(selectedImageFile);
+            if (contentType == null || !contentType.toLowerCase().startsWith("image/")) {
+                throw new IllegalArgumentException("Selected file must be an image.");
+            }
+            byte[] imageBytes = Files.readAllBytes(selectedImageFile.toPath());
+            request.setImageFileName(selectedImageFile.getName());
+            request.setImageContentType(contentType);
+            request.setImageBase64(Base64.getEncoder().encodeToString(imageBytes));
+        } catch (IOException e) {
+            throw new IllegalArgumentException("Failed to read selected image.");
+        }
+    }
+
+    private String resolveImageContentType(File imageFile) throws IOException {
+        String contentType = Files.probeContentType(imageFile.toPath());
+        if (contentType != null && !contentType.isBlank()) {
+            return contentType;
+        }
+        String fileName = imageFile.getName().toLowerCase();
+        if (fileName.endsWith(".jpg") || fileName.endsWith(".jpeg")) {
+            return "image/jpeg";
+        }
+        if (fileName.endsWith(".png")) {
+            return "image/png";
+        }
+        if (fileName.endsWith(".gif")) {
+            return "image/gif";
+        }
+        if (fileName.endsWith(".webp")) {
+            return "image/webp";
+        }
+        return null;
     }
 
     private void applyTypeSpecificFields(CreateItemRequestMessage request) {
@@ -205,8 +288,16 @@ public class CreateAuctionController implements Initializable {
             return;
         }
         statusLabel.setStyle("-fx-font-size: 13px; -fx-text-fill: #2e7d32;");
-        statusLabel.setText(result.getMessage());
+        String responseText = result.getImageUrl() == null || result.getImageUrl().isBlank()
+                ? result.getMessage()
+                : result.getMessage() + " Image uploaded.";
+        statusLabel.setText(responseText);
         SceneManager.switchSceneWithDelay("AuctionList", 600);
+    }
+
+    private void setImageStatus(String text, boolean error) {
+        imageStatusLabel.setStyle("-fx-font-size: 13px; -fx-text-fill: " + (error ? "#d9534f" : "#666666") + ";");
+        imageStatusLabel.setText(text);
     }
 
     private BigDecimal parsePositiveDecimal(String input, String fieldName) {

@@ -9,13 +9,19 @@ public abstract class Item extends Entity {
     private String title;
     private String description;
     private BigDecimal basePrice;
+    private String imageUrl;
 
     public Item(String id, ItemType type, String title, String description, BigDecimal basePrice) {
+        this(id, type, title, description, basePrice, null);
+    }
+
+    public Item(String id, ItemType type, String title, String description, BigDecimal basePrice, String imageUrl) {
         super(id);
         this.type = type;
         this.title = title;
         this.description = description;
         this.basePrice = basePrice;
+        this.imageUrl = imageUrl;
     }
 
     public ItemType getType() {
@@ -32,6 +38,14 @@ public abstract class Item extends Entity {
 
     public BigDecimal getBasePrice() {
         return basePrice;
+    }
+
+    public String getImageUrl() {
+        return imageUrl;
+    }
+
+    public void setImageUrl(String imageUrl) {
+        this.imageUrl = imageUrl;
     }
 
     public void updateDetails(String title, String description, BigDecimal basePrice) {

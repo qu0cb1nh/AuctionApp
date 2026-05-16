@@ -37,6 +37,7 @@ import net.auctionapp.server.exceptions.InvalidAuctionStateException;
 import net.auctionapp.server.exceptions.InvalidBidException;
 import net.auctionapp.server.exceptions.NotFoundException;
 import net.auctionapp.server.exceptions.ValidationException;
+import net.auctionapp.server.services.CloudinaryImageService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -64,12 +65,14 @@ public final class AuctionManager {
     private final ConcurrentSkipListSet<String> announcedEndedAuctionIds = new ConcurrentSkipListSet<>();
     private final AuthManager authManager;
     private final NotificationManager notificationManager;
+    private final CloudinaryImageService cloudinaryImageService;
     private volatile AuctionDao auctionDao;
     private volatile net.auctionapp.server.dao.UserDao userDao;
 
     private AuctionManager() {
         this.authManager = AuthManager.getInstance();
         this.notificationManager = NotificationManager.getInstance();
+        this.cloudinaryImageService = CloudinaryImageService.getInstance();
     }
 
     public static synchronized AuctionManager getInstance() {
@@ -112,6 +115,7 @@ public final class AuctionManager {
         try {
             handler.ensureAuthenticated();
             Item item = createItemFromRequest(message);
+            item.setImageUrl(cloudinaryImageService.uploadAuctionItemImage(message));
             String sellerId = StringUtil.normalizeString(handler.getAuthenticatedId());
             Auction auction = createAuction(
                     sellerId,
@@ -125,6 +129,7 @@ public final class AuctionManager {
             handler.sendResponse(new CreateItemResultMessage(
                     auction.getId(),
                     auction.getItem().getTitle(),
+                    auction.getItem().getImageUrl(),
                     "Auction created successfully."
             ), message);
         } catch (DatabaseException e) {
@@ -179,7 +184,8 @@ public final class AuctionManager {
                         auction.getStatus(),
                         auction.getLeadingBidderId(),
                         auction.getStartTime(),
-                        auction.getEndTime()
+                        auction.getEndTime(),
+                        item.getImageUrl()
                 ));
             }
         }
@@ -829,6 +835,7 @@ public final class AuctionManager {
                     auction.getWinnerBidderId(),
                     auction.getStartTime(),
                     auction.getEndTime(),
+                    item.getImageUrl(),
                     getBidViews(auction.getId())
             );
         }

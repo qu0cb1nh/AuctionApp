@@ -20,27 +20,27 @@ public final class AuctionService {
     private AuctionService() {
     }
 
-    public void requestAuctionList(MessageListener<Message> callback) {
+    public void requestAuctionList(net.auctionapp.common.messages.MessageListener<Message> callback) {
         NetworkService.getInstance().sendRequest(new GetAuctionListRequestMessage(), callback);
     }
 
-    public void requestAuctionDetails(String auctionId, MessageListener<Message> callback) {
+    public void requestAuctionDetails(String auctionId, net.auctionapp.common.messages.MessageListener<Message> callback) {
         NetworkService.getInstance().sendRequest(new GetAuctionDetailsRequestMessage(auctionId), callback);
     }
 
-    public void createAuction(CreateItemRequestMessage request, MessageListener<Message> callback) {
+    public void createAuction(CreateItemRequestMessage request, net.auctionapp.common.messages.MessageListener<Message> callback) {
         NetworkService.getInstance().sendRequest(request, callback);
     }
 
-    public void placeBid(String auctionId, BigDecimal amount, MessageListener<Message> callback) {
+    public void placeBid(String auctionId, BigDecimal amount, net.auctionapp.common.messages.MessageListener<Message> callback) {
         NetworkService.getInstance().sendRequest(new BidRequestMessage(auctionId, amount.doubleValue()), callback);
     }
 
-    public void addPriceUpdateListener(MessageListener<PriceUpdateMessage> listener) {
+    public void addPriceUpdateListener(net.auctionapp.common.messages.MessageListener<PriceUpdateMessage> listener) {
         NetworkService.getInstance().addMessageListener(MessageType.PRICE_UPDATE, listener);
     }
 
-    public void removePriceUpdateListener(MessageListener<PriceUpdateMessage> listener) {
+    public void removePriceUpdateListener(net.auctionapp.common.messages.MessageListener<PriceUpdateMessage> listener) {
         NetworkService.getInstance().removeMessageListener(MessageType.PRICE_UPDATE, listener);
     }
 }

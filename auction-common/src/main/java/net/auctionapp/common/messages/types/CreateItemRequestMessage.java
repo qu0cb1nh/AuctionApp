@@ -20,6 +20,9 @@ public class CreateItemRequestMessage extends Message {
     private Integer warrantyMonths;
     private String author;
     private Integer yearCreated;
+    private String imageFileName;
+    private String imageContentType;
+    private String imageBase64;
 
     public CreateItemRequestMessage() {
         super(MessageType.CREATE_ITEM_REQUEST);
@@ -119,5 +122,29 @@ public class CreateItemRequestMessage extends Message {
 
     public void setYearCreated(Integer yearCreated) {
         this.yearCreated = yearCreated;
+    }
+
+    public String getImageFileName() {
+        return imageFileName;
+    }
+
+    public void setImageFileName(String imageFileName) {
+        this.imageFileName = imageFileName;
+    }
+
+    public String getImageContentType() {
+        return imageContentType;
+    }
+
+    public void setImageContentType(String imageContentType) {
+        this.imageContentType = imageContentType;
+    }
+
+    public String getImageBase64() {
+        return imageBase64;
+    }
+
+    public void setImageBase64(String imageBase64) {
+        this.imageBase64 = imageBase64;
     }
 }

@@ -8,7 +8,20 @@ public class Vehicle extends Item {
     private final int yearCreated;
 
     public Vehicle(String id, String title, String description, BigDecimal basePrice, String brand, String model, int yearCreated) {
-        super(id, ItemType.VEHICLE, title, description, basePrice);
+        this(id, title, description, basePrice, brand, model, yearCreated, null);
+    }
+
+    public Vehicle(
+            String id,
+            String title,
+            String description,
+            BigDecimal basePrice,
+            String brand,
+            String model,
+            int yearCreated,
+            String imageUrl
+    ) {
+        super(id, ItemType.VEHICLE, title, description, basePrice, imageUrl);
         this.brand = brand;
         this.model = model;
         this.yearCreated = yearCreated;

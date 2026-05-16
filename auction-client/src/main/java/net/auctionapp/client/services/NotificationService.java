@@ -16,19 +16,19 @@ public final class NotificationService {
     private NotificationService() {
     }
 
-    public void requestNotifications(MessageListener<Message> callback) {
+    public void requestNotifications(net.auctionapp.common.messages.MessageListener<Message> callback) {
         NetworkService.getInstance().sendRequest(new GetNotificationsRequestMessage(), callback);
     }
 
-    public void clearNotification(String notificationId, MessageListener<Message> callback) {
+    public void clearNotification(String notificationId, net.auctionapp.common.messages.MessageListener<Message> callback) {
         NetworkService.getInstance().sendRequest(new ClearNotificationsRequestMessage(notificationId), callback);
     }
 
-    public void addNotificationListener(MessageListener<NotificationMessage> listener) {
+    public void addNotificationListener(net.auctionapp.common.messages.MessageListener<NotificationMessage> listener) {
         NetworkService.getInstance().addMessageListener(MessageType.NOTIFICATION, listener);
     }
 
-    public void removeNotificationListener(MessageListener<NotificationMessage> listener) {
+    public void removeNotificationListener(net.auctionapp.common.messages.MessageListener<NotificationMessage> listener) {
         NetworkService.getInstance().removeMessageListener(MessageType.NOTIFICATION, listener);
     }
 }

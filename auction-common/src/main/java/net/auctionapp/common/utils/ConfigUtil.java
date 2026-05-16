@@ -58,6 +58,10 @@ public final class ConfigUtil {
         return getEnv("DB_PASSWORD");
     }
 
+    public static String getCloudinaryUrl() {
+        return getEnv("CLOUDINARY_URL");
+    }
+
     private static String getEnv(String envKey) {
         String envValue = System.getenv(envKey);
         if (envValue != null && !envValue.trim().isEmpty()) {
