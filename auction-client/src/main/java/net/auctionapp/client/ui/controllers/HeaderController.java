@@ -49,6 +49,11 @@ public class HeaderController {
     }
 
     @FXML
+    public void handleOpenWallet(ActionEvent event) {
+        SceneManager.switchScene("Wallet");
+    }
+
+    @FXML
     public void handleOpenActivity(ActionEvent event) {
         SceneManager.switchScene("MyActivity");
     }

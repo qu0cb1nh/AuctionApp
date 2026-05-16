@@ -10,6 +10,7 @@ import net.auctionapp.common.exceptions.ValidationException;
 import net.auctionapp.common.models.users.User;
 import net.auctionapp.common.models.users.UserRole;
 import net.auctionapp.common.utils.CredentialUtil;
+import net.auctionapp.common.utils.MoneyUtil;
 import net.auctionapp.common.utils.StringUtil;
 import net.auctionapp.server.ClientHandler;
 import net.auctionapp.server.dao.UserDao;
@@ -226,9 +227,7 @@ public class AuthManager {
     }
 
     public User deposit(String userId, java.math.BigDecimal amount) {
-        if (amount == null || amount.signum() <= 0) {
-            throw new ValidationException("Deposit amount must be positive.");
-        }
+        MoneyUtil.requirePositiveMoney(amount, "Deposit amount");
         String normalizedUserId = StringUtil.normalizeString(userId);
         User user = requireUserById(normalizedUserId);
         
@@ -241,9 +240,7 @@ public class AuthManager {
     }
 
     public User withdraw(String userId, java.math.BigDecimal amount) {
-        if (amount == null || amount.signum() <= 0) {
-            throw new ValidationException("Withdrawal amount must be positive.");
-        }
+        MoneyUtil.requirePositiveMoney(amount, "Withdrawal amount");
         String normalizedUserId = StringUtil.normalizeString(userId);
         User user = requireUserById(normalizedUserId);
         

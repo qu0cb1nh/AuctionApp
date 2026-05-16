@@ -21,6 +21,8 @@
 
     </VBox>
 
+    <Button layoutX="20.0" layoutY="25.0" mnemonicParsing="false" onAction="#handleBack" prefHeight="36.0" prefWidth="82.0" style="-fx-background-color: white; -fx-text-fill: #0066FF; -fx-background-radius: 18; -fx-font-weight: bold; -fx-cursor: hand;" text="Back" />
+
     <!-- BALANCE CARD -->
     <VBox alignment="CENTER" layoutX="40.0" layoutY="160.0" prefHeight="156.0" prefWidth="420.0" spacing="15.0" style="                 -fx-background-color: white;                 -fx-background-radius: 20;                 -fx-border-radius: 20;                 -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.08), 15, 0, 0, 4);           ">
 
