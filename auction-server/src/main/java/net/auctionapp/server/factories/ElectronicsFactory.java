@@ -39,7 +39,8 @@ public class ElectronicsFactory extends ItemFactory {
                 resultSet.getBigDecimal("starting_price"),
                 resultSet.getString("brand"),
                 resultSet.getString("model"),
-                resultSet.getInt("warranty_months")
+                resultSet.getInt("warranty_months"),
+                resultSet.getString("image_url")
         );
     }
 }

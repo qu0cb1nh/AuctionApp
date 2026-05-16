@@ -21,6 +21,7 @@ public class AuctionDetailsResponseMessage extends Message {
     private String winnerBidderId;
     private LocalDateTime startTime;
     private LocalDateTime endTime;
+    private String imageUrl;
     private List<BidView> bidHistory;
 
     public AuctionDetailsResponseMessage() {
@@ -42,6 +43,40 @@ public class AuctionDetailsResponseMessage extends Message {
             LocalDateTime endTime,
             List<BidView> bidHistory
     ) {
+        this(
+                auctionId,
+                sellerId,
+                title,
+                description,
+                startingPrice,
+                currentPrice,
+                minimumNextBid,
+                status,
+                leadingBidderId,
+                winnerBidderId,
+                startTime,
+                endTime,
+                null,
+                bidHistory
+        );
+    }
+
+    public AuctionDetailsResponseMessage(
+            String auctionId,
+            String sellerId,
+            String title,
+            String description,
+            BigDecimal startingPrice,
+            BigDecimal currentPrice,
+            BigDecimal minimumNextBid,
+            AuctionStatus status,
+            String leadingBidderId,
+            String winnerBidderId,
+            LocalDateTime startTime,
+            LocalDateTime endTime,
+            String imageUrl,
+            List<BidView> bidHistory
+    ) {
         super(MessageType.AUCTION_DETAILS_RESPONSE);
         this.auctionId = auctionId;
         this.sellerId = sellerId;
@@ -55,6 +90,7 @@ public class AuctionDetailsResponseMessage extends Message {
         this.winnerBidderId = winnerBidderId;
         this.startTime = startTime;
         this.endTime = endTime;
+        this.imageUrl = imageUrl;
         this.bidHistory = bidHistory == null ? List.of() : List.copyOf(bidHistory);
     }
 
@@ -70,5 +106,6 @@ public class AuctionDetailsResponseMessage extends Message {
     public String getWinnerBidderId() { return winnerBidderId; }
     public LocalDateTime getStartTime() { return startTime; }
     public LocalDateTime getEndTime() { return endTime; }
+    public String getImageUrl() { return imageUrl; }
     public List<BidView> getBidHistory() { return bidHistory == null ? List.of() : List.copyOf(bidHistory); }
 }

@@ -1,6 +1,7 @@
 package net.auctionapp.client.services;
 
 import net.auctionapp.common.messages.Message;
+import net.auctionapp.common.messages.MessageListener;
 import net.auctionapp.common.messages.MessageType;
 import net.auctionapp.common.messages.types.BidRequestMessage;
 import net.auctionapp.common.messages.types.CreateItemRequestMessage;

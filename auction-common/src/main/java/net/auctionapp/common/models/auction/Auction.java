@@ -271,7 +271,8 @@ public class Auction extends Entity {
                     electronics.getBasePrice(),
                     electronics.getBrand(),
                     electronics.getModel(),
-                    electronics.getWarrantyMonths()
+                    electronics.getWarrantyMonths(),
+                    electronics.getImageUrl()
             );
         }
         if (source instanceof Vehicle vehicle) {
@@ -282,7 +283,8 @@ public class Auction extends Entity {
                     vehicle.getBasePrice(),
                     vehicle.getBrand(),
                     vehicle.getModel(),
-                    vehicle.getYearCreated()
+                    vehicle.getYearCreated(),
+                    vehicle.getImageUrl()
             );
         }
         if (source instanceof Art art) {
@@ -292,7 +294,8 @@ public class Auction extends Entity {
                     art.getDescription(),
                     art.getBasePrice(),
                     art.getAuthor(),
-                    art.getYearCreated()
+                    art.getYearCreated(),
+                    art.getImageUrl()
             );
         }
         throw new IllegalStateException("Unsupported item type: " + source.getClass().getName());

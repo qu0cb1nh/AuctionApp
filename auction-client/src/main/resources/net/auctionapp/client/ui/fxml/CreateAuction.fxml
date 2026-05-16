@@ -36,13 +36,13 @@
                         <Insets bottom="20.0" left="20.0" right="20.0" top="20.0" />
                     </padding>
                     <children>
-                        <ImageView fitHeight="360.0" fitWidth="300.0" pickOnBounds="true" preserveRatio="true">
+                        <ImageView fx:id="previewImageView" fitHeight="360.0" fitWidth="300.0" pickOnBounds="true" preserveRatio="true">
                             <image>
                                 <Image url="@../images/iphone.jpg" />
                             </image>
                         </ImageView>
-                        <Button mnemonicParsing="false" prefWidth="200.0" style="-fx-background-color: #3bb3c3; -fx-text-fill: white; -fx-background-radius: 20px; -fx-padding: 10px 20px; -fx-font-weight: bold; -fx-cursor: hand;" text="Choose Image" />
-                        <Label style="-fx-font-size: 13px; -fx-text-fill: #888888;" text="Use a clear product photo for better bidding." wrapText="true" />
+                        <Button mnemonicParsing="false" onAction="#handleChooseImage" prefWidth="200.0" style="-fx-background-color: #3bb3c3; -fx-text-fill: white; -fx-background-radius: 20px; -fx-padding: 10px 20px; -fx-font-weight: bold; -fx-cursor: hand;" text="Choose Image" />
+                        <Label fx:id="imageStatusLabel" style="-fx-font-size: 13px; -fx-text-fill: #888888;" text="Use a clear product photo for better bidding." wrapText="true" />
                     </children>
                 </VBox>
 

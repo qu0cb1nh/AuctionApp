@@ -37,11 +37,11 @@ public final class AuthService {
         return INSTANCE;
     }
 
-    public void login(String username, String password, MessageListener<Message> callback) {
+    public void login(String username, String password, net.auctionapp.common.messages.MessageListener<Message> callback) {
         NetworkService.getInstance().sendRequest(new LoginRequestMessage(username, password), callback);
     }
 
-    public void register(String username, String password, MessageListener<Message> callback) {
+    public void register(String username, String password, net.auctionapp.common.messages.MessageListener<Message> callback) {
         NetworkService.getInstance().sendRequest(new RegisterRequestMessage(username, password), callback);
     }
 }

@@ -8,12 +8,13 @@ import javafx.scene.chart.XYChart;
 import javafx.scene.control.Button;
 import javafx.scene.control.Label;
 import javafx.scene.control.TextField;
+import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
 import javafx.scene.layout.BorderPane;
 import net.auctionapp.client.ClientApp;
 import net.auctionapp.client.services.AuctionService;
 import net.auctionapp.client.services.AuthService;
-import net.auctionapp.client.services.MessageListener;
+import net.auctionapp.common.messages.MessageListener;
 import net.auctionapp.common.messages.Message;
 import net.auctionapp.common.messages.MessageType;
 import net.auctionapp.common.messages.types.AuctionDetailsResponseMessage;
@@ -152,6 +153,7 @@ public class AuctionItemController implements Initializable {
 
         productNameLabel.setText(response.getTitle());
         descriptionLabel.setText(response.getDescription());
+        updateProductImage(response.getImageUrl());
         currentHighestBid = response.getCurrentPrice() == null ? BigDecimal.ZERO : response.getCurrentPrice();
         minimumNextBid = response.getMinimumNextBid() == null ? currentHighestBid : response.getMinimumNextBid();
         currentBidLabel.setText("$" + currentHighestBid.toPlainString());
@@ -217,6 +219,14 @@ public class AuctionItemController implements Initializable {
             }
             priceSeries.getData().add(new XYChart.Data<>(bid.getTimestamp().toLocalTime().toString(), bid.getAmount()));
         }
+    }
+
+    private void updateProductImage(String imageUrl) {
+        if (imageUrl == null || imageUrl.isBlank()) {
+            return;
+        }
+        Image image = new Image(imageUrl, true);
+        productImageView.setImage(image);
     }
 
     private BigDecimal parseBidAmount(String value, BigDecimal minimumAllowed) {

@@ -8,7 +8,20 @@ public class Electronics extends Item {
     private final int warrantyMonths;
 
     public Electronics(String id, String title, String description, BigDecimal basePrice, String brand, String model, int warrantyMonths) {
-        super(id, ItemType.ELECTRONICS, title, description, basePrice);
+        this(id, title, description, basePrice, brand, model, warrantyMonths, null);
+    }
+
+    public Electronics(
+            String id,
+            String title,
+            String description,
+            BigDecimal basePrice,
+            String brand,
+            String model,
+            int warrantyMonths,
+            String imageUrl
+    ) {
+        super(id, ItemType.ELECTRONICS, title, description, basePrice, imageUrl);
         this.brand = brand;
         this.model = model;
         this.warrantyMonths = warrantyMonths;

@@ -8,7 +8,7 @@ import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.Pane;
 import javafx.scene.layout.Region;
 import javafx.scene.layout.VBox;
-import net.auctionapp.client.services.MessageListener;
+import net.auctionapp.common.messages.MessageListener;
 import net.auctionapp.client.services.NotificationService;
 import net.auctionapp.common.messages.Message;
 import net.auctionapp.common.messages.types.ErrorMessage;
@@ -220,11 +220,11 @@ public class NotificationsController implements Initializable {
             return;
         }
         for (Notification notification : filteredNotifications) {
-            notificationCardsContainer.getChildren().add(createNotificationCard(notification));
+            notificationCardsContainer.getChildren().add(loadNotificationCard(notification));
         }
     }
 
-    private Pane createNotificationCard(Notification notification) {
+    private Pane loadNotificationCard(Notification notification) {
         try {
             FXMLLoader loader = new FXMLLoader(getClass().getResource("/net/auctionapp/client/ui/fxml/NotificationCard.fxml"));
             Pane card = loader.load();

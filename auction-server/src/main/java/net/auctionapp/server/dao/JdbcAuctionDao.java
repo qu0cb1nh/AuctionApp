@@ -15,6 +15,7 @@ import net.auctionapp.server.factories.VehicleFactory;
 import net.auctionapp.server.managers.DatabaseManager;
 
 import java.sql.Connection;
+import java.sql.DatabaseMetaData;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
@@ -33,6 +34,7 @@ public class JdbcAuctionDao implements AuctionDao {
                 item_type VARCHAR(32) NOT NULL,
                 title VARCHAR(255) NOT NULL,
                 description TEXT NOT NULL,
+                image_url TEXT,
                 starting_price DECIMAL(19, 2) NOT NULL,
                 minimum_bid_increment DECIMAL(19, 2) NOT NULL,
                 current_price DECIMAL(19, 2) NOT NULL,
@@ -56,6 +58,7 @@ public class JdbcAuctionDao implements AuctionDao {
                 item_type,
                 title,
                 description,
+                image_url,
                 starting_price,
                 minimum_bid_increment,
                 current_price,
@@ -79,6 +82,7 @@ public class JdbcAuctionDao implements AuctionDao {
                 item_type,
                 title,
                 description,
+                image_url,
                 starting_price,
                 minimum_bid_increment,
                 current_price,
@@ -92,7 +96,7 @@ public class JdbcAuctionDao implements AuctionDao {
                 warranty_months,
                 author,
                 year_created
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """;
     private static final String UPDATE_AUCTION_STATE_QUERY = """
             UPDATE auctions
@@ -109,6 +113,7 @@ public class JdbcAuctionDao implements AuctionDao {
             SET
                 title = ?,
                 description = ?,
+                image_url = ?,
                 starting_price = ?,
                 minimum_bid_increment = ?,
                 current_price = ?,
@@ -164,15 +169,16 @@ public class JdbcAuctionDao implements AuctionDao {
             statement.setString(4, item.getType().name());
             statement.setString(5, item.getTitle());
             statement.setString(6, item.getDescription());
-            statement.setBigDecimal(7, auction.getStartingPrice());
-            statement.setBigDecimal(8, auction.getMinimumBidIncrement());
-            statement.setBigDecimal(9, auction.getCurrentPrice());
-            statement.setString(10, auction.getStatus().name());
-            setNullableString(statement, 11, auction.getLeadingBidderId());
-            setNullableString(statement, 12, auction.getWinnerBidderId());
-            statement.setTimestamp(13, Timestamp.valueOf(auction.getStartTime()));
-            statement.setTimestamp(14, Timestamp.valueOf(auction.getEndTime()));
-            bindItemAttributes(statement, 15, item);
+            setNullableString(statement, 7, item.getImageUrl());
+            statement.setBigDecimal(8, auction.getStartingPrice());
+            statement.setBigDecimal(9, auction.getMinimumBidIncrement());
+            statement.setBigDecimal(10, auction.getCurrentPrice());
+            statement.setString(11, auction.getStatus().name());
+            setNullableString(statement, 12, auction.getLeadingBidderId());
+            setNullableString(statement, 13, auction.getWinnerBidderId());
+            statement.setTimestamp(14, Timestamp.valueOf(auction.getStartTime()));
+            statement.setTimestamp(15, Timestamp.valueOf(auction.getEndTime()));
+            bindItemAttributes(statement, 16, item);
 
             return statement.executeUpdate() == 1;
         } catch (SQLException e) {
@@ -203,16 +209,17 @@ public class JdbcAuctionDao implements AuctionDao {
              PreparedStatement statement = connection.prepareStatement(UPDATE_AUCTION_QUERY)) {
             statement.setString(1, item.getTitle());
             statement.setString(2, item.getDescription());
-            statement.setBigDecimal(3, auction.getStartingPrice());
-            statement.setBigDecimal(4, auction.getMinimumBidIncrement());
-            statement.setBigDecimal(5, auction.getCurrentPrice());
-            statement.setString(6, auction.getStatus().name());
-            setNullableString(statement, 7, auction.getLeadingBidderId());
-            setNullableString(statement, 8, auction.getWinnerBidderId());
-            statement.setTimestamp(9, Timestamp.valueOf(auction.getStartTime()));
-            statement.setTimestamp(10, Timestamp.valueOf(auction.getEndTime()));
-            bindItemAttributes(statement, 11, item);
-            statement.setString(16, auction.getId());
+            setNullableString(statement, 3, item.getImageUrl());
+            statement.setBigDecimal(4, auction.getStartingPrice());
+            statement.setBigDecimal(5, auction.getMinimumBidIncrement());
+            statement.setBigDecimal(6, auction.getCurrentPrice());
+            statement.setString(7, auction.getStatus().name());
+            setNullableString(statement, 8, auction.getLeadingBidderId());
+            setNullableString(statement, 9, auction.getWinnerBidderId());
+            statement.setTimestamp(10, Timestamp.valueOf(auction.getStartTime()));
+            statement.setTimestamp(11, Timestamp.valueOf(auction.getEndTime()));
+            bindItemAttributes(statement, 12, item);
+            statement.setString(17, auction.getId());
             return statement.executeUpdate() == 1;
         } catch (SQLException e) {
             throw new DatabaseException("Failed to update auction.", e);
@@ -234,9 +241,20 @@ public class JdbcAuctionDao implements AuctionDao {
         try (Connection connection = databaseManager.getConnection();
              Statement statement = connection.createStatement()) {
             statement.executeUpdate(CREATE_AUCTIONS_TABLE_QUERY);
+            ensureImageUrlColumn(connection, statement);
         } catch (SQLException e) {
             throw new DatabaseException("Failed to create auctions table.", e);
         }
+    }
+
+    private void ensureImageUrlColumn(Connection connection, Statement statement) throws SQLException {
+        DatabaseMetaData metadata = connection.getMetaData();
+        try (ResultSet columns = metadata.getColumns(null, null, "auctions", "image_url")) {
+            if (columns.next()) {
+                return;
+            }
+        }
+        statement.executeUpdate("ALTER TABLE auctions ADD COLUMN image_url TEXT");
     }
 
     private Auction mapAuction(ResultSet resultSet) throws SQLException {

@@ -8,7 +8,6 @@
 <?import javafx.scene.control.Separator?>
 <?import javafx.scene.control.TextField?>
 <?import javafx.scene.layout.BorderPane?>
-<?import javafx.scene.layout.FlowPane?>
 <?import javafx.scene.layout.HBox?>
 <?import javafx.scene.layout.Region?>
 <?import javafx.scene.layout.StackPane?>
@@ -54,13 +53,13 @@
                                 <VBox fx:id="bidPageBox" managed="false" spacing="12.0" visible="false">
                                     <children>
                                         <Label fx:id="bidSectionLabel" style="-fx-font-size: 20px; -fx-font-weight: bold; -fx-text-fill: #153e5c;" text="Your Bids" />
-                                        <FlowPane fx:id="bidActivityFlowPane" hgap="16.0" prefWrapLength="930.0" vgap="16.0" />
+                                        <VBox fx:id="bidActivityFlowPane" spacing="8.0" />
                                     </children>
                                 </VBox>
                                 <VBox fx:id="sellerPageBox" managed="false" spacing="12.0" visible="false">
                                     <children>
                                         <Label fx:id="sellerSectionLabel" style="-fx-font-size: 20px; -fx-font-weight: bold; -fx-text-fill: #153e5c;" text="Your Auctions" />
-                                        <FlowPane fx:id="sellerActivityFlowPane" hgap="16.0" prefWrapLength="930.0" vgap="16.0" />
+                                        <VBox fx:id="sellerActivityFlowPane" spacing="8.0" />
                                     </children>
                                 </VBox>
                             </children>

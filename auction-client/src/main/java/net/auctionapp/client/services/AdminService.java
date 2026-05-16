@@ -18,27 +18,27 @@ public final class AdminService {
         return INSTANCE;
     }
 
-    public void requestUsers(MessageListener<Message> callback) {
+    public void requestUsers(net.auctionapp.common.messages.MessageListener<Message> callback) {
         NetworkService.getInstance().sendRequest(new AdminGetUsersRequestMessage(), callback);
     }
 
-    public void updateUserBanStatus(String userId, boolean banned, MessageListener<Message> callback) {
+    public void updateUserBanStatus(String userId, boolean banned, net.auctionapp.common.messages.MessageListener<Message> callback) {
         NetworkService.getInstance().sendRequest(new AdminSetUserBanRequestMessage(userId, banned), callback);
     }
 
-    public void updateAuction(AdminUpdateAuctionRequestMessage request, MessageListener<Message> callback) {
+    public void updateAuction(AdminUpdateAuctionRequestMessage request, net.auctionapp.common.messages.MessageListener<Message> callback) {
         NetworkService.getInstance().sendRequest(request, callback);
     }
 
-    public void deleteAuction(String auctionId, MessageListener<Message> callback) {
+    public void deleteAuction(String auctionId, net.auctionapp.common.messages.MessageListener<Message> callback) {
         NetworkService.getInstance().sendRequest(new AdminDeleteAuctionRequestMessage(auctionId), callback);
     }
 
-    public void forceCloseAuction(String auctionId, MessageListener<Message> callback) {
+    public void forceCloseAuction(String auctionId, net.auctionapp.common.messages.MessageListener<Message> callback) {
         NetworkService.getInstance().sendRequest(new AdminForceCloseAuctionRequestMessage(auctionId), callback);
     }
 
-    public void resetAuction(String auctionId, MessageListener<Message> callback) {
+    public void resetAuction(String auctionId, net.auctionapp.common.messages.MessageListener<Message> callback) {
         NetworkService.getInstance().sendRequest(new AdminResetAuctionRequestMessage(auctionId), callback);
     }
 }

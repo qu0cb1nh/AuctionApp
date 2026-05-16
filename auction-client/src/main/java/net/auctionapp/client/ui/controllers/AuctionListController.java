@@ -2,14 +2,12 @@ package net.auctionapp.client.ui.controllers;
 
 import javafx.event.ActionEvent;
 import javafx.fxml.FXML;
+import javafx.fxml.FXMLLoader;
 import javafx.fxml.Initializable;
-import javafx.geometry.Insets;
-import javafx.scene.control.Button;
 import javafx.scene.control.ComboBox;
 import javafx.scene.control.Label;
 import javafx.scene.control.TextField;
 import javafx.scene.layout.BorderPane;
-import javafx.scene.layout.FlowPane;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.VBox;
 import net.auctionapp.client.ClientApp;
@@ -24,6 +22,7 @@ import net.auctionapp.common.messages.types.ErrorMessage;
 import net.auctionapp.common.models.auction.AuctionStatus;
 import net.auctionapp.common.models.users.UserRole;
 
+import java.io.IOException;
 import java.math.BigDecimal;
 import java.net.URL;
 import java.time.Duration;
@@ -47,7 +46,7 @@ public class AuctionListController implements Initializable {
     @FXML
     private BorderPane rootPane;
     @FXML
-    private FlowPane auctionFlowPane;
+    private VBox auctionFlowPane;
     @FXML
     private Label listStatusLabel;
     @FXML
@@ -167,68 +166,49 @@ public class AuctionListController implements Initializable {
         }
 
         for (AuctionSummary auction : auctions) {
-            auctionFlowPane.getChildren().add(createAuctionCard(auction));
+            auctionFlowPane.getChildren().add(loadAuctionCard(auction));
         }
     }
 
-    private VBox createAuctionCard(AuctionSummary auction) {
+    private HBox loadAuctionCard(AuctionSummary auction) {
         String displayStatus = deriveDisplayStatus(auction);
-        Label statusLabel = new Label("Status: " + displayStatus);
-        statusLabel.setStyle("-fx-text-fill: " + statusColor(displayStatus) + "; -fx-font-weight: bold;");
+        AuctionListCardController.CardData cardData = new AuctionListCardController.CardData(
+                auction.getImageUrl(),
+                auction.getTitle(),
+                "Status: " + displayStatus,
+                statusColor(displayStatus),
+                "Minimum Next Bid: " + formatPrice(auction.getMinimumNextBid()),
+                "Start: " + formatDateTime(auction.getStartTime()),
+                "End: " + formatDateTime(auction.getEndTime()),
+                "Current Bid",
+                formatPrice(auction.getCurrentPrice()),
+                "#0057ff",
+                "Time Left",
+                formatTimingLabel(auction).replace("Ends in: ", "").replace("Starts in: ", ""),
+                "#e03621",
+                "Top Bidder",
+                formatTopBidder(auction.getLeadingBidderId()),
+                "#1f2933",
+                resolveButtonLabel(displayStatus),
+                () -> handleViewItem(auction.getAuctionId()),
+                adminUser ? "Manage auction" : null,
+                adminUser ? () -> handleManageAuction(auction.getAuctionId()) : null
+        );
+        return loadAuctionCardComponent(cardData);
+    }
 
-        Label titleLabel = new Label(auction.getTitle());
-        titleLabel.setWrapText(true);
-        titleLabel.setStyle("-fx-font-size: 13px; -fx-font-weight: bold;");
-
-        Label priceLabel = new Label("Current Bid: " + formatPrice(auction.getCurrentPrice()));
-        priceLabel.setStyle("-fx-text-fill: #c13c21;");
-
-        Label nextBidLabel = new Label("Minimum Next Bid: " + formatPrice(auction.getMinimumNextBid()));
-        Label topBidderLabel = new Label("Top bidder: " + formatTopBidder(auction.getLeadingBidderId()));
-        Label startLabel = new Label("Start: " + formatDateTime(auction.getStartTime()));
-        Label endLabel = new Label("End: " + formatDateTime(auction.getEndTime()));
-        Label timingLabel = new Label(formatTimingLabel(auction));
-        timingLabel.setStyle("-fx-text-fill: #3f5569;");
-
-        Button viewButton = new Button(resolveButtonLabel(displayStatus));
-        viewButton.setStyle("-fx-background-color: #3bb3d1; -fx-text-fill: white; "
-                + "-fx-background-radius: 8; -fx-font-weight: bold; -fx-cursor: hand;");
-        viewButton.setOnAction(event -> handleViewItem(auction.getAuctionId()));
-
-        HBox actions = new HBox(8.0);
-        actions.getChildren().add(viewButton);
-        if (adminUser) {
-            Button manageButton = new Button("Manage auction");
-            manageButton.setStyle("-fx-background-color: #153e5c; -fx-text-fill: white; "
-                    + "-fx-background-radius: 8; -fx-font-weight: bold; -fx-cursor: hand;");
-            manageButton.setOnAction(event -> handleManageAuction(auction.getAuctionId()));
-            actions.getChildren().add(manageButton);
+    private HBox loadAuctionCardComponent(AuctionListCardController.CardData cardData) {
+        try {
+            FXMLLoader loader = new FXMLLoader(getClass().getResource("/net/auctionapp/client/ui/fxml/AuctionCard.fxml"));
+            HBox card = loader.load();
+            AuctionListCardController controller = loader.getController();
+            controller.bindCard(cardData);
+            return card;
+        } catch (IOException | RuntimeException e) {
+            Label fallback = new Label("Failed to load auction card.");
+            fallback.setStyle("-fx-text-fill: #d9534f;");
+            return new HBox(fallback);
         }
-
-        VBox card = new VBox(
-                8.0,
-                statusLabel,
-                titleLabel,
-                priceLabel,
-                nextBidLabel,
-                topBidderLabel,
-                startLabel,
-                endLabel,
-                timingLabel,
-                actions
-        );
-        card.setPadding(new Insets(10.0));
-        card.setPrefWidth(299.0);
-        card.setPrefHeight(268.0);
-        card.setStyle(
-                "-fx-background-color: white; "
-                        + "-fx-border-color: #d4e1ee; "
-                        + "-fx-border-width: 1; "
-                        + "-fx-border-radius: 12; "
-                        + "-fx-background-radius: 12; "
-                        + "-fx-effect: dropshadow(three-pass-box, rgba(0,0,0,0.12), 8, 0, 0, 0);"
-        );
-        return card;
     }
 
     private List<AuctionSummary> sortAuctions(List<AuctionSummary> auctions, String selectedSort) {

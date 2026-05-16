@@ -2,13 +2,13 @@ package net.auctionapp.client.ui.controllers;
 
 import javafx.event.ActionEvent;
 import javafx.fxml.FXML;
+import javafx.fxml.FXMLLoader;
 import javafx.fxml.Initializable;
-import javafx.scene.control.Button;
 import javafx.scene.control.ComboBox;
 import javafx.scene.control.Label;
 import javafx.scene.control.TextField;
 import javafx.scene.layout.BorderPane;
-import javafx.scene.layout.FlowPane;
+import javafx.scene.layout.HBox;
 import javafx.scene.layout.VBox;
 import net.auctionapp.client.ClientApp;
 import net.auctionapp.client.services.AuthService;
@@ -21,6 +21,7 @@ import net.auctionapp.common.messages.types.AuctionListResponseMessage;
 import net.auctionapp.common.messages.types.ErrorMessage;
 import net.auctionapp.common.models.auction.AuctionStatus;
 
+import java.io.IOException;
 import java.math.BigDecimal;
 import java.net.URL;
 import java.time.Duration;
@@ -48,7 +49,7 @@ public class MyAuctionsController implements Initializable {
     @FXML
     private BorderPane rootPane;
     @FXML
-    private FlowPane auctionFlowPane;
+    private VBox auctionFlowPane;
     @FXML
     private TextField searchField;
     @FXML
@@ -219,55 +220,55 @@ public class MyAuctionsController implements Initializable {
         }
 
         for (AuctionCard auction : auctions) {
-            auctionFlowPane.getChildren().add(createAuctionCard(auction));
+            auctionFlowPane.getChildren().add(loadAuctionCard(auction));
         }
     }
 
-    private VBox createAuctionCard(AuctionCard auction) {
-        VBox card = new VBox(8.0);
-        card.setPrefSize(299.0, 255.0);
-        card.setStyle("-fx-background-color: white; -fx-background-radius: 10; "
-                + "-fx-effect: dropshadow(three-pass-box, rgba(0,0,0,0.2), 10, 0, 0, 0); "
-                + "-fx-padding: 10;");
-
-        Label title = new Label(auction.title());
-        title.setWrapText(true);
-        title.setStyle("-fx-font-weight: bold; -fx-font-size: 13px;");
-
-        Label status = new Label("Seller status: " + auction.sellerStatus());
-        status.setStyle("-fx-text-fill: " + statusColor(auction.sellerStatus()) + "; -fx-font-weight: bold;");
-
-        Label auctionState = new Label("Auction state: " + auction.auctionStatus().name());
-        Label currentPrice = new Label("Current price: " + formatMoney(auction.currentPrice()));
-        Label startingPrice = new Label("Starting price: " + formatMoney(auction.startingPrice()));
-        Label bidCount = new Label("Bid count: " + auction.bidCount());
-        Label timing = new Label(formatTimingLabel(auction.endTime(), auction.auctionStatus()));
-
+    private HBox loadAuctionCard(AuctionCard auction) {
         String winner = auction.winnerBidderId() == null || auction.winnerBidderId().isBlank()
                 ? "No winner yet"
                 : auction.winnerBidderId();
-        Label winnerLabel = new Label("Winner: " + winner);
-
-        Button viewButton = new Button("View auction");
-        viewButton.setStyle("-fx-background-color: #3bb3d1; -fx-text-fill: white; -fx-background-radius: 5;");
-        viewButton.setOnAction(event -> {
+        AuctionListCardController.CardData cardData = new AuctionListCardController.CardData(
+                auction.imageUrl(),
+                auction.title(),
+                "Seller status: " + auction.sellerStatus(),
+                statusColor(auction.sellerStatus()),
+                "Auction state: " + auction.auctionStatus().name(),
+                "Starting price: " + formatMoney(auction.startingPrice()),
+                formatTimingLabel(auction.endTime(), auction.auctionStatus()),
+                "Current Price",
+                formatMoney(auction.currentPrice()),
+                "#0057ff",
+                "Bids",
+                String.valueOf(auction.bidCount()),
+                "#1f2933",
+                "Winner",
+                winner,
+                "#1f2933",
+                "View auction",
+                () -> {
             statusLabel.setText("Opening auction: " + auction.title());
             ClientApp.getInstance().setSelectedAuctionId(auction.auctionId());
             SceneManager.switchScene("AuctionItem");
-        });
-
-        card.getChildren().addAll(
-                title,
-                status,
-                auctionState,
-                currentPrice,
-                startingPrice,
-                bidCount,
-                timing,
-                winnerLabel,
-                viewButton
+        },
+                null,
+                null
         );
-        return card;
+        return loadAuctionCardComponent(cardData);
+    }
+
+    private HBox loadAuctionCardComponent(AuctionListCardController.CardData cardData) {
+        try {
+            FXMLLoader loader = new FXMLLoader(getClass().getResource("/net/auctionapp/client/ui/fxml/AuctionCard.fxml"));
+            HBox card = loader.load();
+            AuctionListCardController controller = loader.getController();
+            controller.bindCard(cardData);
+            return card;
+        } catch (IOException | RuntimeException e) {
+            Label fallback = new Label("Failed to load auction card.");
+            fallback.setStyle("-fx-text-fill: #d9534f;");
+            return new HBox(fallback);
+        }
     }
 
     private java.util.Optional<AuctionCard> toAuctionCard(AuctionDetailsResponseMessage response, String currentUsername) {
@@ -288,7 +289,8 @@ public class MyAuctionsController implements Initializable {
                 response.getCurrentPrice(),
                 bidCount,
                 response.getEndTime(),
-                response.getWinnerBidderId()
+                response.getWinnerBidderId(),
+                response.getImageUrl()
         ));
     }
 
@@ -390,7 +392,8 @@ public class MyAuctionsController implements Initializable {
             BigDecimal currentPrice,
             int bidCount,
             LocalDateTime endTime,
-            String winnerBidderId
+            String winnerBidderId,
+            String imageUrl
     ) {
     }
 
