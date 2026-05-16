@@ -210,6 +210,9 @@ public class ClientHandler implements Runnable {
             case WITHDRAW_REQUEST:
                 balanceManager.handleWithdraw((WithdrawRequestMessage) message, this);
                 break;
+            case GET_WALLET_REQUEST:
+                balanceManager.handleGetWallet((GetWalletRequestMessage) message, this);
+                break;
             default:
                 LOGGER.warn("Received unsupported message type: {} from {}", message.getType(), socket.getInetAddress());
                 sendResponse(new ErrorMessage("Unsupported message type."), message);

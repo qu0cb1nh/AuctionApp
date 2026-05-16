@@ -18,7 +18,9 @@ import org.slf4j.LoggerFactory;
 import java.io.IOException;
 import java.lang.ref.WeakReference;
 import java.net.URL;
+import java.time.LocalDateTime;
 import java.util.Objects;
+import java.util.UUID;
 
 public final class NotificationToastManager {
     private static final Logger LOGGER = LoggerFactory.getLogger(NotificationToastManager.class);
@@ -77,6 +79,34 @@ public final class NotificationToastManager {
         PauseTransition hideDelay = new PauseTransition(Duration.seconds(NOTIFICATION_HIDE_AFTER_SECONDS));
         hideDelay.setOnFinished(event -> host.getChildren().remove(notificationNode));
         hideDelay.play();
+    }
+
+    public static void showSuccess(String message) {
+        showStatus("Success", message);
+    }
+
+    public static void showError(String message) {
+        showStatus("Error", message);
+    }
+
+    public static void showInfo(String message) {
+        showStatus("Info", message);
+    }
+
+    public static void showWarning(String message) {
+        showStatus("Warning", message);
+    }
+
+    private static void showStatus(String title, String message) {
+        show(new Notification(
+                UUID.randomUUID().toString(),
+                null,
+                null,
+                title,
+                message == null ? "" : message,
+                null,
+                LocalDateTime.now()
+        ));
     }
 
     private static HBox buildContent(Notification notification) {

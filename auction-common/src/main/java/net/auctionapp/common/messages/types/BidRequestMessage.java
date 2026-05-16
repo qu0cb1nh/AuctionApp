@@ -3,20 +3,22 @@ package net.auctionapp.common.messages.types;
 import net.auctionapp.common.messages.Message;
 import net.auctionapp.common.messages.MessageType;
 
+import java.math.BigDecimal;
+
 public class BidRequestMessage extends Message {
     private String itemId;
-    private double price;
+    private BigDecimal price;
     private String userName;
 
     public BidRequestMessage() {
         super(MessageType.BID_REQUEST);
     }
 
-    public BidRequestMessage(String auctionId, double price) {
+    public BidRequestMessage(String auctionId, BigDecimal price) {
         this(auctionId, price, null);
     }
 
-    public BidRequestMessage(String auctionId, double price, String userName) {
+    public BidRequestMessage(String auctionId, BigDecimal price, String userName) {
         super(MessageType.BID_REQUEST);
         this.itemId = auctionId;
         this.price = price;
@@ -39,11 +41,11 @@ public class BidRequestMessage extends Message {
         this.itemId = itemId;
     }
 
-    public double getPrice() {
+    public BigDecimal getPrice() {
         return price;
     }
 
-    public void setPrice(double price) {
+    public void setPrice(BigDecimal price) {
         this.price = price;
     }
 

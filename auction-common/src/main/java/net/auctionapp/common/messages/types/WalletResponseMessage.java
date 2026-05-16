@@ -7,17 +7,15 @@ import java.math.BigDecimal;
 
 public class WalletResponseMessage extends Message {
     private BigDecimal balance;
-    private BigDecimal pendingBalance;
     private String message;
 
     public WalletResponseMessage() {
         super(MessageType.WALLET_RESPONSE);
     }
 
-    public WalletResponseMessage(MessageType type, BigDecimal balance, BigDecimal pendingBalance, String message) {
+    public WalletResponseMessage(MessageType type, BigDecimal balance, String message) {
         super(type);
         this.balance = balance;
-        this.pendingBalance = pendingBalance;
         this.message = message;
     }
 
@@ -27,14 +25,6 @@ public class WalletResponseMessage extends Message {
 
     public void setBalance(BigDecimal balance) {
         this.balance = balance;
-    }
-
-    public BigDecimal getPendingBalance() {
-        return pendingBalance;
-    }
-
-    public void setPendingBalance(BigDecimal pendingBalance) {
-        this.pendingBalance = pendingBalance;
     }
 
     public String getMessage() {
