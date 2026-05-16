@@ -33,7 +33,7 @@ public final class AuctionService {
     }
 
     public void placeBid(String auctionId, BigDecimal amount, MessageListener<Message> callback) {
-        NetworkService.getInstance().sendRequest(new BidRequestMessage(auctionId, amount.doubleValue()), callback);
+        NetworkService.getInstance().sendRequest(new BidRequestMessage(auctionId, amount), callback);
     }
 
     public void addPriceUpdateListener(MessageListener<PriceUpdateMessage> listener) {
@@ -44,4 +44,3 @@ public final class AuctionService {
         NetworkService.getInstance().removeMessageListener(MessageType.PRICE_UPDATE, listener);
     }
 }
-

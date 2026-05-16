@@ -22,6 +22,7 @@ import net.auctionapp.common.messages.types.BidView;
 import net.auctionapp.common.messages.types.ErrorMessage;
 import net.auctionapp.common.messages.types.PriceUpdateMessage;
 import net.auctionapp.common.models.auction.AuctionStatus;
+import net.auctionapp.common.utils.MoneyUtil;
 
 import java.math.BigDecimal;
 import java.net.URL;
@@ -228,9 +229,7 @@ public class AuctionItemController implements Initializable {
         } catch (NumberFormatException e) {
             throw new IllegalArgumentException("Please enter a valid number.");
         }
-        if (bid.compareTo(BigDecimal.ZERO) <= 0) {
-            throw new IllegalArgumentException("Bid amount must be greater than zero.");
-        }
+        MoneyUtil.requirePositiveMoney(bid, "Bid amount");
         if (minimumAllowed != null && bid.compareTo(minimumAllowed) < 0) {
             throw new IllegalArgumentException("Bid must be at least $" + minimumAllowed.toPlainString() + ".");
         }

@@ -87,6 +87,11 @@ public enum MessageType {
      */
     WITHDRAW_REQUEST,
 
+    /**
+     * Request for the current user's wallet balance.
+     */
+    GET_WALLET_REQUEST,
+
 
     // === Server -> Client Messages ===
 
