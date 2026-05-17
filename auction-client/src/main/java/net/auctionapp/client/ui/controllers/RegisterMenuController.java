@@ -1,5 +1,7 @@
 package net.auctionapp.client.ui.controllers;
 
+import net.auctionapp.client.ui.controllers.components.AssistantPanelController;
+
 import javafx.fxml.FXML;
 import javafx.fxml.Initializable;
 import javafx.scene.control.Button;
@@ -70,7 +72,7 @@ public class RegisterMenuController implements Initializable {
 
         if (message.getType() == MessageType.REGISTER_SUCCESS) {
             assistantPanelController.speak(result.getMessage(), "#27ae60");
-            SceneManager.switchSceneWithDelay("LoginMenu", 1500);
+            SceneManager.switchSceneWithDelay("LoginMenu.fxml", 1500);
         } else if (message.getType() == MessageType.REGISTER_FAILURE) {
             assistantPanelController.speak(result.getMessage(), "#e74c3c");
         }
@@ -78,6 +80,6 @@ public class RegisterMenuController implements Initializable {
 
     @FXML
     public void switchToLogin(MouseEvent event) {
-        SceneManager.switchScene("LoginMenu");
+        SceneManager.switchScene("LoginMenu.fxml");
     }
 }

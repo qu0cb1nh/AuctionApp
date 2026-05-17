@@ -1,6 +1,6 @@
 package net.auctionapp.server.dao;
 
-import net.auctionapp.common.models.users.User;
+import net.auctionapp.server.models.users.User;
 
 import java.math.BigDecimal;
 import java.util.List;

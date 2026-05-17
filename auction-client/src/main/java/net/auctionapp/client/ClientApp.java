@@ -6,6 +6,7 @@ import javafx.scene.Parent;
 import javafx.scene.Scene;
 import javafx.stage.Stage;
 import net.auctionapp.client.ui.managers.NotificationToastManager;
+import net.auctionapp.client.utils.ResourcesUtil;
 
 import java.io.IOException;
 
@@ -42,7 +43,7 @@ public class ClientApp extends Application {
         primaryStage = stage;
         AppLifecycleManager.getInstance().start();
 
-        FXMLLoader loader = new FXMLLoader(ClientApp.class.getResource("/net/auctionapp/client/ui/fxml/LoginMenu.fxml"));
+        FXMLLoader loader = ResourcesUtil.fxmlLoader("LoginMenu.fxml");
         Parent root = loader.load();
         Scene scene = new Scene(NotificationToastManager.wrapWithNotificationHost(root), WINDOW_WIDTH, WINDOW_HEIGHT);
         primaryStage.setTitle("Auction App");

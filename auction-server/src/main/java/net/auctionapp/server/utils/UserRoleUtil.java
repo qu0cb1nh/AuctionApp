@@ -1,7 +1,7 @@
 package net.auctionapp.server.utils;
 
-import net.auctionapp.common.models.users.User;
-import net.auctionapp.common.models.users.UserRole;
+import net.auctionapp.server.models.users.User;
+import net.auctionapp.common.users.UserRole;
 
 public final class UserRoleUtil {
     private static final String ADMIN_ROLE = "admin";

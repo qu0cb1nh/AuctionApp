@@ -8,7 +8,6 @@ import java.util.Set;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
@@ -17,10 +16,10 @@ import net.auctionapp.common.utils.ConfigUtil;
 import net.auctionapp.server.dao.JdbcAuctionDao;
 import net.auctionapp.server.dao.JdbcNotificationDao;
 import net.auctionapp.server.dao.JdbcUserDao;
-import net.auctionapp.server.managers.AuthManager;
-import net.auctionapp.server.managers.AuctionManager;
-import net.auctionapp.server.managers.DatabaseManager;
-import net.auctionapp.server.managers.NotificationManager;
+import net.auctionapp.server.services.AuthService;
+import net.auctionapp.server.services.AuctionService;
+import net.auctionapp.server.services.DatabaseService;
+import net.auctionapp.server.services.NotificationService;
 import net.auctionapp.server.managers.SessionManager;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -47,12 +46,12 @@ public class ServerApp {
         Runtime.getRuntime().addShutdownHook(new Thread(ServerApp::shutdown)); // Shutdown on JVM exit (Ctrl+C, IDE stop, etc.)
 
         try {
-            DatabaseManager.getInstance().createConnectionPool(); // Initializes database connection pool
+            DatabaseService.getInstance().createConnectionPool(); // Initializes database connection pool
             JdbcUserDao jdbcUserDao = new JdbcUserDao();
-            AuthManager.getInstance().setUserDao(jdbcUserDao);
-            AuctionManager.getInstance().setAuctionDao(new JdbcAuctionDao());
-            AuctionManager.getInstance().setUserDao(jdbcUserDao);
-            NotificationManager.getInstance().setNotificationDao(new JdbcNotificationDao());
+            AuthService.getInstance().setUserDao(jdbcUserDao);
+            AuctionService.getInstance().setAuctionDao(new JdbcAuctionDao());
+            AuctionService.getInstance().setUserDao(jdbcUserDao);
+            NotificationService.getInstance().setNotificationDao(new JdbcNotificationDao());
 
             serverSocket = new ServerSocket(ConfigUtil.getServerPort(), MAX_CLIENTS);
             LOGGER.info("Auction server is running on port: {}", ConfigUtil.getServerPort());
@@ -120,7 +119,7 @@ public class ServerApp {
         SessionManager.getInstance().clear();
         CLIENT_THREAD_POOL.shutdownNow();
 
-        DatabaseManager.getInstance().closeConnectionPool(); // Close database connection pool
+        DatabaseService.getInstance().closeConnectionPool(); // Close database connection pool
         LOGGER.info("Server shutdown complete.");
     }
 

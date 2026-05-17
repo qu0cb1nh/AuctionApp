@@ -1,6 +1,6 @@
 package net.auctionapp.server.dao;
 
-import net.auctionapp.common.models.auction.Auction;
+import net.auctionapp.server.models.auction.Auction;
 
 import java.util.List;
 

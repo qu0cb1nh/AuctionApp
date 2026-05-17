@@ -1,0 +1,157 @@
+package net.auctionapp.client.ui.controllers.components;
+
+import javafx.event.ActionEvent;
+import javafx.fxml.FXML;
+import javafx.scene.control.Button;
+import javafx.scene.control.Label;
+import javafx.scene.image.Image;
+import javafx.scene.image.ImageView;
+import javafx.scene.layout.VBox;
+import net.auctionapp.client.utils.ResourcesUtil;
+
+public final class AuctionCardController {
+    private static final String FALLBACK_IMAGE = "iphone.jpg";
+
+    @FXML
+    private ImageView thumbnailImageView;
+    @FXML
+    private Label titleLabel;
+    @FXML
+    private Label statusLabel;
+    @FXML
+    private Label detailOneLabel;
+    @FXML
+    private Label detailTwoLabel;
+    @FXML
+    private Label detailThreeLabel;
+    @FXML
+    private VBox metricOneBox;
+    @FXML
+    private Label metricOneCaptionLabel;
+    @FXML
+    private Label metricOneValueLabel;
+    @FXML
+    private VBox metricTwoBox;
+    @FXML
+    private Label metricTwoCaptionLabel;
+    @FXML
+    private Label metricTwoValueLabel;
+    @FXML
+    private VBox metricThreeBox;
+    @FXML
+    private Label metricThreeCaptionLabel;
+    @FXML
+    private Label metricThreeValueLabel;
+    @FXML
+    private Button primaryButton;
+    @FXML
+    private Button secondaryButton;
+
+    private Runnable primaryAction;
+    private Runnable secondaryAction;
+
+    public void bindCard(CardData data) {
+        if (data == null) {
+            return;
+        }
+        setImage(data.imageUrl());
+        titleLabel.setText(textOrFallback(data.title(), "Untitled auction"));
+        statusLabel.setText(textOrFallback(data.statusText(), ""));
+        statusLabel.setStyle("-fx-font-weight: bold; -fx-font-size: 12px; -fx-text-fill: "
+                + textOrFallback(data.statusColor(), "#3f5569") + ";");
+        setOptionalLabel(detailOneLabel, data.detailOne());
+        setOptionalLabel(detailTwoLabel, data.detailTwo());
+        setOptionalLabel(detailThreeLabel, data.detailThree());
+        setMetric(metricOneBox, metricOneCaptionLabel, metricOneValueLabel, data.metricOneCaption(), data.metricOneValue(), data.metricOneColor());
+        setMetric(metricTwoBox, metricTwoCaptionLabel, metricTwoValueLabel, data.metricTwoCaption(), data.metricTwoValue(), data.metricTwoColor());
+        setMetric(metricThreeBox, metricThreeCaptionLabel, metricThreeValueLabel, data.metricThreeCaption(), data.metricThreeValue(), data.metricThreeColor());
+        configureButton(primaryButton, data.primaryButtonText(), data.primaryAction());
+        configureButton(secondaryButton, data.secondaryButtonText(), data.secondaryAction());
+    }
+
+    @FXML
+    public void handlePrimaryAction(ActionEvent event) {
+        if (primaryAction != null) {
+            primaryAction.run();
+        }
+    }
+
+    @FXML
+    public void handleSecondaryAction(ActionEvent event) {
+        if (secondaryAction != null) {
+            secondaryAction.run();
+        }
+    }
+
+    private void setImage(String imageUrl) {
+        if (imageUrl != null && !imageUrl.isBlank()) {
+            thumbnailImageView.setImage(new Image(imageUrl, true));
+            return;
+        }
+        Image fallback = new Image(ResourcesUtil.image(FALLBACK_IMAGE).toExternalForm(), true);
+        thumbnailImageView.setImage(fallback);
+    }
+
+    private void setOptionalLabel(Label label, String text) {
+        boolean visible = text != null && !text.isBlank();
+        label.setText(visible ? text : "");
+        label.setManaged(visible);
+        label.setVisible(visible);
+    }
+
+    private void setMetric(VBox metricBox, Label captionLabel, Label valueLabel, String caption, String value, String color) {
+        boolean visible = (caption != null && !caption.isBlank()) || (value != null && !value.isBlank());
+        metricBox.setManaged(visible);
+        metricBox.setVisible(visible);
+        if (!visible) {
+            return;
+        }
+        captionLabel.setText(textOrFallback(caption, ""));
+        valueLabel.setText(textOrFallback(value, "N/A"));
+        valueLabel.setStyle("-fx-font-size: 13px; -fx-font-weight: bold; -fx-text-fill: "
+                + textOrFallback(color, "#1f2933") + ";");
+    }
+
+    private void configureButton(Button button, String text, Runnable action) {
+        boolean visible = text != null && !text.isBlank() && action != null;
+        button.setText(visible ? text : "");
+        button.setManaged(visible);
+        button.setVisible(visible);
+        if (button == primaryButton) {
+            primaryAction = action;
+            return;
+        }
+        secondaryAction = action;
+    }
+
+    private String textOrFallback(String value, String fallback) {
+        if (value == null || value.isBlank()) {
+            return fallback;
+        }
+        return value;
+    }
+
+    public record CardData(
+            String imageUrl,
+            String title,
+            String statusText,
+            String statusColor,
+            String detailOne,
+            String detailTwo,
+            String detailThree,
+            String metricOneCaption,
+            String metricOneValue,
+            String metricOneColor,
+            String metricTwoCaption,
+            String metricTwoValue,
+            String metricTwoColor,
+            String metricThreeCaption,
+            String metricThreeValue,
+            String metricThreeColor,
+            String primaryButtonText,
+            Runnable primaryAction,
+            String secondaryButtonText,
+            Runnable secondaryAction
+    ) {
+    }
+}

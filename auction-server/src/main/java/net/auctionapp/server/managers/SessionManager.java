@@ -1,6 +1,6 @@
 package net.auctionapp.server.managers;
 
-import net.auctionapp.common.models.users.UserRole;
+import net.auctionapp.common.users.UserRole;
 import net.auctionapp.server.ClientHandler;
 import net.auctionapp.common.utils.StringUtil;
 
@@ -39,7 +39,7 @@ public final class SessionManager {
         SessionInfo newSession = new SessionInfo(normalizedUserId, username, role);
         SessionInfo previousSession = sessionsByClient.put(clientHandler, newSession);
 
-        if (previousSession != null && !previousSession.userId().equals(normalizedUserId)) {
+        if (previousSession != null) {
             removeClientFromUser(previousSession.userId(), clientHandler);
         }
 
@@ -69,7 +69,7 @@ public final class SessionManager {
             return Set.of();
         }
         Set<ClientHandler> clients = clientsByUserId.get(normalizedUserId);
-        return clients == null ? Set.of() : Collections.unmodifiableSet(clients);
+        return clients == null ? Set.of() : Set.copyOf(clients);
     }
 
     public boolean isUserOnline(String userId) {

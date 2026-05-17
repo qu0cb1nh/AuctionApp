@@ -1,9 +1,10 @@
 package net.auctionapp.client.services;
 
+import net.auctionapp.client.MessageListener;
 import net.auctionapp.common.messages.Message;
 import net.auctionapp.common.messages.types.LoginRequestMessage;
 import net.auctionapp.common.messages.types.RegisterRequestMessage;
-import net.auctionapp.common.models.users.UserRole;
+import net.auctionapp.common.users.UserRole;
 
 public final class AuthService {
     private static final AuthService INSTANCE = new AuthService();
@@ -37,11 +38,11 @@ public final class AuthService {
         return INSTANCE;
     }
 
-    public void login(String username, String password, net.auctionapp.common.messages.MessageListener<Message> callback) {
+    public void login(String username, String password, MessageListener<Message> callback) {
         NetworkService.getInstance().sendRequest(new LoginRequestMessage(username, password), callback);
     }
 
-    public void register(String username, String password, net.auctionapp.common.messages.MessageListener<Message> callback) {
+    public void register(String username, String password, MessageListener<Message> callback) {
         NetworkService.getInstance().sendRequest(new RegisterRequestMessage(username, password), callback);
     }
 }

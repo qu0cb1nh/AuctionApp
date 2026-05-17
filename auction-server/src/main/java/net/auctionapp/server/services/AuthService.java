@@ -1,0 +1,283 @@
+package net.auctionapp.server.services;
+
+import net.auctionapp.common.messages.MessageType;
+import net.auctionapp.common.messages.types.ErrorMessage;
+import net.auctionapp.common.messages.types.LoginRequestMessage;
+import net.auctionapp.common.messages.types.LoginResultMessage;
+import net.auctionapp.common.messages.types.RegisterRequestMessage;
+import net.auctionapp.common.messages.types.RegisterResultMessage;
+import net.auctionapp.common.exceptions.ValidationException;
+import net.auctionapp.server.managers.SessionManager;
+import net.auctionapp.server.models.users.User;
+import net.auctionapp.common.users.UserRole;
+import net.auctionapp.common.utils.CredentialUtil;
+import net.auctionapp.common.utils.MoneyUtil;
+import net.auctionapp.common.utils.StringUtil;
+import net.auctionapp.server.ClientHandler;
+import net.auctionapp.server.dao.UserDao;
+import net.auctionapp.server.exceptions.AuthenticationException;
+import net.auctionapp.server.exceptions.AuthorizationException;
+import net.auctionapp.server.exceptions.DatabaseException;
+import net.auctionapp.server.exceptions.NotFoundException;
+import net.auctionapp.server.utils.UserRoleUtil;
+import org.mindrot.jbcrypt.BCrypt;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import java.util.List;
+import java.util.Optional;
+import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
+
+public class AuthService {
+    private static final Logger LOGGER = LoggerFactory.getLogger(AuthService.class);
+    private static final AuthService INSTANCE = new AuthService();
+    private static final String INVALID_LOGIN_MESSAGE = "Invalid username or password.";
+
+    private volatile UserDao userDao;
+    private final ConcurrentMap<String, User> usersById = new ConcurrentHashMap<>();
+    private final SessionManager sessionManager = SessionManager.getInstance();
+
+    private AuthService() {
+    }
+
+    public static AuthService getInstance() {
+        return INSTANCE;
+    }
+
+    public void setUserDao(UserDao userDao) {
+        this.userDao = userDao;
+    }
+
+    public void handleLogin(LoginRequestMessage request, ClientHandler clientHandler) {
+        String normalizedUsername = StringUtil.normalizeString(request.getUsername());
+        String password = request.getPassword();
+
+        try {
+            CredentialUtil.validateLogin(request.getUsername(), password);
+        } catch (ValidationException e) {
+            sendLoginFailure(request, clientHandler, e.getMessage());
+            return;
+        }
+
+        try {
+            Optional<User> storedUser = requireUserDao().findByUsername(normalizedUsername);
+            if (storedUser.isEmpty()) {
+                sendLoginFailure(request, clientHandler, INVALID_LOGIN_MESSAGE);
+                return;
+            }
+
+            User user = storedUser.get();
+            if (!BCrypt.checkpw(password, user.getPasswordHash())) {
+                sendLoginFailure(request, clientHandler, INVALID_LOGIN_MESSAGE);
+                return;
+            }
+            if (user.isBanned()) {
+                sendLoginFailure(request, clientHandler, "This account is banned.");
+                return;
+            }
+
+            cacheUser(user);
+            UserRole clientRole = UserRoleUtil.toClientRole(user);
+            LoginResultMessage success = new LoginResultMessage(
+                    MessageType.LOGIN_SUCCESS,
+                    user.getId(),
+                    user.getUsername(),
+                    clientRole,
+                    "Login successful."
+            );
+            clientHandler.authenticate(user.getId(), clientRole);
+            sessionManager.bindSession(user.getId(), user.getUsername(), clientRole, clientHandler);
+            clientHandler.sendResponse(success, request);
+            LOGGER.info("User '{}' logged in successfully.", user.getUsername());
+        } catch (DatabaseException e) {
+            sendLoginFailure(request, clientHandler, "Cannot connect to authentication database.");
+            LOGGER.error("Login query failed for user '{}': {}", normalizedUsername, e.getMessage(), e);
+        }
+    }
+
+    public void handleRegister(RegisterRequestMessage request, ClientHandler clientHandler) {
+        String normalizedUsername = StringUtil.normalizeString(request.getUsername());
+        String password = request.getPassword();
+        String username = request.getUsername() == null ? "" : request.getUsername().trim();
+
+        try {
+            CredentialUtil.validateRegistration(username, password, password);
+        } catch (ValidationException e) {
+            sendRegisterFailure(request, clientHandler, e.getMessage());
+            return;
+        }
+
+        try {
+            UserDao dao = requireUserDao();
+            if (dao.findByUsername(normalizedUsername).isPresent()) {
+                sendRegisterFailure(request, clientHandler, "Username already exists.");
+                return;
+            }
+
+            String passwordHash = BCrypt.hashpw(password, BCrypt.gensalt());
+            User user = new User(
+                    normalizedUsername,
+                    username,
+                    passwordHash,
+                    UserRoleUtil.fromDatabaseRole("user"),
+                    false
+            );
+            if (!dao.createUser(user)) {
+                sendRegisterFailure(request, clientHandler, "Registration could not be completed.");
+                return;
+            }
+
+            cacheUser(user);
+
+            RegisterResultMessage success = new RegisterResultMessage(
+                    MessageType.REGISTER_SUCCESS,
+                    username,
+                    "Registration successful. Redirecting..."
+            );
+            clientHandler.sendResponse(success, request);
+            LOGGER.info("New user '{}' registered successfully.", username);
+        } catch (DatabaseException e) {
+            sendRegisterFailure(request, clientHandler, "Registration failed due to a database error.");
+            LOGGER.error("Registration query failed for user '{}': {}", username, e.getMessage(), e);
+        }
+    }
+
+    private void sendLoginFailure(LoginRequestMessage request, ClientHandler clientHandler, String message) {
+        LoginResultMessage failure = new LoginResultMessage(MessageType.LOGIN_FAILURE, null, null, null, message);
+        clientHandler.sendResponse(failure, request);
+    }
+
+    private void sendRegisterFailure(RegisterRequestMessage request, ClientHandler clientHandler, String message) {
+        RegisterResultMessage failure = new RegisterResultMessage(MessageType.REGISTER_FAILURE, null, message);
+        clientHandler.sendResponse(failure, request);
+    }
+
+    private UserDao requireUserDao() {
+        if (userDao == null) {
+            throw new IllegalStateException("User DAO has not been configured.");
+        }
+        return userDao;
+    }
+
+    public User requireUserById(String userId) {
+        String normalizedUserId = StringUtil.normalizeString(userId);
+        if (normalizedUserId.isEmpty()) {
+            throw new NotFoundException("User not found.");
+        }
+
+        User cachedUser = usersById.get(normalizedUserId);
+        if (cachedUser != null) {
+            return cachedUser;
+        }
+
+        Optional<User> userFromDatabase = requireUserDao().findByUsername(normalizedUserId);
+        if (userFromDatabase.isEmpty()) {
+            throw new NotFoundException("User not found.");
+        }
+        return cacheUser(userFromDatabase.get());
+    }
+
+    public User requireActiveUserById(String userId) {
+        User user = requireUserById(userId);
+        if (user.isBanned()) {
+            throw new AuthenticationException("Your account is banned.");
+        }
+        return user;
+    }
+
+    public User requireAdminUser(String userId) {
+        User user = requireActiveUserById(userId);
+        if (!user.hasRole(UserRole.ADMIN)) {
+            throw new AuthorizationException("Admin privileges are required.");
+        }
+        return user;
+    }
+
+    public List<User> getAllUsers(String actorId) {
+        requireAdminUser(actorId);
+        List<User> users = requireUserDao().findAllUsers();
+        for (User user : users) {
+            cacheUser(user);
+        }
+        return users;
+    }
+
+    public User updateUserBanStatus(String actorId, String targetUserId, boolean banned) {
+        User actor = requireAdminUser(actorId);
+        String normalizedTargetUserId = StringUtil.normalizeString(targetUserId);
+        if (normalizedTargetUserId.isEmpty()) {
+            throw new NotFoundException("User not found.");
+        }
+        if (actor.getId().equals(normalizedTargetUserId) && banned) {
+            throw new AuthorizationException("Admin cannot ban own account.");
+        }
+
+        User target = requireUserById(normalizedTargetUserId);
+        if (!requireUserDao().updateBanStatus(normalizedTargetUserId, banned)) {
+            throw new NotFoundException("User not found.");
+        }
+
+        target.setBanned(banned);
+        cacheUser(target);
+        if (banned) {
+            disconnectBannedUserSessions(normalizedTargetUserId);
+        }
+        return target;
+    }
+
+    public User deposit(String userId, java.math.BigDecimal amount) {
+        MoneyUtil.requirePositiveMoney(amount, "Deposit amount");
+        String normalizedUserId = StringUtil.normalizeString(userId);
+        User user = requireUserById(normalizedUserId);
+        
+        if (requireUserDao().increaseBalance(normalizedUserId, amount)) {
+            user.setBalance(user.getBalance().add(amount));
+            cacheUser(user);
+            return user;
+        }
+        throw new DatabaseException("Failed to process deposit.");
+    }
+
+    public User withdraw(String userId, java.math.BigDecimal amount) {
+        MoneyUtil.requirePositiveMoney(amount, "Withdrawal amount");
+        String normalizedUserId = StringUtil.normalizeString(userId);
+        User user = requireUserById(normalizedUserId);
+        
+        if (user.getBalance().compareTo(amount) < 0) {
+            throw new ValidationException("Insufficient liquid balance for withdrawal.");
+        }
+
+        if (requireUserDao().tryDecreaseBalance(normalizedUserId, amount)) {
+            user.setBalance(user.getBalance().subtract(amount));
+            cacheUser(user);
+            return user;
+        }
+        throw new DatabaseException("Failed to process withdrawal.");
+    }
+
+    private User cacheUser(User user) {
+        if (user == null) {
+            throw new NotFoundException("User not found.");
+        }
+        String normalizedUserId = StringUtil.normalizeString(user.getId());
+        if (normalizedUserId.isEmpty()) {
+            throw new NotFoundException("User not found.");
+        }
+        usersById.put(normalizedUserId, user);
+        return user;
+    }
+
+    private void disconnectBannedUserSessions(String userId) {
+        Set<ClientHandler> sessions = sessionManager.getClientsByUserId(userId);
+        if (sessions.isEmpty()) {
+            return;
+        }
+        List<ClientHandler> sessionSnapshot = List.copyOf(sessions);
+        for (ClientHandler clientHandler : sessionSnapshot) {
+            clientHandler.sendMessage(new ErrorMessage("Your account has been banned. You have been disconnected."));
+            clientHandler.closeConnection();
+        }
+    }
+}

@@ -1,0 +1,76 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.geometry.Insets?>
+<?import javafx.scene.control.Button?>
+<?import javafx.scene.control.Label?>
+<?import javafx.scene.control.ScrollPane?>
+<?import javafx.scene.control.Separator?>
+<?import javafx.scene.control.TextArea?>
+<?import javafx.scene.control.TextField?>
+<?import javafx.scene.layout.BorderPane?>
+<?import javafx.scene.layout.HBox?>
+<?import javafx.scene.layout.Region?>
+<?import javafx.scene.layout.VBox?>
+
+<BorderPane prefHeight="634.0" prefWidth="967.0" style="-fx-background-color: #f4f4f4;" xmlns="http://javafx.com/javafx/25" xmlns:fx="http://javafx.com/fxml/1" fx:controller="net.auctionapp.client.ui.controllers.ManageAuctionMenuController">
+    <top>
+        <fx:include fx:id="appHeader" source="components/Header.fxml" />
+    </top>
+    <center>
+        <ScrollPane fitToWidth="true" style="-fx-background-color: #f4f4f4;" BorderPane.alignment="CENTER">
+            <content>
+                <VBox spacing="12.0" style="-fx-padding: 20;">
+                    <children>
+                        <Label fx:id="statusLabel" style="-fx-text-fill: #3f5569;" text="Ready." />
+                        <Label fx:id="auctionInfoLabel" style="-fx-font-size: 18px; -fx-font-weight: bold; -fx-text-fill: #153e5c;" text="Auction Management" />
+                        <Separator />
+                        <Label style="-fx-font-size: 13px; -fx-font-weight: bold; -fx-text-fill: #3f5569;" text="Title" />
+                        <TextField fx:id="titleField" promptText="Auction title" />
+                        <Label style="-fx-font-size: 13px; -fx-font-weight: bold; -fx-text-fill: #3f5569;" text="Description" />
+                        <TextArea fx:id="descriptionField" prefRowCount="4" promptText="Auction description" wrapText="true" />
+                        <HBox spacing="10.0">
+                            <children>
+                                <VBox spacing="8.0" HBox.hgrow="ALWAYS">
+                                    <children>
+                                        <Label style="-fx-font-size: 13px; -fx-font-weight: bold; -fx-text-fill: #3f5569;" text="Starting price" />
+                                        <TextField fx:id="startingPriceField" promptText="e.g. 1000" />
+                                    </children>
+                                </VBox>
+                                <VBox spacing="8.0" HBox.hgrow="ALWAYS">
+                                    <children>
+                                        <Label style="-fx-font-size: 13px; -fx-font-weight: bold; -fx-text-fill: #3f5569;" text="Increment" />
+                                        <TextField fx:id="incrementField" promptText="e.g. 10" />
+                                    </children>
+                                </VBox>
+                            </children>
+                        </HBox>
+                        <HBox spacing="10.0">
+                            <children>
+                                <VBox spacing="8.0" HBox.hgrow="ALWAYS">
+                                    <children>
+                                        <Label style="-fx-font-size: 13px; -fx-font-weight: bold; -fx-text-fill: #3f5569;" text="Start time (yyyy-MM-dd HH:mm)" />
+                                        <TextField fx:id="startTimeField" promptText="yyyy-MM-dd HH:mm" />
+                                    </children>
+                                </VBox>
+                                <VBox spacing="8.0" HBox.hgrow="ALWAYS">
+                                    <children>
+                                        <Label style="-fx-font-size: 13px; -fx-font-weight: bold; -fx-text-fill: #3f5569;" text="End time (yyyy-MM-dd HH:mm)" />
+                                        <TextField fx:id="endTimeField" promptText="yyyy-MM-dd HH:mm" />
+                                    </children>
+                                </VBox>
+                            </children>
+                        </HBox>
+                        <HBox spacing="10.0">
+                            <children>
+                                <Button fx:id="saveButton" mnemonicParsing="false" onAction="#handleSave" style="-fx-background-color: #1f8f4c; -fx-text-fill: white; -fx-font-weight: bold;" text="Save Changes" />
+                                <Button fx:id="deleteButton" mnemonicParsing="false" onAction="#handleDelete" style="-fx-background-color: #c13c21; -fx-text-fill: white; -fx-font-weight: bold;" text="Delete" />
+                                <Region HBox.hgrow="ALWAYS" />
+                                <Button mnemonicParsing="false" onAction="#handleRefresh" style="-fx-background-color: #3bb3d1; -fx-text-fill: white; -fx-font-weight: bold;" text="Refresh" />
+                            </children>
+                        </HBox>
+                    </children>
+                </VBox>
+            </content>
+        </ScrollPane>
+    </center>
+</BorderPane>

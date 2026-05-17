@@ -5,9 +5,10 @@ import net.auctionapp.common.messages.types.DepositRequestMessage;
 import net.auctionapp.common.messages.types.ErrorMessage;
 import net.auctionapp.common.messages.types.WithdrawRequestMessage;
 import net.auctionapp.common.messages.types.WalletResponseMessage;
-import net.auctionapp.common.models.users.User;
+import net.auctionapp.server.models.users.User;
 import net.auctionapp.server.ClientHandler;
 import net.auctionapp.server.exceptions.AuctionAppException;
+import net.auctionapp.server.services.AuthService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -17,7 +18,7 @@ public final class BalanceManager {
     private static final Logger LOGGER = LoggerFactory.getLogger(BalanceManager.class);
     private static final BalanceManager INSTANCE = new BalanceManager();
 
-    private final AuthManager authManager = AuthManager.getInstance();
+    private final AuthService authService = AuthService.getInstance();
 
     private BalanceManager() {
     }
@@ -37,7 +38,7 @@ public final class BalanceManager {
                 return;
             }
 
-            User user = authManager.deposit(userId, amount);
+            User user = authService.deposit(userId, amount);
             WalletResponseMessage response = new WalletResponseMessage(
                     MessageType.WALLET_RESPONSE,
                     user.getBalance(),
@@ -67,7 +68,7 @@ public final class BalanceManager {
                 return;
             }
 
-            User user = authManager.withdraw(userId, amount);
+            User user = authService.withdraw(userId, amount);
             WalletResponseMessage response = new WalletResponseMessage(
                     MessageType.WALLET_RESPONSE,
                     user.getBalance(),

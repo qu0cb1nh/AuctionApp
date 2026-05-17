@@ -2,16 +2,17 @@ package net.auctionapp.server;
 
 import net.auctionapp.common.messages.Message;
 import net.auctionapp.common.messages.MessageType;
-import net.auctionapp.common.messages.types.*;
-import net.auctionapp.common.models.users.UserRole;
+import net.auctionapp.common.messages.types.ErrorMessage;
+import net.auctionapp.common.users.UserRole;
 import net.auctionapp.common.utils.JsonUtil;
 import net.auctionapp.server.exceptions.AuctionAppException;
-import net.auctionapp.server.managers.AdminManager;
-import net.auctionapp.server.managers.AuthManager;
-import net.auctionapp.server.managers.AuctionManager;
+import net.auctionapp.server.services.AuthService;
+import net.auctionapp.server.services.AuctionService;
 import net.auctionapp.server.managers.BalanceManager;
-import net.auctionapp.server.managers.NotificationManager;
+import net.auctionapp.server.services.NotificationService;
+import net.auctionapp.server.services.UserService;
 import net.auctionapp.server.managers.SessionManager;
+import net.auctionapp.server.messages.MessageRouter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -28,24 +29,26 @@ public class ClientHandler implements Runnable {
     private final Socket socket;
     private PrintWriter out;
     private BufferedReader in;
-    private final AuctionManager auctionManager;
-    private final AuthManager authManager;
-    private final AdminManager adminManager;
-    private final NotificationManager notificationManager;
-    private final BalanceManager balanceManager;
+    private final AuctionService auctionService;
+    private final AuthService authService;
     private final SessionManager sessionManager;
+    private final MessageRouter messageRouter;
     private final AtomicBoolean closed = new AtomicBoolean(false);
     private volatile String authenticatedUserId;
     private volatile UserRole authenticatedRole;
 
     public ClientHandler(Socket socket) {
         this.socket = socket;
-        this.auctionManager = AuctionManager.getInstance();
-        this.authManager = AuthManager.getInstance();
-        this.adminManager = AdminManager.getInstance();
-        this.notificationManager = NotificationManager.getInstance();
-        this.balanceManager = BalanceManager.getInstance();
+        this.auctionService = AuctionService.getInstance();
+        this.authService = AuthService.getInstance();
         this.sessionManager = SessionManager.getInstance();
+        this.messageRouter = new MessageRouter(
+                authService,
+                auctionService,
+                UserService.getInstance(),
+                NotificationService.getInstance(),
+                BalanceManager.getInstance()
+        );
     }
 
     @Override
@@ -150,71 +153,15 @@ public class ClientHandler implements Runnable {
         if (authenticatedUserId == null || authenticatedRole == null) {
             throw new AuctionAppException("You must log in before using auction features.");
         }
-        authManager.requireActiveUserById(authenticatedUserId);
+        authService.requireActiveUserById(authenticatedUserId);
     }
 
     private void handleMessagesFromClient(Message message) {
-        auctionManager.broadcastEndedAuctions();
+        auctionService.broadcastEndedAuctions();
         if (shouldEnforceBannedAccess(message.getType()) && !enforceAuthenticatedSessionAccess(message)) {
             return;
         }
-        switch (message.getType()) {
-            case PING:
-                sendResponse(new PongMessage(), message);
-                break;
-            case LOGIN_REQUEST:
-                authManager.handleLogin((LoginRequestMessage) message, this);
-                break;
-            case REGISTER_REQUEST:
-                authManager.handleRegister((RegisterRequestMessage) message, this);
-                break;
-            case GET_AUCTION_LIST_REQUEST:
-                auctionManager.handleGetAuctionList((GetAuctionListRequestMessage) message, this);
-                break;
-            case GET_AUCTION_DETAILS_REQUEST:
-                auctionManager.handleGetAuctionDetails((GetAuctionDetailsRequestMessage) message, this);
-                break;
-            case GET_NOTIFICATIONS_REQUEST:
-                notificationManager.handleGetNotifications((GetNotificationsRequestMessage) message, this);
-                break;
-            case CREATE_ITEM_REQUEST:
-                auctionManager.handleCreateItem((CreateItemRequestMessage) message, this);
-                break;
-            case BID_REQUEST:
-                auctionManager.handleBidRequest((BidRequestMessage) message, this);
-                break;
-            case CLEAR_NOTIFICATIONS_REQUEST:
-                notificationManager.handleClearNotifications((ClearNotificationsRequestMessage) message, this);
-                break;
-            case ADMIN_GET_USERS_REQUEST:
-                adminManager.handleGetUsers((AdminGetUsersRequestMessage) message, this);
-                break;
-            case ADMIN_SET_USER_BAN_REQUEST:
-                adminManager.handleSetUserBan((AdminSetUserBanRequestMessage) message, this);
-                break;
-            case ADMIN_UPDATE_AUCTION_REQUEST:
-                adminManager.handleUpdateAuction((AdminUpdateAuctionRequestMessage) message, this);
-                break;
-            case ADMIN_DELETE_AUCTION_REQUEST:
-                adminManager.handleDeleteAuction((AdminDeleteAuctionRequestMessage) message, this);
-                break;
-            case ADMIN_FORCE_CLOSE_AUCTION_REQUEST:
-                adminManager.handleForceCloseAuction((AdminForceCloseAuctionRequestMessage) message, this);
-                break;
-            case ADMIN_RESET_AUCTION_REQUEST:
-                adminManager.handleResetAuction((AdminResetAuctionRequestMessage) message, this);
-                break;
-            case DEPOSIT_REQUEST:
-                balanceManager.handleDeposit((DepositRequestMessage) message, this);
-                break;
-            case WITHDRAW_REQUEST:
-                balanceManager.handleWithdraw((WithdrawRequestMessage) message, this);
-                break;
-            default:
-                LOGGER.warn("Received unsupported message type: {} from {}", message.getType(), socket.getInetAddress());
-                sendResponse(new ErrorMessage("Unsupported message type."), message);
-                break;
-        }
+        messageRouter.dispatch(message, this);
     }
 
     private boolean shouldEnforceBannedAccess(MessageType messageType) {
@@ -228,7 +175,7 @@ public class ClientHandler implements Runnable {
             return true;
         }
         try {
-            authManager.requireActiveUserById(authenticatedUserId);
+            authService.requireActiveUserById(authenticatedUserId);
             return true;
         } catch (AuctionAppException e) {
             sendResponse(new ErrorMessage(e.getMessage()), message);

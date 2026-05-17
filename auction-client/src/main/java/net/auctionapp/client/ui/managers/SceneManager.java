@@ -6,6 +6,7 @@ import javafx.scene.Parent;
 import javafx.scene.Scene;
 import javafx.stage.Stage;
 import net.auctionapp.client.ClientApp;
+import net.auctionapp.client.utils.ResourcesUtil;
 
 import java.io.IOException;
 import java.net.URL;
@@ -32,10 +33,8 @@ public final class SceneManager {
             throw new IllegalStateException("Primary stage is not initialized.");
         }
 
-        URL resource = SceneManager.class.getResource("/net/auctionapp/client/ui/fxml/" + fxmlFile + ".fxml");
-        if (resource == null) {
-            throw new IllegalStateException("Missing FXML resource: " + fxmlFile);
-        }
+        requireFxmlFilename(fxmlFile);
+        URL resource = ResourcesUtil.fxml(fxmlFile);
 
         Parent root = loadRoot(resource, fxmlFile);
         Parent wrappedRoot = NotificationToastManager.wrapWithNotificationHost(root);
@@ -62,6 +61,12 @@ public final class SceneManager {
             return FXMLLoader.load(resource);
         } catch (IOException e) {
             throw new IllegalStateException("Unable to load FXML: " + fxmlPath, e);
+        }
+    }
+
+    private static void requireFxmlFilename(String fxmlFile) {
+        if (!fxmlFile.endsWith(".fxml")) {
+            throw new IllegalArgumentException("FXML file name must include .fxml: " + fxmlFile);
         }
     }
 }

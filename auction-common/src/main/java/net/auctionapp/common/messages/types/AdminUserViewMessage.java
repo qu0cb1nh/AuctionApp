@@ -1,6 +1,6 @@
 package net.auctionapp.common.messages.types;
 
-import net.auctionapp.common.models.users.UserRole;
+import net.auctionapp.common.users.UserRole;
 
 public class AdminUserViewMessage {
     private String userId;

@@ -1,8 +1,8 @@
 package net.auctionapp.server.factories;
 
 import net.auctionapp.common.messages.types.CreateItemRequestMessage;
-import net.auctionapp.common.models.items.Item;
-import net.auctionapp.common.models.items.Vehicle;
+import net.auctionapp.server.models.items.Item;
+import net.auctionapp.server.models.items.Vehicle;
 
 import java.math.BigDecimal;
 import java.sql.ResultSet;
