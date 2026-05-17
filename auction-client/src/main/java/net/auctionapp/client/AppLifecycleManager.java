@@ -2,6 +2,7 @@ package net.auctionapp.client;
 
 import javafx.application.Platform;
 import net.auctionapp.client.services.AuthService;
+import net.auctionapp.client.services.MessageListener;
 import net.auctionapp.client.services.NetworkService;
 import net.auctionapp.client.services.NotificationService;
 import net.auctionapp.client.ui.managers.SceneManager;

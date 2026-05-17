@@ -1,12 +1,21 @@
 package net.auctionapp.client.ui.controllers;
 
+import javafx.event.ActionEvent;
 import javafx.fxml.FXML;
 import javafx.fxml.Initializable;
+import javafx.scene.control.Button;
 import javafx.scene.control.TextField;
+import net.auctionapp.client.services.WalletService;
+import net.auctionapp.client.ui.controllers.components.HeaderController;
+import net.auctionapp.client.ui.managers.NotificationToastManager;
+import net.auctionapp.common.messages.Message;
+import net.auctionapp.common.messages.types.ErrorMessage;
+import net.auctionapp.common.messages.types.WalletResponseMessage;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.net.URL;
 import java.util.ResourceBundle;
 
@@ -17,20 +26,143 @@ public class WalletMenuController implements Initializable {
     private TextField balanceField;
 
     @FXML
+    private HeaderController appHeaderController;
+
+    @FXML
     private TextField depositField;
 
     @FXML
     private TextField withdrawField;
+
+    @FXML
+    private Button depositButton;
+
+    @FXML
+    private Button withdrawButton;
 
     private BigDecimal currentBalance = BigDecimal.ZERO;
     private BigDecimal currentPendingBalance = BigDecimal.ZERO;
 
     @Override
     public void initialize(URL location, ResourceBundle resources) {
+        appHeaderController.setupHeader("Wallet", true, "MainMenu.fxml");
         updateBalanceDisplay();
+        requestWallet();
+    }
+
+    @FXML
+    public void handleDeposit(ActionEvent event) {
+        BigDecimal amount = readAmount(depositField, "Deposit amount");
+        if (amount == null) {
+            return;
+        }
+        setBusy(true);
+        WalletService.getInstance().deposit(
+                amount,
+                message -> handleWalletMutationResponse(message, depositField),
+                this::handleWalletRequestError
+        );
+    }
+
+    @FXML
+    public void handleWithdraw(ActionEvent event) {
+        BigDecimal amount = readAmount(withdrawField, "Withdrawal amount");
+        if (amount == null) {
+            return;
+        }
+        setBusy(true);
+        WalletService.getInstance().withdraw(
+                amount,
+                message -> handleWalletMutationResponse(message, withdrawField),
+                this::handleWalletRequestError
+        );
+    }
+
+    private void requestWallet() {
+        WalletService.getInstance().requestWallet(this::handleWalletResponse, this::handleWalletRequestError);
+    }
+
+    private void handleWalletMutationResponse(Message message, TextField sourceField) {
+        setBusy(false);
+        if (handleWalletResponse(message) && sourceField != null) {
+            sourceField.clear();
+        }
+    }
+
+    private boolean handleWalletResponse(Message message) {
+        if (message instanceof WalletResponseMessage response) {
+            currentBalance = defaultMoney(response.getBalance());
+            currentPendingBalance = defaultMoney(response.getPendingBalance());
+            updateBalanceDisplay();
+            if (response.getMessage() != null && !response.getMessage().isBlank()
+                    && !"Wallet loaded.".equals(response.getMessage())) {
+                NotificationToastManager.showSuccess(response.getMessage());
+            }
+            return true;
+        }
+        if (message instanceof ErrorMessage errorMessage) {
+            String errorText = errorMessage.getErrorMessage();
+            NotificationToastManager.showError(errorText == null || errorText.isBlank()
+                    ? "Wallet request failed."
+                    : errorText);
+            return false;
+        }
+        NotificationToastManager.showError("Unexpected wallet response.");
+        LOGGER.warn("Unexpected wallet response type: {}", message == null ? "null" : message.getType());
+        return false;
+    }
+
+    private void handleWalletRequestError(Throwable throwable) {
+        setBusy(false);
+        String message = throwable == null || throwable.getMessage() == null
+                ? "Wallet request failed."
+                : throwable.getMessage();
+        NotificationToastManager.showError(message);
+    }
+
+    private BigDecimal readAmount(TextField field, String label) {
+        String value = field.getText() == null ? "" : field.getText().trim().replace(" ", "");
+        if (value.isBlank()) {
+            NotificationToastManager.showError(label + " is required.");
+            return null;
+        }
+        if (value.matches("\\d{1,3}([.,]\\d{3})+")) {
+            value = value.replace(".", "").replace(",", "");
+        } else {
+            value = value.replace(",", "");
+        }
+        try {
+            BigDecimal amount = new BigDecimal(value);
+            if (amount.compareTo(BigDecimal.ZERO) <= 0) {
+                NotificationToastManager.showError(label + " must be greater than 0.");
+                return null;
+            }
+            if (amount.stripTrailingZeros().scale() > 2) {
+                NotificationToastManager.showError(label + " cannot have more than 2 decimal places.");
+                return null;
+            }
+            return amount;
+        } catch (NumberFormatException e) {
+            NotificationToastManager.showError(label + " must be a valid number.");
+            return null;
+        }
     }
 
     private void updateBalanceDisplay() {
-        balanceField.setText(currentBalance.toPlainString());
+        balanceField.setText(formatMoney(currentBalance));
+        LOGGER.debug("Current pending balance: {}", currentPendingBalance);
+    }
+
+    private String formatMoney(BigDecimal value) {
+        return defaultMoney(value).setScale(2, RoundingMode.HALF_UP).stripTrailingZeros().toPlainString();
+    }
+
+    private BigDecimal defaultMoney(BigDecimal value) {
+        return value == null ? BigDecimal.ZERO : value;
+    }
+
+    private void setBusy(boolean busy) {
+        depositButton.setDisable(busy);
+        withdrawButton.setDisable(busy);
     }
 }

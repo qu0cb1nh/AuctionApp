@@ -1,7 +1,6 @@
 package net.auctionapp.client.services;
 
 import javafx.application.Platform;
-import net.auctionapp.client.MessageListener;
 import net.auctionapp.common.messages.Message;
 import net.auctionapp.common.messages.MessageType;
 import net.auctionapp.common.messages.types.PingMessage;
@@ -33,6 +32,8 @@ public final class NetworkService {
     private PrintWriter out;
     private Socket socket;
     private BufferedReader in;
+    private String configuredHost;
+    private int configuredPort;
 
     private ScheduledExecutorService heartbeatScheduler;
 
@@ -44,15 +45,23 @@ public final class NetworkService {
     }
 
     public synchronized void connect(String host, int port) {
+        configuredHost = host;
+        configuredPort = port;
         if (isConnected()) {
             return;
         }
+        stopHeartbeat();
+        closeResourcesQuietly();
         try {
-            socket = new Socket(host, port);
-            out = new PrintWriter(socket.getOutputStream(), true);
-            in = new BufferedReader(new InputStreamReader(socket.getInputStream()));
+            Socket connectedSocket = new Socket(host, port);
+            PrintWriter connectedOut = new PrintWriter(connectedSocket.getOutputStream(), true);
+            BufferedReader connectedIn = new BufferedReader(new InputStreamReader(connectedSocket.getInputStream()));
 
-            Thread listenerThread = new Thread(this::listenForServerMessages);
+            socket = connectedSocket;
+            out = connectedOut;
+            in = connectedIn;
+
+            Thread listenerThread = new Thread(() -> listenForServerMessages(connectedSocket, connectedIn));
             listenerThread.setName("auction-client-listener");
             listenerThread.setDaemon(true);
             listenerThread.start();
@@ -94,13 +103,14 @@ public final class NetworkService {
             LOGGER.error("Cannot send a null message.");
             return;
         }
-        if (out == null || socket == null || socket.isClosed()) {
+        if (!ensureConnected()) {
             LOGGER.error("Cannot send message: client is not connected.");
             return;
         }
 
         if (!sendJson(JsonUtil.toJson(message))) {
             LOGGER.error("Failed to send message to server.");
+            closeResourcesQuietly();
         }
     }
 
@@ -145,7 +155,7 @@ public final class NetworkService {
         if (timeout == null || timeout.isZero() || timeout.isNegative()) {
             return CompletableFuture.failedFuture(new IllegalArgumentException("Timeout must be greater than zero."));
         }
-        if (out == null || socket == null || socket.isClosed()) {
+        if (!ensureConnected()) {
             return CompletableFuture.failedFuture(new IllegalStateException("Client is not connected."));
         }
 
@@ -168,6 +178,7 @@ public final class NetworkService {
 
         if (!sendJson(JsonUtil.toJson(request))) {
             pendingRequests.remove(requestId);
+            closeResourcesQuietly();
             future.completeExceptionally(new IllegalStateException("Failed to send request to server."));
         }
 
@@ -202,8 +213,8 @@ public final class NetworkService {
         closeResourcesQuietly();
     }
 
-    private void listenForServerMessages() {
-        try (BufferedReader reader = this.in){
+    private void listenForServerMessages(Socket listenedSocket, BufferedReader socketReader) {
+        try (BufferedReader reader = socketReader) {
             String jsonString;
             while ((jsonString = reader.readLine()) != null) {
                 try {
@@ -218,10 +229,12 @@ public final class NetworkService {
                 LOGGER.warn("Disconnected from server:", e);
             }
         } finally {
-            // If the listening loop breaks (server closed or network dropped),
-            // ensure the heartbeat stops so we don't keep trying to ping a dead socket.
-            stopHeartbeat();
-            failPendingRequests("Disconnected from server.");
+            if (ownsConnection(listenedSocket)) {
+                // If the listening loop breaks, make the stale socket impossible to reuse.
+                stopHeartbeat();
+                failPendingRequests("Disconnected from server.");
+                closeResourcesQuietly(listenedSocket);
+            }
         }
     }
 
@@ -276,7 +289,29 @@ public final class NetworkService {
         return socket != null && socket.isConnected() && !socket.isClosed();
     }
 
+    private synchronized boolean ensureConnected() {
+        if (isConnected()) {
+            return true;
+        }
+        if (configuredHost == null || configuredHost.isBlank() || configuredPort <= 0) {
+            return false;
+        }
+        connect(configuredHost, configuredPort);
+        return isConnected();
+    }
+
+    private synchronized boolean ownsConnection(Socket expectedSocket) {
+        return expectedSocket != null && socket == expectedSocket;
+    }
+
     private void closeResourcesQuietly() {
+        closeResourcesQuietly(null);
+    }
+
+    private synchronized void closeResourcesQuietly(Socket expectedSocket) {
+        if (expectedSocket != null && socket != expectedSocket) {
+            return;
+        }
         try {
             if (out != null) {
                 out.close();

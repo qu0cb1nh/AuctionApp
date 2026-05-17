@@ -57,6 +57,10 @@ import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.ConcurrentSkipListSet;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ThreadFactory;
+import java.util.concurrent.TimeUnit;
 
 /**
  * Central in-memory manager for auction sessions.
@@ -73,7 +77,8 @@ public final class AuctionService {
     private final NotificationService notificationService;
     private final CloudinaryImageService cloudinaryImageService;
     private volatile AuctionDao auctionDao;
-    private volatile net.auctionapp.server.dao.UserDao userDao;
+    private volatile UserDao userDao;
+    private volatile ScheduledExecutorService statusScheduler;
 
     private AuctionService() {
         this.authService = AuthService.getInstance();
@@ -88,7 +93,7 @@ public final class AuctionService {
         return instance;
     }
 
-    public void setUserDao(net.auctionapp.server.dao.UserDao userDao) {
+    public void setUserDao(UserDao userDao) {
         this.userDao = userDao;
     }
 
@@ -108,7 +113,6 @@ public final class AuctionService {
     public void handleGetAuctionDetails(GetAuctionDetailsRequestMessage message, ClientHandler handler) {
         try {
             handler.ensureAuthenticated();
-            refreshAuctionStatuses();
             Auction auction = requireAuction(message.getAuctionId());
             AuctionDetailsResponseMessage response = buildAuctionDetailsResponse(auction);
             handler.sendResponse(response, message);
@@ -196,10 +200,36 @@ public final class AuctionService {
         refreshAuctionStatuses();
     }
 
+    public synchronized void startStatusScheduler() {
+        if (statusScheduler != null && !statusScheduler.isShutdown()) {
+            return;
+        }
+        ThreadFactory threadFactory = runnable -> {
+            Thread thread = new Thread(runnable);
+            thread.setName("auction-status-scheduler");
+            thread.setDaemon(true);
+            return thread;
+        };
+        statusScheduler = Executors.newSingleThreadScheduledExecutor(threadFactory);
+        statusScheduler.scheduleAtFixedRate(() -> {
+            try {
+                refreshAuctionStatuses();
+            } catch (RuntimeException e) {
+                LOGGER.warn("Auction status refresh failed: {}", e.getMessage(), e);
+            }
+        }, 1, 1, TimeUnit.SECONDS);
+    }
+
+    public synchronized void stopStatusScheduler() {
+        if (statusScheduler != null) {
+            statusScheduler.shutdownNow();
+            statusScheduler = null;
+        }
+    }
+
     // --- Core Business Logic ---
 
     public List<Auction> getAllAuctions() {
-        refreshAuctionStatuses();
         List<Auction> snapshots = new ArrayList<>();
         for (Auction auction : auctions.values()) {
             snapshots.add(auction.snapshotCopy());
@@ -208,7 +238,6 @@ public final class AuctionService {
     }
 
     public List<AuctionSummary> getAuctionSummaries() {
-        refreshAuctionStatuses();
         List<AuctionSummary> result = new ArrayList<>();
         for (Auction auction : auctions.values()) {
             synchronized (auction) {
@@ -233,7 +262,6 @@ public final class AuctionService {
         if (auctionId == null || auctionId.isBlank()) {
             return Optional.empty();
         }
-        refreshAuctionStatuses();
         Auction auction = auctions.get(auctionId);
         if (auction == null) {
             return Optional.empty();
@@ -454,10 +482,14 @@ public final class AuctionService {
     public void refreshAuctionStatuses() {
         LocalDateTime now = LocalDateTime.now();
         for (Auction auction : auctions.values()) {
-            boolean statusChanged = settleAuctionNow(auction, now);
-            if (statusChanged) {
-                persistAuctionState(auction);
-                broadcastAuctionStatusChanged(auction);
+            try {
+                boolean statusChanged = settleAuctionNow(auction, now);
+                if (statusChanged) {
+                    persistAuctionState(auction);
+                    broadcastAuctionStatusChanged(auction);
+                }
+            } catch (RuntimeException e) {
+                LOGGER.warn("Failed to refresh auction {}: {}", auction.getId(), e.getMessage(), e);
             }
         }
     }

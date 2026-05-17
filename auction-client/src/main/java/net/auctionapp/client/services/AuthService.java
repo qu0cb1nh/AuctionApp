@@ -1,6 +1,5 @@
 package net.auctionapp.client.services;
 
-import net.auctionapp.client.MessageListener;
 import net.auctionapp.common.messages.Message;
 import net.auctionapp.common.messages.types.LoginRequestMessage;
 import net.auctionapp.common.messages.types.RegisterRequestMessage;

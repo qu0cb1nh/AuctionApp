@@ -1,4 +1,4 @@
-package net.auctionapp.client;
+package net.auctionapp.client.services;
 
 import net.auctionapp.common.messages.Message;
 

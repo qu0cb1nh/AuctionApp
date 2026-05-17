@@ -14,4 +14,6 @@ module net.auctionapp.client {
     opens net.auctionapp.client.utils to javafx.fxml;
     exports net.auctionapp.client.ui.managers;
     opens net.auctionapp.client.ui.managers to javafx.fxml;
+    exports net.auctionapp.client.services;
+    opens net.auctionapp.client.services to javafx.fxml;
 }
