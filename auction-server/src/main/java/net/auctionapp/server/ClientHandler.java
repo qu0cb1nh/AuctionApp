@@ -8,9 +8,9 @@ import net.auctionapp.common.utils.JsonUtil;
 import net.auctionapp.server.exceptions.AuctionAppException;
 import net.auctionapp.server.services.AuthService;
 import net.auctionapp.server.services.AuctionService;
-import net.auctionapp.server.managers.BalanceManager;
 import net.auctionapp.server.services.NotificationService;
 import net.auctionapp.server.services.UserService;
+import net.auctionapp.server.services.WalletService;
 import net.auctionapp.server.managers.SessionManager;
 import net.auctionapp.server.messages.MessageRouter;
 import org.slf4j.Logger;
@@ -47,33 +47,37 @@ public class ClientHandler implements Runnable {
                 auctionService,
                 UserService.getInstance(),
                 NotificationService.getInstance(),
-                BalanceManager.getInstance()
+                WalletService.getInstance()
         );
     }
 
     @Override
     public void run() {
-        try {
-            socket.setSoTimeout(SOCKET_READ_TIMEOUT_MILLIS);
-            in = new BufferedReader(new InputStreamReader(socket.getInputStream()));
-            out = new PrintWriter(socket.getOutputStream(), true);
-            LOGGER.info("Client connected from {}", socket.getInetAddress());
+        try (Socket clientSocket = socket;
+             BufferedReader reader = new BufferedReader(new InputStreamReader(clientSocket.getInputStream()));
+             PrintWriter writer = new PrintWriter(clientSocket.getOutputStream(), true)) {
+            clientSocket.setSoTimeout(SOCKET_READ_TIMEOUT_MILLIS);
+            synchronized (this) {
+                in = reader;
+                out = writer;
+            }
+            LOGGER.info("Client connected from {}", clientSocket.getInetAddress());
 
             String jsonString;
-            while ((jsonString = in.readLine()) != null) {
-                LOGGER.debug("Received from {}: {}", socket.getInetAddress(), jsonString);
+            while ((jsonString = reader.readLine()) != null) {
+                LOGGER.debug("Received from {}: {}", clientSocket.getInetAddress(), jsonString);
 
                 Message message = null;
                 try {
                     message = JsonUtil.fromJson(jsonString);
                     if (message == null) {
-                        LOGGER.warn("Received null message after JSON deserialization from {}", socket.getInetAddress());
+                        LOGGER.warn("Received null message after JSON deserialization from {}", clientSocket.getInetAddress());
                         continue;
                     }
 
                     handleMessagesFromClient(message);
                 } catch (Exception e) {
-                    LOGGER.error("Error processing message from {}: {}", socket.getInetAddress(), jsonString, e);
+                    LOGGER.error("Error processing message from {}: {}", clientSocket.getInetAddress(), jsonString, e);
                     sendResponse(new ErrorMessage("Error processing your request: " + e.getMessage()), message);
                 }
             }
@@ -85,22 +89,18 @@ public class ClientHandler implements Runnable {
         }
     }
 
-    public void closeConnection() {
+    public synchronized void closeConnection() {
         if (!closed.compareAndSet(false, true)) {
             return;
         }
         LOGGER.info("Closing connection for client {}", socket.getInetAddress());
         try {
             socket.close();
-            if (out != null) {
-                out.close();
-            }
-            if (in != null) {
-                in.close();
-            }
         } catch (IOException e) {
             LOGGER.warn("Error while closing socket for {}: {}", socket.getInetAddress(), e.getMessage());
         } finally {
+            out = null;
+            in = null;
             sessionManager.unbindSession(this);
             ServerApp.unregisterClient(this);
         }

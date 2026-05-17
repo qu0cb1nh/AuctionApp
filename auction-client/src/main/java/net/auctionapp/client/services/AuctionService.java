@@ -3,8 +3,9 @@ package net.auctionapp.client.services;
 import net.auctionapp.common.messages.Message;
 import net.auctionapp.common.messages.MessageType;
 import net.auctionapp.common.messages.types.BidRequestMessage;
+import net.auctionapp.common.messages.types.CancelAuctionRequestMessage;
+import net.auctionapp.common.messages.types.CloseAuctionRequestMessage;
 import net.auctionapp.common.messages.types.CreateItemRequestMessage;
-import net.auctionapp.common.messages.types.DeleteAuctionRequestMessage;
 import net.auctionapp.common.messages.types.GetAuctionDetailsRequestMessage;
 import net.auctionapp.common.messages.types.GetAuctionListRequestMessage;
 import net.auctionapp.common.messages.types.PriceUpdateMessage;
@@ -38,8 +39,12 @@ public final class AuctionService {
         NetworkService.getInstance().sendRequest(request, callback);
     }
 
-    public void deleteAuction(String auctionId, MessageListener<Message> callback) {
-        NetworkService.getInstance().sendRequest(new DeleteAuctionRequestMessage(auctionId), callback);
+    public void cancelAuction(String auctionId, MessageListener<Message> callback) {
+        NetworkService.getInstance().sendRequest(new CancelAuctionRequestMessage(auctionId), callback);
+    }
+
+    public void closeAuction(String auctionId, MessageListener<Message> callback) {
+        NetworkService.getInstance().sendRequest(new CloseAuctionRequestMessage(auctionId), callback);
     }
 
     public void placeBid(String auctionId, BigDecimal amount, MessageListener<Message> callback) {

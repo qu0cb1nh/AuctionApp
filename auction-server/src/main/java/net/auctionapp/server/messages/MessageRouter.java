@@ -5,9 +5,10 @@ import net.auctionapp.common.messages.MessageType;
 import net.auctionapp.common.messages.types.AdminGetUsersRequestMessage;
 import net.auctionapp.common.messages.types.AdminSetUserBanRequestMessage;
 import net.auctionapp.common.messages.types.BidRequestMessage;
+import net.auctionapp.common.messages.types.CancelAuctionRequestMessage;
 import net.auctionapp.common.messages.types.ClearNotificationsRequestMessage;
+import net.auctionapp.common.messages.types.CloseAuctionRequestMessage;
 import net.auctionapp.common.messages.types.CreateItemRequestMessage;
-import net.auctionapp.common.messages.types.DeleteAuctionRequestMessage;
 import net.auctionapp.common.messages.types.DepositRequestMessage;
 import net.auctionapp.common.messages.types.ErrorMessage;
 import net.auctionapp.common.messages.types.GetAuctionDetailsRequestMessage;
@@ -22,9 +23,9 @@ import net.auctionapp.common.messages.types.WithdrawRequestMessage;
 import net.auctionapp.server.ClientHandler;
 import net.auctionapp.server.services.AuctionService;
 import net.auctionapp.server.services.AuthService;
-import net.auctionapp.server.managers.BalanceManager;
 import net.auctionapp.server.services.NotificationService;
 import net.auctionapp.server.services.UserService;
+import net.auctionapp.server.services.WalletService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -42,7 +43,7 @@ public final class MessageRouter {
             AuctionService auctionService,
             UserService userService,
             NotificationService notificationService,
-            BalanceManager balanceManager
+            WalletService walletService
     ) {
         register(MessageType.PING, Message.class,
                 (message, clientHandler) -> clientHandler.sendResponse(new PongMessage(), message));
@@ -62,10 +63,11 @@ public final class MessageRouter {
         register(MessageType.ADMIN_SET_USER_BAN_REQUEST, AdminSetUserBanRequestMessage.class,
                 userService::handleSetUserBan);
         register(MessageType.UPDATE_AUCTION_REQUEST, UpdateAuctionRequestMessage.class, auctionService::handleUpdateAuction);
-        register(MessageType.DELETE_AUCTION_REQUEST, DeleteAuctionRequestMessage.class, auctionService::handleDeleteAuction);
-        register(MessageType.DEPOSIT_REQUEST, DepositRequestMessage.class, balanceManager::handleDeposit);
-        register(MessageType.WITHDRAW_REQUEST, WithdrawRequestMessage.class, balanceManager::handleWithdraw);
-        register(MessageType.GET_WALLET_REQUEST, GetWalletRequestMessage.class, balanceManager::handleGetWallet);
+        register(MessageType.CANCEL_AUCTION_REQUEST, CancelAuctionRequestMessage.class, auctionService::handleCancelAuction);
+        register(MessageType.CLOSE_AUCTION_REQUEST, CloseAuctionRequestMessage.class, auctionService::handleCloseAuction);
+        register(MessageType.DEPOSIT_REQUEST, DepositRequestMessage.class, walletService::handleDeposit);
+        register(MessageType.WITHDRAW_REQUEST, WithdrawRequestMessage.class, walletService::handleWithdraw);
+        register(MessageType.GET_WALLET_REQUEST, GetWalletRequestMessage.class, walletService::handleGetWallet);
     }
 
     public void dispatch(Message message, ClientHandler clientHandler) {
