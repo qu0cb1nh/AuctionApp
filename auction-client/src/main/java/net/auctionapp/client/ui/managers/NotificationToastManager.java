@@ -10,7 +10,8 @@ import javafx.scene.media.AudioClip;
 import javafx.stage.Stage;
 import javafx.util.Duration;
 import net.auctionapp.client.ClientApp;
-import net.auctionapp.client.ui.controllers.NotificationToastController;
+import net.auctionapp.client.ui.controllers.components.NotificationToastController;
+import net.auctionapp.client.utils.ResourcesUtil;
 import net.auctionapp.common.notifications.Notification;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -111,8 +112,7 @@ public final class NotificationToastManager {
 
     private static HBox buildContent(Notification notification) {
         try {
-            FXMLLoader loader = new FXMLLoader(NotificationToastManager.class
-                    .getResource("/net/auctionapp/client/ui/fxml/NotificationToast.fxml"));
+            FXMLLoader loader = ResourcesUtil.fxmlLoader("components/NotificationToast.fxml");
             HBox toast = loader.load();
             NotificationToastController controller = loader.getController();
             controller.setNotification(notification);
@@ -124,8 +124,7 @@ public final class NotificationToastManager {
     }
 
     private static AudioClip loadNotificationSound() {
-        URL soundResource = NotificationToastManager.class
-                .getResource("/net/auctionapp/client/ui/sounds/notification_sound.mp3");
+        URL soundResource = ResourcesUtil.sound("notification_sound.mp3");
         if (soundResource == null) {
             LOGGER.warn("Missing notification sound resource.");
             return null;

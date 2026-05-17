@@ -1,5 +1,7 @@
 package net.auctionapp.client.ui.controllers;
 
+import net.auctionapp.client.ui.controllers.components.HeaderController;
+
 import javafx.event.ActionEvent;
 import javafx.fxml.FXML;
 import javafx.fxml.Initializable;
@@ -27,11 +29,11 @@ public class MainMenuController implements Initializable {
 
     @FXML
     public void handleBrowseAuctions(ActionEvent event) {
-        SceneManager.switchScene("AuctionList");
+        SceneManager.switchScene("AuctionListMenu.fxml");
     }
 
     @FXML
     public void handleSellItem(ActionEvent event) {
-        SceneManager.switchScene("CreateAuction");
+        SceneManager.switchScene("CreateAuctionMenu.fxml");
     }
 }

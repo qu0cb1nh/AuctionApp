@@ -2,7 +2,7 @@ package net.auctionapp.common.messages.types;
 
 import net.auctionapp.common.messages.Message;
 import net.auctionapp.common.messages.MessageType;
-import net.auctionapp.common.models.items.ItemType;
+import net.auctionapp.common.items.ItemType;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;

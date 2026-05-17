@@ -58,24 +58,14 @@ public enum MessageType {
     ADMIN_SET_USER_BAN_REQUEST,
 
     /**
-     * (Admin) Request to edit auction information.
+     * Request to edit auction information.
      */
-    ADMIN_UPDATE_AUCTION_REQUEST,
+    UPDATE_AUCTION_REQUEST,
 
     /**
-     * (Admin) Request to delete an auction.
+     * Request to delete an auction.
      */
-    ADMIN_DELETE_AUCTION_REQUEST,
-
-    /**
-     * (Admin) Request to force-close an auction immediately.
-     */
-    ADMIN_FORCE_CLOSE_AUCTION_REQUEST,
-
-    /**
-     * (Admin) Request to reset an auction for rerun.
-     */
-    ADMIN_RESET_AUCTION_REQUEST,
+    DELETE_AUCTION_REQUEST,
 
     /**
      * Request to deposit funds.
@@ -144,6 +134,11 @@ public enum MessageType {
      * (Admin) Generic success response for mutating actions.
      */
     ADMIN_ACTION_SUCCESS,
+
+    /**
+     * Generic success response for auction mutating actions.
+     */
+    AUCTION_ACTION_SUCCESS,
 
     /**
      * Response to the bidding client that their bid was accepted.

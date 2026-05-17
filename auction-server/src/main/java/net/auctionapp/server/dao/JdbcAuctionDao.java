@@ -1,18 +1,18 @@
 package net.auctionapp.server.dao;
 
-import net.auctionapp.common.models.auction.Auction;
-import net.auctionapp.common.models.auction.AuctionStatus;
-import net.auctionapp.common.models.items.Art;
-import net.auctionapp.common.models.items.Electronics;
-import net.auctionapp.common.models.items.Item;
-import net.auctionapp.common.models.items.ItemType;
-import net.auctionapp.common.models.items.Vehicle;
+import net.auctionapp.server.models.auction.Auction;
+import net.auctionapp.common.auction.AuctionStatus;
+import net.auctionapp.server.models.items.Art;
+import net.auctionapp.server.models.items.Electronics;
+import net.auctionapp.server.models.items.Item;
+import net.auctionapp.common.items.ItemType;
+import net.auctionapp.server.models.items.Vehicle;
 import net.auctionapp.server.exceptions.DatabaseException;
 import net.auctionapp.server.factories.ArtFactory;
 import net.auctionapp.server.factories.ElectronicsFactory;
 import net.auctionapp.server.factories.ItemFactory;
 import net.auctionapp.server.factories.VehicleFactory;
-import net.auctionapp.server.managers.DatabaseManager;
+import net.auctionapp.server.services.DatabaseService;
 
 import java.sql.Connection;
 import java.sql.DatabaseMetaData;
@@ -132,21 +132,21 @@ public class JdbcAuctionDao implements AuctionDao {
     private static final String DELETE_AUCTION_BY_ID_QUERY =
             "DELETE FROM auctions WHERE id = ?";
 
-    private final DatabaseManager databaseManager;
+    private final DatabaseService databaseService;
 
     public JdbcAuctionDao() {
-        this(DatabaseManager.getInstance());
+        this(DatabaseService.getInstance());
     }
 
-    public JdbcAuctionDao(DatabaseManager databaseManager) {
-        this.databaseManager = databaseManager;
+    public JdbcAuctionDao(DatabaseService databaseService) {
+        this.databaseService = databaseService;
         ensureAuctionsTable();
     }
 
     @Override
     public List<Auction> findAllAuctions() {
         List<Auction> auctions = new ArrayList<>();
-        try (Connection connection = databaseManager.getConnection();
+        try (Connection connection = databaseService.getConnection();
              PreparedStatement statement = connection.prepareStatement(FIND_ALL_AUCTIONS_QUERY);
              ResultSet resultSet = statement.executeQuery()) {
             while (resultSet.next()) {
@@ -161,7 +161,7 @@ public class JdbcAuctionDao implements AuctionDao {
     @Override
     public boolean createAuction(Auction auction) {
         Item item = auction.getItem();
-        try (Connection connection = databaseManager.getConnection();
+        try (Connection connection = databaseService.getConnection();
              PreparedStatement statement = connection.prepareStatement(CREATE_AUCTION_QUERY)) {
             statement.setString(1, auction.getId());
             statement.setString(2, auction.getSellerId());
@@ -188,7 +188,7 @@ public class JdbcAuctionDao implements AuctionDao {
 
     @Override
     public boolean updateAuctionState(Auction auction) {
-        try (Connection connection = databaseManager.getConnection();
+        try (Connection connection = databaseService.getConnection();
              PreparedStatement statement = connection.prepareStatement(UPDATE_AUCTION_STATE_QUERY)) {
             statement.setBigDecimal(1, auction.getCurrentPrice());
             statement.setString(2, auction.getStatus().name());
@@ -205,7 +205,7 @@ public class JdbcAuctionDao implements AuctionDao {
     @Override
     public boolean updateAuction(Auction auction) {
         Item item = auction.getItem();
-        try (Connection connection = databaseManager.getConnection();
+        try (Connection connection = databaseService.getConnection();
              PreparedStatement statement = connection.prepareStatement(UPDATE_AUCTION_QUERY)) {
             statement.setString(1, item.getTitle());
             statement.setString(2, item.getDescription());
@@ -228,7 +228,7 @@ public class JdbcAuctionDao implements AuctionDao {
 
     @Override
     public boolean deleteAuctionById(String auctionId) {
-        try (Connection connection = databaseManager.getConnection();
+        try (Connection connection = databaseService.getConnection();
              PreparedStatement statement = connection.prepareStatement(DELETE_AUCTION_BY_ID_QUERY)) {
             statement.setString(1, auctionId);
             return statement.executeUpdate() == 1;
@@ -238,7 +238,7 @@ public class JdbcAuctionDao implements AuctionDao {
     }
 
     private void ensureAuctionsTable() {
-        try (Connection connection = databaseManager.getConnection();
+        try (Connection connection = databaseService.getConnection();
              Statement statement = connection.createStatement()) {
             statement.executeUpdate(CREATE_AUCTIONS_TABLE_QUERY);
             ensureImageUrlColumn(connection, statement);

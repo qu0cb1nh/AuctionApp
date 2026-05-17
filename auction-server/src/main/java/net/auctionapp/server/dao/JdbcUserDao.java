@@ -1,9 +1,9 @@
 package net.auctionapp.server.dao;
 
-import net.auctionapp.common.models.users.User;
+import net.auctionapp.server.models.users.User;
 import net.auctionapp.common.utils.StringUtil;
 import net.auctionapp.server.exceptions.DatabaseException;
-import net.auctionapp.server.managers.DatabaseManager;
+import net.auctionapp.server.services.DatabaseService;
 import net.auctionapp.server.utils.UserRoleUtil;
 
 import java.math.BigDecimal;
@@ -48,14 +48,14 @@ public class JdbcUserDao implements UserDao {
     private static final String TRANSFER_PENDING_QUERY =
             "UPDATE users SET pending_balance = pending_balance - ? WHERE lower(username) = ? AND pending_balance >= ?";
 
-    private final DatabaseManager databaseManager;
+    private final DatabaseService databaseService;
 
     public JdbcUserDao() {
-        this(DatabaseManager.getInstance());
+        this(DatabaseService.getInstance());
     }
 
-    public JdbcUserDao(DatabaseManager databaseManager) {
-        this.databaseManager = databaseManager;
+    public JdbcUserDao(DatabaseService databaseService) {
+        this.databaseService = databaseService;
         ensureUsersSchema();
     }
 
@@ -66,7 +66,7 @@ public class JdbcUserDao implements UserDao {
     }
 
     private void ensureUsersTable() {
-        try (Connection connection = databaseManager.getConnection();
+        try (Connection connection = databaseService.getConnection();
              Statement statement = connection.createStatement()) {
             statement.executeUpdate(CREATE_USERS_TABLE_QUERY);
         } catch (SQLException e) {
@@ -75,7 +75,7 @@ public class JdbcUserDao implements UserDao {
     }
 
     private void ensureBalanceColumn() {
-        try (Connection connection = databaseManager.getConnection()) {
+        try (Connection connection = databaseService.getConnection()) {
             if (columnExists(connection, "users", "balance")) {
                 return;
             }
@@ -89,7 +89,7 @@ public class JdbcUserDao implements UserDao {
     }
 
     private void ensurePendingBalanceColumn() {
-        try (Connection connection = databaseManager.getConnection()) {
+        try (Connection connection = databaseService.getConnection()) {
             if (columnExists(connection, "users", "pending_balance")) {
                 return;
             }
@@ -112,7 +112,7 @@ public class JdbcUserDao implements UserDao {
 
     @Override
     public Optional<User> findByUsername(String normalizedUsername) {
-        try (Connection connection = databaseManager.getConnection();
+        try (Connection connection = databaseService.getConnection();
              PreparedStatement statement = connection.prepareStatement(FIND_BY_USERNAME_QUERY)) {
             statement.setString(1, normalizedUsername);
             try (ResultSet resultSet = statement.executeQuery()) {
@@ -150,7 +150,7 @@ public class JdbcUserDao implements UserDao {
     @Override
     public List<User> findAllUsers() {
         List<User> users = new ArrayList<>();
-        try (Connection connection = databaseManager.getConnection();
+        try (Connection connection = databaseService.getConnection();
              PreparedStatement statement = connection.prepareStatement(FIND_ALL_USERS_QUERY);
              ResultSet resultSet = statement.executeQuery()) {
             while (resultSet.next()) {
@@ -184,7 +184,7 @@ public class JdbcUserDao implements UserDao {
 
     @Override
     public boolean updateBanStatus(String normalizedUsername, boolean banned) {
-        try (Connection connection = databaseManager.getConnection();
+        try (Connection connection = databaseService.getConnection();
              PreparedStatement statement = connection.prepareStatement(UPDATE_BAN_STATUS_QUERY)) {
             statement.setBoolean(1, banned);
             statement.setString(2, normalizedUsername);
@@ -197,7 +197,7 @@ public class JdbcUserDao implements UserDao {
     @Override
     public boolean createUser(User user) {
         Objects.requireNonNull(user, "user");
-        try (Connection connection = databaseManager.getConnection();
+        try (Connection connection = databaseService.getConnection();
              PreparedStatement statement = connection.prepareStatement(CREATE_USER_QUERY)) {
             statement.setString(1, user.getUsername());
             statement.setString(2, user.getPasswordHash());
@@ -215,7 +215,7 @@ public class JdbcUserDao implements UserDao {
     @Override
     public boolean increaseBalance(String normalizedUsername, BigDecimal amount) {
         requirePositiveMoney(amount);
-        try (Connection connection = databaseManager.getConnection();
+        try (Connection connection = databaseService.getConnection();
              PreparedStatement statement = connection.prepareStatement(INCREASE_BALANCE_QUERY)) {
             statement.setBigDecimal(1, amount);
             statement.setString(2, normalizedUsername);
@@ -228,7 +228,7 @@ public class JdbcUserDao implements UserDao {
     @Override
     public boolean tryDecreaseBalance(String normalizedUsername, BigDecimal amount) {
         requirePositiveMoney(amount);
-        try (Connection connection = databaseManager.getConnection();
+        try (Connection connection = databaseService.getConnection();
              PreparedStatement statement = connection.prepareStatement(TRY_DECREASE_BALANCE_QUERY)) {
             statement.setBigDecimal(1, amount);
             statement.setString(2, normalizedUsername);
@@ -241,7 +241,7 @@ public class JdbcUserDao implements UserDao {
 
     public boolean lockFunds(String normalizedUsername, BigDecimal amount) {
         requirePositiveMoney(amount);
-        try (Connection connection = databaseManager.getConnection();
+        try (Connection connection = databaseService.getConnection();
              PreparedStatement statement = connection.prepareStatement(LOCK_FUNDS_QUERY)) {
             statement.setBigDecimal(1, amount);
             statement.setBigDecimal(2, amount);
@@ -255,7 +255,7 @@ public class JdbcUserDao implements UserDao {
 
     public boolean releaseFunds(String normalizedUsername, BigDecimal amount) {
         requirePositiveMoney(amount);
-        try (Connection connection = databaseManager.getConnection();
+        try (Connection connection = databaseService.getConnection();
              PreparedStatement statement = connection.prepareStatement(RELEASE_FUNDS_QUERY)) {
             statement.setBigDecimal(1, amount);
             statement.setBigDecimal(2, amount);
@@ -269,7 +269,7 @@ public class JdbcUserDao implements UserDao {
 
     public boolean transferPendingFunds(String normalizedUsername, BigDecimal amount) {
         requirePositiveMoney(amount);
-        try (Connection connection = databaseManager.getConnection();
+        try (Connection connection = databaseService.getConnection();
              PreparedStatement statement = connection.prepareStatement(TRANSFER_PENDING_QUERY)) {
             statement.setBigDecimal(1, amount);
             statement.setString(2, normalizedUsername);

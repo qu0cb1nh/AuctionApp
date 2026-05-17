@@ -3,7 +3,7 @@ package net.auctionapp.server.dao;
 import net.auctionapp.common.notifications.NotificationType;
 import net.auctionapp.common.notifications.Notification;
 import net.auctionapp.server.exceptions.DatabaseException;
-import net.auctionapp.server.managers.DatabaseManager;
+import net.auctionapp.server.services.DatabaseService;
 
 import java.sql.Connection;
 import java.sql.PreparedStatement;
@@ -43,14 +43,14 @@ public class JdbcNotificationDao implements NotificationDao {
             WHERE id = ? AND user_id = ?
             """;
 
-    private final DatabaseManager databaseManager;
+    private final DatabaseService databaseService;
 
     public JdbcNotificationDao() {
-        this(DatabaseManager.getInstance());
+        this(DatabaseService.getInstance());
     }
 
-    public JdbcNotificationDao(DatabaseManager databaseManager) {
-        this.databaseManager = databaseManager;
+    public JdbcNotificationDao(DatabaseService databaseService) {
+        this.databaseService = databaseService;
         ensureNotificationsTable();
     }
 
@@ -65,7 +65,7 @@ public class JdbcNotificationDao implements NotificationDao {
     ) {
         String id = UUID.randomUUID().toString();
         LocalDateTime timestamp = createdAt == null ? LocalDateTime.now() : createdAt;
-        try (Connection connection = databaseManager.getConnection();
+        try (Connection connection = databaseService.getConnection();
              PreparedStatement statement = connection.prepareStatement(INSERT_NOTIFICATION_QUERY)) {
             statement.setString(1, id);
             statement.setString(2, userId);
@@ -87,7 +87,7 @@ public class JdbcNotificationDao implements NotificationDao {
     @Override
     public List<Notification> findByUserId(String userId) {
         List<Notification> notifications = new ArrayList<>();
-        try (Connection connection = databaseManager.getConnection();
+        try (Connection connection = databaseService.getConnection();
              PreparedStatement statement = connection.prepareStatement(FIND_BY_USER_ID_QUERY)) {
             statement.setString(1, userId);
             try (ResultSet resultSet = statement.executeQuery()) {
@@ -103,7 +103,7 @@ public class JdbcNotificationDao implements NotificationDao {
 
     @Override
     public boolean clearById(String userId, String notificationId) {
-        try (Connection connection = databaseManager.getConnection();
+        try (Connection connection = databaseService.getConnection();
              PreparedStatement statement = connection.prepareStatement(CLEAR_BY_ID_QUERY)) {
             statement.setString(1, notificationId);
             statement.setString(2, userId);
@@ -114,7 +114,7 @@ public class JdbcNotificationDao implements NotificationDao {
     }
 
     private void ensureNotificationsTable() {
-        try (Connection connection = databaseManager.getConnection();
+        try (Connection connection = databaseService.getConnection();
              Statement statement = connection.createStatement()) {
             statement.executeUpdate(CREATE_NOTIFICATIONS_TABLE_QUERY);
         } catch (SQLException e) {

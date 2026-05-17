@@ -8,6 +8,7 @@ module net.auctionapp.client {
     exports net.auctionapp.client;
     opens net.auctionapp.client to javafx.fxml;
     opens net.auctionapp.client.ui.controllers to javafx.fxml;
+    opens net.auctionapp.client.ui.controllers.components to javafx.fxml;
     exports net.auctionapp.client.ui.controllers;
     exports net.auctionapp.client.utils;
     opens net.auctionapp.client.utils to javafx.fxml;

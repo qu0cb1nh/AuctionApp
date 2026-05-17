@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.scene.control.Label?>
+<?import javafx.scene.control.ScrollPane?>
+<?import javafx.scene.layout.HBox?>
+<?import javafx.scene.layout.Region?>
+<?import javafx.scene.layout.VBox?>
+
+<VBox prefHeight="634.0" prefWidth="967.0" spacing="18" style="-fx-background-color: #f4fbff;" xmlns="http://javafx.com/javafx/25" xmlns:fx="http://javafx.com/fxml/1" fx:controller="net.auctionapp.client.ui.controllers.NotificationsMenuController">
+    <fx:include fx:id="appHeader" source="components/Header.fxml" />
+
+    <VBox spacing="5" style="-fx-padding: 0 18;">
+        <HBox alignment="CENTER_LEFT" spacing="25">
+            <VBox spacing="3">
+                <Label fx:id="filterLabelAll" onMouseClicked="#handleFilterAll" style="-fx-text-fill: #3bb3d1; -fx-font-weight: bold; -fx-cursor: hand;" text="All" />
+                <Region fx:id="filterUnderlineAll" style="-fx-background-color: #2f80ed; -fx-pref-height: 2;" />
+            </VBox>
+            <VBox spacing="3">
+                <Label fx:id="filterLabelBids" onMouseClicked="#handleFilterBids" style="-fx-text-fill: #6b7280; -fx-cursor: hand;" text="Bids" />
+                <Region fx:id="filterUnderlineBids" style="-fx-background-color: transparent; -fx-pref-height: 2;" />
+            </VBox>
+            <VBox spacing="3">
+                <Label fx:id="filterLabelMyAuctions" onMouseClicked="#handleFilterMyAuctions" style="-fx-text-fill: #6b7280; -fx-cursor: hand;" text="My Auctions" />
+                <Region fx:id="filterUnderlineMyAuctions" style="-fx-background-color: transparent; -fx-pref-height: 2;" />
+            </VBox>
+            <VBox spacing="3">
+                <Label fx:id="filterLabelSystem" onMouseClicked="#handleFilterSystem" style="-fx-text-fill: #6b7280; -fx-cursor: hand;" text="System" />
+                <Region fx:id="filterUnderlineSystem" style="-fx-background-color: transparent; -fx-pref-height: 2;" />
+            </VBox>
+            <VBox spacing="3">
+                <Label fx:id="filterLabelResults" onMouseClicked="#handleFilterResults" style="-fx-text-fill: #6b7280; -fx-cursor: hand;" text="Results" />
+                <Region fx:id="filterUnderlineResults" style="-fx-background-color: transparent; -fx-pref-height: 2;" />
+            </VBox>
+        </HBox>
+
+        <Region style="-fx-background-color: #e6f0ff; -fx-pref-height: 1;" />
+        <Label fx:id="filterStatusLabel" style="-fx-text-fill: #6b7280; -fx-font-size: 12;" text="Showing: All" />
+    </VBox>
+
+    <ScrollPane fitToWidth="true" prefHeight="530.0" prefWidth="446.0" VBox.vgrow="ALWAYS">
+        <content>
+            <VBox fx:id="notificationCardsContainer" spacing="12.0" style="-fx-padding: 10 18;" />
+        </content>
+    </ScrollPane>
+</VBox>

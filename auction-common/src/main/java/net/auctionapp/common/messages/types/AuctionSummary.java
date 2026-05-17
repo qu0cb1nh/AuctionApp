@@ -1,6 +1,6 @@
 package net.auctionapp.common.messages.types;
 
-import net.auctionapp.common.models.auction.AuctionStatus;
+import net.auctionapp.common.auction.AuctionStatus;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
