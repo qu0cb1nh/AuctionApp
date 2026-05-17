@@ -20,6 +20,7 @@ import net.auctionapp.server.services.AuthService;
 import net.auctionapp.server.services.AuctionService;
 import net.auctionapp.server.services.DatabaseService;
 import net.auctionapp.server.services.NotificationService;
+import net.auctionapp.server.services.WalletService;
 import net.auctionapp.server.managers.SessionManager;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -48,9 +49,11 @@ public class ServerApp {
         try {
             DatabaseService.getInstance().createConnectionPool(); // Initializes database connection pool
             JdbcUserDao jdbcUserDao = new JdbcUserDao();
+            JdbcAuctionDao jdbcAuctionDao = new JdbcAuctionDao();
             AuthService.getInstance().setUserDao(jdbcUserDao);
-            AuctionService.getInstance().setAuctionDao(new JdbcAuctionDao());
-            AuctionService.getInstance().setUserDao(jdbcUserDao);
+            AuctionService.getInstance().setAuctionDao(jdbcAuctionDao);
+            WalletService.getInstance().setUserDao(jdbcUserDao);
+            WalletService.getInstance().setAuctionDao(jdbcAuctionDao);
             NotificationService.getInstance().setNotificationDao(new JdbcNotificationDao());
             AuctionService.getInstance().startStatusScheduler();
 

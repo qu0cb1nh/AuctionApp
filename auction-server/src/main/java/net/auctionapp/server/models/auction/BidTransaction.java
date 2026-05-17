@@ -13,15 +13,13 @@ public class BidTransaction extends Entity {
     private final LocalDateTime timestamp;
     private final String bidderId;
     private final String auctionId;
-    private final boolean autoBid;
 
-    public BidTransaction(String id, BigDecimal amount, LocalDateTime timestamp, String bidderId, String auctionId, boolean autoBid) {
+    public BidTransaction(String id, BigDecimal amount, LocalDateTime timestamp, String bidderId, String auctionId) {
         super(id);
         this.amount = amount;
         this.timestamp = timestamp;
         this.bidderId = bidderId;
         this.auctionId = auctionId;
-        this.autoBid = autoBid;
     }
 
     public BigDecimal getAmount() {
@@ -38,9 +36,5 @@ public class BidTransaction extends Entity {
 
     public String getAuctionId() {
         return auctionId;
-    }
-
-    public boolean isAutoBid() {
-        return autoBid;
     }
 }

@@ -119,7 +119,7 @@ public final class NetworkService {
         Objects.requireNonNull(callback, "callback must not be null");
 
         sendRequest(request)
-                .thenAccept(callback::onMessage)
+                .thenAccept(message -> Platform.runLater(() -> callback.onMessage(message)))
                 .exceptionally(throwable -> {
                     LOGGER.error("Failed to send message to server.", throwable);
                     Platform.runLater(() -> {
@@ -134,7 +134,7 @@ public final class NetworkService {
         Objects.requireNonNull(callback, "callback must not be null");
 
         sendRequest(request)
-                .thenAccept(callback::onMessage)
+                .thenAccept(message -> Platform.runLater(() -> callback.onMessage(message)))
                 .exceptionally(throwable -> {
                     LOGGER.error("Failed to send message to server.", throwable);
                     Platform.runLater(() -> {
@@ -219,7 +219,7 @@ public final class NetworkService {
             while ((jsonString = reader.readLine()) != null) {
                 try {
                     final Message message = JsonUtil.fromJson(jsonString);
-                    Platform.runLater(() -> handleMessagesFromServer(message));
+                    handleMessagesFromServer(message);
                 } catch (Exception e) {
                     LOGGER.warn("Received malformed message from server: {}", jsonString, e);
                 }
@@ -262,11 +262,12 @@ public final class NetworkService {
             return;
         }
 
-        for (MessageListener<? extends Message> listener : listeners) {
-            // Unchecked cast is necessary because we store listeners in a type-erased way,
-            // but it's safe as long as we ensure that listeners are registered with the correct MessageType and Message class.
-            ((MessageListener<Message>) listener).onMessage(message);
-        }
+        Platform.runLater(() -> {
+            for (MessageListener<? extends Message> listener : listeners) {
+                // Unchecked cast is necessary because listeners are keyed by their message type.
+                ((MessageListener<Message>) listener).onMessage(message);
+            }
+        });
     }
 
     private void failPendingRequests(String reason) {
