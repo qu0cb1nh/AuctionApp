@@ -3,6 +3,7 @@ package net.auctionapp.server.managers;
 import net.auctionapp.common.messages.MessageType;
 import net.auctionapp.common.messages.types.DepositRequestMessage;
 import net.auctionapp.common.messages.types.ErrorMessage;
+import net.auctionapp.common.messages.types.GetWalletRequestMessage;
 import net.auctionapp.common.messages.types.WithdrawRequestMessage;
 import net.auctionapp.common.messages.types.WalletResponseMessage;
 import net.auctionapp.server.models.users.User;
@@ -51,6 +52,9 @@ public final class BalanceManager {
         } catch (AuctionAppException e) {
             sendError(clientHandler, request, e.getMessage());
             LOGGER.warn("Deposit failed: {}", e.getMessage());
+        } catch (RuntimeException e) {
+            sendError(clientHandler, request, e.getMessage());
+            LOGGER.warn("Deposit failed: {}", e.getMessage());
         } catch (Exception e) {
             sendError(clientHandler, request, "An error occurred during deposit.");
             LOGGER.error("Error processing deposit request.", e);
@@ -81,9 +85,35 @@ public final class BalanceManager {
         } catch (AuctionAppException e) {
             sendError(clientHandler, request, e.getMessage());
             LOGGER.warn("Withdrawal failed: {}", e.getMessage());
+        } catch (RuntimeException e) {
+            sendError(clientHandler, request, e.getMessage());
+            LOGGER.warn("Withdrawal failed: {}", e.getMessage());
         } catch (Exception e) {
             sendError(clientHandler, request, "An error occurred during withdrawal.");
             LOGGER.error("Error processing withdraw request.", e);
+        }
+    }
+
+    public void handleGetWallet(GetWalletRequestMessage request, ClientHandler clientHandler) {
+        try {
+            clientHandler.ensureAuthenticated();
+            User user = authService.requireActiveUserById(clientHandler.getAuthenticatedId());
+            WalletResponseMessage response = new WalletResponseMessage(
+                    MessageType.WALLET_RESPONSE,
+                    user.getBalance(),
+                    user.getPendingBalance(),
+                    "Wallet loaded."
+            );
+            clientHandler.sendResponse(response, request);
+        } catch (AuctionAppException e) {
+            sendError(clientHandler, request, e.getMessage());
+            LOGGER.warn("Wallet request failed: {}", e.getMessage());
+        } catch (RuntimeException e) {
+            sendError(clientHandler, request, e.getMessage());
+            LOGGER.warn("Wallet request failed: {}", e.getMessage());
+        } catch (Exception e) {
+            sendError(clientHandler, request, "An error occurred while loading wallet.");
+            LOGGER.error("Error processing wallet request.", e);
         }
     }
 
@@ -93,6 +123,11 @@ public final class BalanceManager {
     }
 
     private void sendError(ClientHandler clientHandler, WithdrawRequestMessage request, String message) {
+        ErrorMessage error = new ErrorMessage(message);
+        clientHandler.sendResponse(error, request);
+    }
+
+    private void sendError(ClientHandler clientHandler, GetWalletRequestMessage request, String message) {
         ErrorMessage error = new ErrorMessage(message);
         clientHandler.sendResponse(error, request);
     }

@@ -157,7 +157,6 @@ public class ClientHandler implements Runnable {
     }
 
     private void handleMessagesFromClient(Message message) {
-        auctionService.broadcastEndedAuctions();
         if (shouldEnforceBannedAccess(message.getType()) && !enforceAuthenticatedSessionAccess(message)) {
             return;
         }

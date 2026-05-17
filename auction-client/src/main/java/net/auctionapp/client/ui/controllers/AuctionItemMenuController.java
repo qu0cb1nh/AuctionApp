@@ -16,7 +16,7 @@ import javafx.scene.layout.BorderPane;
 import net.auctionapp.client.ClientApp;
 import net.auctionapp.client.services.AuctionService;
 import net.auctionapp.client.services.AuthService;
-import net.auctionapp.client.MessageListener;
+import net.auctionapp.client.services.MessageListener;
 import net.auctionapp.common.messages.Message;
 import net.auctionapp.common.messages.MessageType;
 import net.auctionapp.common.messages.types.AuctionDetailsResponseMessage;

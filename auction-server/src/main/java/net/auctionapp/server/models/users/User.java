@@ -21,10 +21,6 @@ public class User extends Entity {
         this(id, username, passwordHash, role, BigDecimal.ZERO, BigDecimal.ZERO, banned);
     }
 
-    public User(String id, String username, String passwordHash, UserRole role, BigDecimal balance, boolean banned) {
-        this(id, username, passwordHash, role, balance, BigDecimal.ZERO, banned);
-    }
-
     public User(String id, String username, String passwordHash, UserRole role, BigDecimal balance, BigDecimal pendingBalance, boolean banned) {
         super(id);
         this.username = username;

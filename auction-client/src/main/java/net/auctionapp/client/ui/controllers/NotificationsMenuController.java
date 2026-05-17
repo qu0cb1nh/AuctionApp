@@ -12,7 +12,7 @@ import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.Pane;
 import javafx.scene.layout.Region;
 import javafx.scene.layout.VBox;
-import net.auctionapp.client.MessageListener;
+import net.auctionapp.client.services.MessageListener;
 import net.auctionapp.client.services.NotificationService;
 import net.auctionapp.client.utils.ResourcesUtil;
 import net.auctionapp.common.messages.Message;

@@ -13,6 +13,7 @@ import net.auctionapp.common.messages.types.ErrorMessage;
 import net.auctionapp.common.messages.types.GetAuctionDetailsRequestMessage;
 import net.auctionapp.common.messages.types.GetAuctionListRequestMessage;
 import net.auctionapp.common.messages.types.GetNotificationsRequestMessage;
+import net.auctionapp.common.messages.types.GetWalletRequestMessage;
 import net.auctionapp.common.messages.types.LoginRequestMessage;
 import net.auctionapp.common.messages.types.PongMessage;
 import net.auctionapp.common.messages.types.RegisterRequestMessage;
@@ -64,6 +65,7 @@ public final class MessageRouter {
         register(MessageType.DELETE_AUCTION_REQUEST, DeleteAuctionRequestMessage.class, auctionService::handleDeleteAuction);
         register(MessageType.DEPOSIT_REQUEST, DepositRequestMessage.class, balanceManager::handleDeposit);
         register(MessageType.WITHDRAW_REQUEST, WithdrawRequestMessage.class, balanceManager::handleWithdraw);
+        register(MessageType.GET_WALLET_REQUEST, GetWalletRequestMessage.class, balanceManager::handleGetWallet);
     }
 
     public void dispatch(Message message, ClientHandler clientHandler) {

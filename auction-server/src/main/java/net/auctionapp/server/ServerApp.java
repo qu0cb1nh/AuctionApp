@@ -52,6 +52,7 @@ public class ServerApp {
             AuctionService.getInstance().setAuctionDao(new JdbcAuctionDao());
             AuctionService.getInstance().setUserDao(jdbcUserDao);
             NotificationService.getInstance().setNotificationDao(new JdbcNotificationDao());
+            AuctionService.getInstance().startStatusScheduler();
 
             serverSocket = new ServerSocket(ConfigUtil.getServerPort(), MAX_CLIENTS);
             LOGGER.info("Auction server is running on port: {}", ConfigUtil.getServerPort());
@@ -116,6 +117,7 @@ public class ServerApp {
             client.closeConnection(); // disconnect all clients
         }
         CLIENTS.clear(); // Clear the client set (again, to be safe)
+        AuctionService.getInstance().stopStatusScheduler();
         SessionManager.getInstance().clear();
         CLIENT_THREAD_POOL.shutdownNow();
 
