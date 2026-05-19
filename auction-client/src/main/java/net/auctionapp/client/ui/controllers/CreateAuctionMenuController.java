@@ -17,6 +17,7 @@ import javafx.scene.layout.VBox;
 import javafx.stage.FileChooser;
 import net.auctionapp.client.ui.managers.SceneManager;
 import net.auctionapp.client.services.AuctionService;
+import net.auctionapp.client.utils.ResourcesUtil;
 import net.auctionapp.common.messages.Message;
 import net.auctionapp.common.messages.MessageType;
 import net.auctionapp.common.messages.types.CreateItemRequestMessage;
@@ -40,6 +41,8 @@ import java.util.ResourceBundle;
 public class CreateAuctionMenuController implements Initializable {
     private static final DateTimeFormatter TIME_FORMATTER = DateTimeFormatter.ofPattern("HH:mm");
     private static final long MAX_IMAGE_BYTES = 5L * 1024L * 1024L;
+
+    private boolean imageUploaded;
 
     @FXML
     private HeaderController appHeaderController;
@@ -103,6 +106,7 @@ public class CreateAuctionMenuController implements Initializable {
         vehicleYearCreatedField.setText(String.valueOf(now.getYear()));
         electronicsWarrantyField.setText("12");
         updateTypeSpecificFields(categoryComboBox.getValue());
+        imageUploaded = false;
     }
 
     @FXML
@@ -141,6 +145,7 @@ public class CreateAuctionMenuController implements Initializable {
         }
         selectedImageFile = chosenFile;
         previewImageView.setImage(new Image(chosenFile.toURI().toString(), true));
+        imageUploaded = true;
         setImageStatus(chosenFile.getName(), false);
     }
 
@@ -271,6 +276,9 @@ public class CreateAuctionMenuController implements Initializable {
         setSectionVisible(electronicsFieldsBox, itemType == ItemType.ELECTRONICS);
         setSectionVisible(artFieldsBox, itemType == ItemType.ART);
         setSectionVisible(vehicleFieldsBox, itemType == ItemType.VEHICLE);
+        if(!imageUploaded) {
+            previewImageView.setImage(new Image(ResourcesUtil.image(itemType.name().toLowerCase() + ".png").toExternalForm(), true));
+        }
     }
 
     private void setSectionVisible(VBox section, boolean visible) {

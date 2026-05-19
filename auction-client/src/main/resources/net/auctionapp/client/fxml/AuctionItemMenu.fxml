@@ -30,14 +30,14 @@
                     </padding>
                     <children>
 
-                <VBox alignment="TOP_CENTER" prefWidth="350.0" style="-fx-background-color: white; -fx-background-radius: 15px; -fx-effect: dropshadow(three-pass-box, rgba(0,0,0,0.1), 10, 0, 0, 0);">
+                <VBox alignment="TOP_CENTER" prefWidth="350.0" style="-fx-effect: dropshadow(three-pass-box, rgba(0,0,0,0.1), 10, 0, 0, 0);">
                     <padding>
                         <Insets bottom="20.0" left="20.0" right="20.0" top="20.0" />
                     </padding>
                     <children>
                         <ImageView fx:id="productImageView" fitHeight="369.0" fitWidth="300.0" pickOnBounds="true" preserveRatio="true">
                      <image>
-                        <Image url="@../images/iphone.jpg" />
+                        <Image url="@../images/art.png" />
                      </image></ImageView>
                     </children>
                 </VBox>
