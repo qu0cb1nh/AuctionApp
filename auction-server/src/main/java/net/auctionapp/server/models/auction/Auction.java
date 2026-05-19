@@ -13,13 +13,14 @@ import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * Aggregate root for an auction session.
  */
 public class Auction extends Entity {
+    private static final long ANTI_SNIPING_THRESHOLD_SECONDS = 10;
+    private static final long ANTI_SNIPING_EXTENSION_SECONDS = 10;
+
     private final String sellerId;
     private LocalDateTime startTime;
     private LocalDateTime endTime;
@@ -32,10 +33,6 @@ public class Auction extends Entity {
     private AuctionStatus status;
 
     private final List<BidTransaction> bidHistory = new ArrayList<>();
-    private final Map<String, AutoBidConfig> autoBidRegistry = new ConcurrentHashMap<>();
-
-    private long antiSnipingThresholdSeconds = 10;
-    private long antiSnipingExtensionSeconds = 10;
 
     public Auction(
             String id,
@@ -121,26 +118,6 @@ public class Auction extends Entity {
         return new ArrayList<>(bidHistory);
     }
 
-    public synchronized Map<String, AutoBidConfig> getAutoBidRegistry() {
-        return Map.copyOf(autoBidRegistry);
-    }
-
-    public synchronized long getAntiSnipingThresholdSeconds() {
-        return antiSnipingThresholdSeconds;
-    }
-
-    public synchronized void setAntiSnipingThresholdSeconds(long antiSnipingThresholdSeconds) {
-        this.antiSnipingThresholdSeconds = antiSnipingThresholdSeconds;
-    }
-
-    public synchronized long getAntiSnipingExtensionSeconds() {
-        return antiSnipingExtensionSeconds;
-    }
-
-    public synchronized void setAntiSnipingExtensionSeconds(long antiSnipingExtensionSeconds) {
-        this.antiSnipingExtensionSeconds = antiSnipingExtensionSeconds;
-    }
-
     public synchronized boolean placeBid(BidTransaction bid, LocalDateTime now) {
         if (status != AuctionStatus.RUNNING) {
             return false;
@@ -168,8 +145,8 @@ public class Auction extends Entity {
         bidHistory.add(bid);
 
         long secondsLeft = Duration.between(now, endTime).getSeconds();
-        if (secondsLeft <= antiSnipingThresholdSeconds) {
-            endTime = endTime.plusSeconds(antiSnipingExtensionSeconds);
+        if (secondsLeft <= ANTI_SNIPING_THRESHOLD_SECONDS) {
+            endTime = endTime.plusSeconds(ANTI_SNIPING_EXTENSION_SECONDS);
         }
 
         return true;
@@ -181,7 +158,8 @@ public class Auction extends Entity {
             BigDecimal newStartingPrice,
             BigDecimal newMinimumBidIncrement,
             LocalDateTime newStartTime,
-            LocalDateTime newEndTime
+            LocalDateTime newEndTime,
+            LocalDateTime now
     ) {
         if (title == null || title.isBlank()
                 || description == null || description.isBlank()
@@ -192,23 +170,26 @@ public class Auction extends Entity {
             return false;
         }
 
+        LocalDateTime effectiveNow = now == null ? LocalDateTime.now() : now;
+        boolean biddingHasStarted = !effectiveNow.isBefore(startTime) || !bidHistory.isEmpty();
+        if (biddingHasStarted && (newStartingPrice.compareTo(startingPrice) != 0
+                || !newStartTime.equals(startTime)
+                || !newEndTime.isAfter(effectiveNow))) {
+            return false;
+        }
+
         item.updateDetails(title, description, newStartingPrice);
         startingPrice = newStartingPrice;
         minimumBidIncrement = newMinimumBidIncrement;
         startTime = newStartTime;
         endTime = newEndTime;
-        currentPrice = newStartingPrice;
-        leadingBidderId = null;
-        winnerBidderId = null;
-        bidHistory.clear();
-        return true;
-    }
-
-    public synchronized void registerAutoBid(AutoBidConfig config) {
-        if (config == null || config.getBidderId() == null) {
-            return;
+        if (!biddingHasStarted) {
+            currentPrice = newStartingPrice;
+            leadingBidderId = null;
+            winnerBidderId = null;
+            bidHistory.clear();
         }
-        autoBidRegistry.put(config.getBidderId(), config);
+        return true;
     }
 
     public synchronized void setStatus(AuctionStatus status) {
@@ -217,20 +198,6 @@ public class Auction extends Entity {
 
     public synchronized void setWinnerBidderId(String winnerBidderId) {
         this.winnerBidderId = winnerBidderId;
-    }
-
-    public synchronized void resetForRerun(LocalDateTime newStartTime, LocalDateTime newEndTime) {
-        if (newStartTime == null || newEndTime == null || !newEndTime.isAfter(newStartTime)) {
-            throw new IllegalArgumentException("Reset window is invalid.");
-        }
-        startTime = newStartTime;
-        endTime = newEndTime;
-        currentPrice = startingPrice;
-        leadingBidderId = null;
-        winnerBidderId = null;
-        status = AuctionStatus.RUNNING;
-        bidHistory.clear();
-        autoBidRegistry.clear();
     }
 
     public synchronized BigDecimal getMinimumNextBid() {
@@ -255,9 +222,6 @@ public class Auction extends Entity {
                 status
         );
         copy.bidHistory.addAll(bidHistory);
-        copy.autoBidRegistry.putAll(autoBidRegistry);
-        copy.antiSnipingThresholdSeconds = antiSnipingThresholdSeconds;
-        copy.antiSnipingExtensionSeconds = antiSnipingExtensionSeconds;
         return copy;
     }
 

@@ -9,15 +9,15 @@ import net.auctionapp.common.messages.types.AuctionSummary;
 import net.auctionapp.common.messages.types.BidRequestMessage;
 import net.auctionapp.common.messages.types.BidResultMessage;
 import net.auctionapp.common.messages.types.BidView;
+import net.auctionapp.common.messages.types.CancelAuctionRequestMessage;
+import net.auctionapp.common.messages.types.CloseAuctionRequestMessage;
 import net.auctionapp.common.messages.types.CreateItemRequestMessage;
 import net.auctionapp.common.messages.types.CreateItemResultMessage;
-import net.auctionapp.common.messages.types.DeleteAuctionRequestMessage;
 import net.auctionapp.common.messages.types.ErrorMessage;
 import net.auctionapp.common.messages.types.GetAuctionDetailsRequestMessage;
 import net.auctionapp.common.messages.types.GetAuctionListRequestMessage;
 import net.auctionapp.common.messages.types.PriceUpdateMessage;
 import net.auctionapp.common.messages.types.UpdateAuctionRequestMessage;
-import net.auctionapp.server.dao.UserDao;
 import net.auctionapp.server.models.auction.Auction;
 import net.auctionapp.common.auction.AuctionStatus;
 import net.auctionapp.server.models.auction.BidTransaction;
@@ -48,15 +48,11 @@ import org.slf4j.LoggerFactory;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.Objects;
-import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
-import java.util.concurrent.ConcurrentSkipListSet;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ThreadFactory;
@@ -71,19 +67,18 @@ public final class AuctionService {
     private static AuctionService instance;
 
     private final ConcurrentMap<String, Auction> auctions = new ConcurrentHashMap<>();
-    private final ConcurrentSkipListSet<String> announcedEndedAuctionIds = new ConcurrentSkipListSet<>();
-    private final ConcurrentSkipListSet<String> settledAuctionIds = new ConcurrentSkipListSet<>();
     private final AuthService authService;
     private final NotificationService notificationService;
     private final CloudinaryImageService cloudinaryImageService;
+    private final WalletService walletService;
     private volatile AuctionDao auctionDao;
-    private volatile UserDao userDao;
     private volatile ScheduledExecutorService statusScheduler;
 
     private AuctionService() {
         this.authService = AuthService.getInstance();
         this.notificationService = NotificationService.getInstance();
         this.cloudinaryImageService = CloudinaryImageService.getInstance();
+        this.walletService = WalletService.getInstance();
     }
 
     public static synchronized AuctionService getInstance() {
@@ -91,17 +86,6 @@ public final class AuctionService {
             instance = new AuctionService();
         }
         return instance;
-    }
-
-    public void setUserDao(UserDao userDao) {
-        this.userDao = userDao;
-    }
-
-    private UserDao requireUserDao() {
-        if (userDao == null) {
-            throw new IllegalStateException("User DAO has not been configured.");
-        }
-        return userDao;
     }
 
     // --- Message Handling Logic ---
@@ -127,7 +111,7 @@ public final class AuctionService {
             Item item = createItemFromRequest(message);
             item.setImageUrl(cloudinaryImageService.uploadAuctionItemImage(message));
             String sellerId = StringUtil.normalizeString(handler.getAuthenticatedId());
-            Auction auction = createAuction(
+            Auction auction = openAuction(
                     sellerId,
                     item,
                     message.getStartingPrice(),
@@ -135,7 +119,6 @@ public final class AuctionService {
                     message.getStartTime(),
                     message.getEndTime()
             );
-            persistAuction(auction);
             handler.sendResponse(new CreateItemResultMessage(
                     auction.getId(),
                     auction.getItem().getTitle(),
@@ -154,12 +137,12 @@ public final class AuctionService {
         try {
             handler.ensureAuthenticated();
             String bidderId = StringUtil.normalizeString(handler.getAuthenticatedId());
-            BidSubmissionResult bidSubmissionResult = submitBid(auctionId, bidderId, message.getPrice());
+            String previousLeadingBidderId = submitBid(auctionId, bidderId, message.getPrice());
 
             Auction updatedAuction = requireAuction(auctionId);
             sendBidAccepted(handler, message, updatedAuction);
             broadcastPriceUpdate(updatedAuction);
-            trySendOutbidNotification(bidSubmissionResult.previousLeadingBidderId(), updatedAuction);
+            trySendOutbidNotification(previousLeadingBidderId, updatedAuction);
         } catch (AuctionAppException e) {
             sendBidRejected(handler, message, auctionId, e.getMessage());
         }
@@ -185,19 +168,26 @@ public final class AuctionService {
         }
     }
 
-    public void handleDeleteAuction(DeleteAuctionRequestMessage request, ClientHandler handler) {
+    public void handleCancelAuction(CancelAuctionRequestMessage request, ClientHandler handler) {
         try {
             handler.ensureAuthenticated();
             String actorId = StringUtil.normalizeString(handler.getAuthenticatedId());
-            deleteAuction(actorId, request.getAuctionId());
-            handler.sendResponse(new AuctionActionResultMessage("Auction deleted successfully."), request);
+            cancelAuction(actorId, request.getAuctionId());
+            handler.sendResponse(new AuctionActionResultMessage("Auction canceled successfully."), request);
         } catch (RuntimeException e) {
             sendAuctionActionError(handler, request, e);
         }
     }
 
-    public void broadcastEndedAuctions() {
-        refreshAuctionStatuses();
+    public void handleCloseAuction(CloseAuctionRequestMessage request, ClientHandler handler) {
+        try {
+            handler.ensureAuthenticated();
+            String actorId = StringUtil.normalizeString(handler.getAuthenticatedId());
+            closeAuction(actorId, request.getAuctionId());
+            handler.sendResponse(new AuctionActionResultMessage("Auction closed successfully."), request);
+        } catch (RuntimeException e) {
+            sendAuctionActionError(handler, request, e);
+        }
     }
 
     public synchronized void startStatusScheduler() {
@@ -229,15 +219,7 @@ public final class AuctionService {
 
     // --- Core Business Logic ---
 
-    public List<Auction> getAllAuctions() {
-        List<Auction> snapshots = new ArrayList<>();
-        for (Auction auction : auctions.values()) {
-            snapshots.add(auction.snapshotCopy());
-        }
-        return snapshots;
-    }
-
-    public List<AuctionSummary> getAuctionSummaries() {
+    private List<AuctionSummary> getAuctionSummaries() {
         List<AuctionSummary> result = new ArrayList<>();
         for (Auction auction : auctions.values()) {
             synchronized (auction) {
@@ -258,25 +240,7 @@ public final class AuctionService {
         return result;
     }
 
-    public Optional<Auction> getAuctionById(String auctionId) {
-        if (auctionId == null || auctionId.isBlank()) {
-            return Optional.empty();
-        }
-        Auction auction = auctions.get(auctionId);
-        if (auction == null) {
-            return Optional.empty();
-        }
-        return Optional.of(auction.snapshotCopy());
-    }
-
-    public boolean addAuction(Auction auction) {
-        if (auction == null || auction.getId() == null || auction.getId().isBlank()) {
-            return false;
-        }
-        return auctions.putIfAbsent(auction.getId(), auction) == null;
-    }
-
-    public Auction createAuction(
+    private Auction openAuction(
             String sellerId,
             Item item,
             BigDecimal startingPrice,
@@ -297,11 +261,19 @@ public final class AuctionService {
                 minimumBidIncrement
         );
 
-        auctions.put(auction.getId(), auction);
+        if (auction.getStatus() != AuctionStatus.RUNNING || auctions.putIfAbsent(auction.getId(), auction) != null) {
+            throw new InvalidAuctionStateException("Auction is already open.");
+        }
+        try {
+            persistAuction(auction);
+        } catch (RuntimeException e) {
+            auctions.remove(auction.getId(), auction);
+            throw e;
+        }
         return auction;
     }
 
-    public Auction updateAuction(
+    private Auction updateAuction(
             String actorId,
             String auctionId,
             String title,
@@ -314,75 +286,43 @@ public final class AuctionService {
         Auction auction = requireAuction(auctionId);
         User actor = authService.requireUserById(StringUtil.normalizeString(actorId));
         ensureAdminOrOwningSeller(actor, auction);
-        ensureAuctionCanBeEdited(auction);
 
-        boolean updated = auction.updateListingDetails(
-                title,
-                description,
-                startingPrice,
-                minimumBidIncrement,
-                startTime,
-                endTime
-        );
-        if (!updated) {
-            throw new InvalidAuctionStateException("Auction draft update data is invalid.");
+        synchronized (auction) {
+            if (auction.getStatus() != AuctionStatus.RUNNING) {
+                throw new InvalidAuctionStateException("Only active auctions can be edited.");
+            }
+            boolean updated = auction.updateListingDetails(
+                    title,
+                    description,
+                    startingPrice,
+                    minimumBidIncrement,
+                    startTime,
+                    endTime,
+                    LocalDateTime.now()
+            );
+            if (!updated) {
+                throw new InvalidAuctionStateException("Auction draft update data is invalid.");
+            }
+            persistAuctionDetails(auction);
         }
-        persistAuctionDetails(auction);
         return auction;
     }
 
-    public boolean removeAuction(String auctionId) {
-        if (auctionId == null || auctionId.isBlank()) {
-            return false;
-        }
-        return auctions.remove(auctionId) != null;
-    }
-
-    public void deleteAuction(String actorId, String auctionId) {
-        Auction auction = requireAuction(auctionId);
-        User actor = authService.requireUserById(StringUtil.normalizeString(actorId));
-        ensureAdminOrOwningSeller(actor, auction);
-
-        LocalDateTime now = LocalDateTime.now();
-        synchronized (auction) {
-            boolean isRunningWindow = auction.getStatus() == AuctionStatus.RUNNING
-                    && !now.isBefore(auction.getStartTime())
-                    && now.isBefore(auction.getEndTime());
-            if (isRunningWindow || auction.getStatus() == AuctionStatus.PAID) {
-                throw new InvalidAuctionStateException("Running or paid auctions cannot be deleted.");
-            }
-        }
-
-        auction.setStatus(AuctionStatus.CANCELED);
-        auction.setWinnerBidderId(null);
-        settleFundsForAuction(auction);
-        if (!deleteAuctionFromPersistence(auction.getId())) {
-            throw new AuctionAppException("Auction could not be deleted.");
-        }
-        auctions.remove(auction.getId());
-        announcedEndedAuctionIds.remove(auction.getId());
-    }
-
-    public boolean placeBid(String auctionId, BidTransaction bid) {
-        Auction auction = auctions.get(auctionId);
-        if (auction == null || bid == null) {
-            return false;
-        }
-        if (!Objects.equals(auctionId, bid.getAuctionId())) {
-            return false;
-        }
-        return auction.placeBid(bid, LocalDateTime.now());
-    }
-
-    public BidSubmissionResult submitBid(String auctionId, String bidderId, BigDecimal amount) {
+    private String submitBid(String auctionId, String bidderId, BigDecimal amount) {
         Auction auction = requireAuction(auctionId);
         String normalizedBidderId = StringUtil.normalizeString(bidderId);
-        User bidder = authService.requireUserById(normalizedBidderId);
-        validateBidAmount(amount);
-        ensureBidderIsNotSeller(auction, normalizedBidderId);
+        authService.requireUserById(normalizedBidderId);
+        try {
+            MoneyUtil.requirePositiveMoney(amount, "Bid amount");
+        } catch (IllegalArgumentException e) {
+            throw new ValidationException(e.getMessage());
+        }
+        if (Objects.equals(auction.getSellerId(), normalizedBidderId)) {
+            throw new InvalidBidException("Seller cannot bid on own auction.");
+        }
 
-        refreshAuctionStatuses();
         LocalDateTime now = LocalDateTime.now();
+        closeAuctionIfEnded(auction, now);
         ensureAuctionIsRunning(auction, now);
 
         BidTransaction bid = new BidTransaction(
@@ -390,114 +330,120 @@ public final class AuctionService {
                 amount,
                 now,
                 normalizedBidderId,
-                auctionId,
-                false
+                auctionId
         );
 
         String previousLeadingBidderId;
         synchronized (auction) {
             ensureAuctionIsRunning(auction, now);
-            ensureBidAmountMeetsMinimum(auction, amount);
+            BigDecimal minimumNextBid = auction.getMinimumNextBid();
+            if (minimumNextBid != null && amount.compareTo(minimumNextBid) < 0) {
+                throw new InvalidBidException("Bid must be at least " + minimumNextBid + ".");
+            }
 
             previousLeadingBidderId = auction.getLeadingBidderId();
-            BigDecimal existingCommitment = getBidderCommitment(auction, normalizedBidderId);
+            BigDecimal existingCommitment = walletService.getBidderCommitment(auction, normalizedBidderId);
             BigDecimal incrementalAmount = amount.subtract(existingCommitment);
 
             if (incrementalAmount.signum() <= 0) {
                 throw new InvalidBidException("Your new bid must be higher than your existing commitment.");
             }
 
-            if (bidder.getBalance().compareTo(incrementalAmount) < 0) {
-                throw new InvalidBidException("Insufficient balance. You need an additional "
-                        + incrementalAmount + " but have " + bidder.getBalance() + ".");
-            }
-            
-            // Lock only the incremental funds
-            if (!requireUserDao().lockFunds(normalizedBidderId, incrementalAmount)) {
-                throw new InvalidBidException("Failed to lock funds. Please check your balance.");
+            if (!walletService.lockBidFunds(normalizedBidderId, incrementalAmount)) {
+                throw new InvalidBidException("Insufficient balance. Please check your wallet.");
             }
 
             if (!auction.placeBid(bid, now)) {
-                // Rollback fund locking if auction rules reject the bid
-                requireUserDao().releaseFunds(normalizedBidderId, incrementalAmount);
+                walletService.releaseBidFunds(normalizedBidderId, incrementalAmount);
                 throw new InvalidBidException("Bid was rejected by auction rules.");
             }
-
-            applyLockedFundsToCache(bidder, incrementalAmount);
         }
 
         persistAuctionState(auction);
-        return new BidSubmissionResult(bid, previousLeadingBidderId);
+        return previousLeadingBidderId;
     }
 
-    public Auction finishAuction(String auctionId) {
-        Auction auction = requireAuction(auctionId);
-        if (!settleAuctionNow(auction, LocalDateTime.now())) {
-            throw new InvalidAuctionStateException("Auction cannot be settled before end time.");
-        }
-        persistAuctionState(auction);
-        broadcastAuctionStatusChanged(auction);
-        return auction;
-    }
-
-    public Auction markAuctionPaid(String auctionId) {
-        Auction auction = requireAuction(auctionId);
-        synchronized (auction) {
-            if (auction.getStatus() != AuctionStatus.RUNNING) {
-                throw new InvalidAuctionStateException("Only running auctions can be settled.");
-            }
-            if (LocalDateTime.now().isBefore(auction.getEndTime())) {
-                throw new InvalidAuctionStateException("Auction cannot be settled before end time.");
-            }
-            if (auction.getLeadingBidderId() == null || auction.getLeadingBidderId().isBlank()) {
-                throw new InvalidAuctionStateException("Cannot mark paid without a leading bidder.");
-            }
-            auction.setWinnerBidderId(auction.getLeadingBidderId());
-            auction.setStatus(AuctionStatus.PAID);
-            settleFundsForAuction(auction);
-        }
-        persistAuctionState(auction);
-        broadcastAuctionStatusChanged(auction);
-        return auction;
-    }
-
-    public Auction cancelAuction(String actorId, String auctionId) {
+    private void closeAuction(String actorId, String auctionId) {
         Auction auction = requireAuction(auctionId);
         User actor = authService.requireUserById(StringUtil.normalizeString(actorId));
         ensureAdminOrOwningSeller(actor, auction);
+        closeAuctionManually(auction);
+    }
 
-        synchronized (auction) {
-            if (auction.getStatus() == AuctionStatus.PAID) {
-                throw new InvalidAuctionStateException("Paid auctions cannot be canceled.");
+    private void cancelAuction(String actorId, String auctionId) {
+        Auction auction = requireAuction(auctionId);
+        User actor = authService.requireUserById(StringUtil.normalizeString(actorId));
+        ensureAdminOrOwningSeller(actor, auction);
+        boolean actorIsAdmin = actor.hasRole(UserRole.ADMIN);
+        if (!finishAuction(auction, true, true, () -> {
+            if (!actorIsAdmin && !auction.getBidHistory().isEmpty()) {
+                throw new AuthorizationException("Only an admin can cancel auctions that already have bids.");
             }
-            auction.setStatus(AuctionStatus.CANCELED);
-            auction.setWinnerBidderId(null);
-            settleFundsForAuction(auction);
+        })) {
+            throw new InvalidAuctionStateException("Auction is already closed.");
         }
-        persistAuctionState(auction);
-        broadcastAuctionStatusChanged(auction);
-        return auction;
+    }
+
+    private void closeAuctionManually(Auction auction) {
+        synchronized (auction) {
+            if (auction.getStatus() != AuctionStatus.RUNNING) {
+                throw new InvalidAuctionStateException("Auction is already closed.");
+            }
+        }
+        if (!finishAuction(auction, false, true)) {
+            throw new InvalidAuctionStateException("Auction is already closed.");
+        }
+    }
+
+    private boolean finishAuction(Auction auction, boolean forceCancel, boolean shouldBroadcastAuctionEnded) {
+        return finishAuction(auction, forceCancel, shouldBroadcastAuctionEnded, null);
+    }
+
+    private boolean finishAuction(
+            Auction auction,
+            boolean forceCancel,
+            boolean shouldBroadcastAuctionEnded,
+            Runnable preCloseValidation
+    ) {
+        synchronized (auction) {
+            if (auction.getStatus() != AuctionStatus.RUNNING) {
+                return false;
+            }
+            if (preCloseValidation != null) {
+                preCloseValidation.run();
+            }
+            String previousWinnerBidderId = auction.getWinnerBidderId();
+            AuctionStatus previousStatus = auction.getStatus();
+
+            String leadingBidderId = StringUtil.normalizeString(auction.getLeadingBidderId());
+            boolean hasWinner = !forceCancel && !leadingBidderId.isEmpty();
+            auction.setWinnerBidderId(hasWinner ? leadingBidderId : null);
+            auction.setStatus(hasWinner ? AuctionStatus.PAID : AuctionStatus.CANCELED);
+
+            try {
+                walletService.closeAuctionWallets(auction);
+            } catch (RuntimeException e) {
+                auction.setWinnerBidderId(previousWinnerBidderId);
+                auction.setStatus(previousStatus);
+                throw e;
+            }
+            persistAuctionState(auction);
+        }
+        if (shouldBroadcastAuctionEnded) {
+            broadcastAuctionStatusChanged(auction);
+        }
+        return true;
     }
 
     public void refreshAuctionStatuses() {
         LocalDateTime now = LocalDateTime.now();
         for (Auction auction : auctions.values()) {
             try {
-                boolean statusChanged = settleAuctionNow(auction, now);
-                if (statusChanged) {
-                    persistAuctionState(auction);
-                    broadcastAuctionStatusChanged(auction);
-                }
+                closeAuctionIfEnded(auction, now);
             } catch (RuntimeException e) {
                 LOGGER.warn("Failed to refresh auction {}: {}", auction.getId(), e.getMessage(), e);
             }
         }
-    }
-
-    public void clear() {
-        auctions.clear();
-        announcedEndedAuctionIds.clear();
-        settledAuctionIds.clear();
     }
 
     public synchronized void setAuctionDao(AuctionDao auctionDao) {
@@ -507,20 +453,9 @@ public final class AuctionService {
         }
         List<Auction> persistedAuctions = auctionDao.findAllAuctions();
         auctions.clear();
-        announcedEndedAuctionIds.clear();
-        settledAuctionIds.clear();
         for (Auction auction : persistedAuctions) {
             auctions.put(auction.getId(), auction);
         }
-    }
-
-    public List<BidView> getBidViews(String auctionId) {
-        Auction auction = requireAuction(auctionId);
-        List<BidView> bidViews = new ArrayList<>();
-        for (BidTransaction bid : auction.getBidHistory()) {
-            bidViews.add(new BidView(bid.getId(), bid.getBidderId(), bid.getAmount(), bid.getTimestamp()));
-        }
-        return bidViews;
     }
 
     private Item createItemFromRequest(CreateItemRequestMessage message) {
@@ -580,17 +515,6 @@ public final class AuctionService {
         throw new AuctionAppException("Auction details could not be persisted.");
     }
 
-    private boolean deleteAuctionFromPersistence(String auctionId) {
-        if (auctionDao == null) {
-            return true;
-        }
-        try {
-            return auctionDao.deleteAuctionById(auctionId);
-        } catch (DatabaseException e) {
-            throw new AuctionAppException("Failed to delete auction.");
-        }
-    }
-
     private Auction requireAuction(String auctionId) {
         if (auctionId == null || auctionId.isBlank()) {
             throw new NotFoundException("Auction not found.");
@@ -610,20 +534,6 @@ public final class AuctionService {
         }
     }
 
-    private void validateBidAmount(BigDecimal amount) {
-        try {
-            MoneyUtil.requirePositiveMoney(amount, "Bid amount");
-        } catch (IllegalArgumentException e) {
-            throw new ValidationException(e.getMessage());
-        }
-    }
-
-    private void ensureBidderIsNotSeller(Auction auction, String bidderId) {
-        if (Objects.equals(auction.getSellerId(), bidderId)) {
-            throw new InvalidBidException("Seller cannot bid on own auction.");
-        }
-    }
-
     private void ensureAuctionIsRunning(Auction auction, LocalDateTime now) {
         synchronized (auction) {
             if (auction.getStatus() != AuctionStatus.RUNNING
@@ -635,135 +545,15 @@ public final class AuctionService {
         }
     }
 
-    private void ensureAuctionCanBeEdited(Auction auction) {
-        LocalDateTime now = LocalDateTime.now();
-        synchronized (auction) {
-            if (auction.getStatus() != AuctionStatus.RUNNING
-                    || !now.isBefore(auction.getStartTime())) {
-                throw new InvalidAuctionStateException("Only OPEN auctions can be edited.");
-            }
-        }
-    }
-
-    private boolean settleAuctionNow(Auction auction, LocalDateTime now) {
+    private void closeAuctionIfEnded(Auction auction, LocalDateTime now) {
         synchronized (auction) {
             if (auction.getStatus() != AuctionStatus.RUNNING
                     || now == null
                     || now.isBefore(auction.getEndTime())) {
-                return false;
-            }
-            String leadingBidderId = StringUtil.normalizeString(auction.getLeadingBidderId());
-            if (leadingBidderId.isEmpty()) {
-                auction.setWinnerBidderId(null);
-                auction.setStatus(AuctionStatus.CANCELED);
-            } else {
-                auction.setWinnerBidderId(leadingBidderId);
-                auction.setStatus(AuctionStatus.PAID);
-            }
-            settleFundsForAuction(auction);
-            return true;
-        }
-    }
-
-    private void settleFundsForAuction(Auction auction) {
-        if (auction == null || auction.getId() == null || auction.getId().isBlank()) {
-            return;
-        }
-        if (!settledAuctionIds.add(auction.getId())) {
-            LOGGER.debug("Skipping duplicate settlement for auction {}.", auction.getId());
-            return;
-        }
-
-        String winnerId = StringUtil.normalizeString(auction.getWinnerBidderId());
-        String sellerId = StringUtil.normalizeString(auction.getSellerId());
-        BigDecimal winningAmount = auction.getCurrentPrice();
-        Map<String, BigDecimal> committedAmountsByBidder = getCommittedAmountsByBidder(auction);
-
-        // 1. If there's a winner, transfer winner's pending funds to seller's liquid balance
-        if (!winnerId.isEmpty() && auction.getStatus() == AuctionStatus.PAID) {
-            // Deduct from winner's pending
-            if (requireUserDao().transferPendingFunds(winnerId, winningAmount)) {
-                User winner = authService.requireUserById(winnerId);
-                applyPendingTransferToCache(winner, winningAmount);
-                
-                // Add to seller's liquid balance
-                if (requireUserDao().increaseBalance(sellerId, winningAmount)) {
-                    User seller = authService.requireUserById(sellerId);
-                    applyBalanceIncreaseToCache(seller, winningAmount);
-                    LOGGER.info("Winner {} paid {}. Seller {} received funds for auction {}", 
-                            winnerId, winningAmount, sellerId, auction.getId());
-                }
+                return;
             }
         }
-
-        // 2. Release every non-winning commitment once, not every bid-history row.
-        for (Map.Entry<String, BigDecimal> entry : committedAmountsByBidder.entrySet()) {
-            String bidderId = entry.getKey();
-            BigDecimal committedAmount = entry.getValue();
-            if (bidderId.equalsIgnoreCase(winnerId) && auction.getStatus() == AuctionStatus.PAID) {
-                continue;
-            }
-
-            if (requireUserDao().releaseFunds(bidderId, committedAmount)) {
-                User user = authService.requireUserById(bidderId);
-                applyReleasedFundsToCache(user, committedAmount);
-            }
-        }
-    }
-
-    private void applyLockedFundsToCache(User user, BigDecimal amount) {
-        if (user == null || amount == null || amount.signum() <= 0) {
-            return;
-        }
-        user.setBalance(user.getBalance().subtract(amount));
-        user.setPendingBalance(user.getPendingBalance().add(amount));
-    }
-
-    private void applyReleasedFundsToCache(User user, BigDecimal amount) {
-        if (user == null || amount == null || amount.signum() <= 0) {
-            return;
-        }
-        user.setBalance(user.getBalance().add(amount));
-        user.setPendingBalance(user.getPendingBalance().subtract(amount));
-    }
-
-    private void applyPendingTransferToCache(User user, BigDecimal amount) {
-        if (user == null || amount == null || amount.signum() <= 0) {
-            return;
-        }
-        user.setPendingBalance(user.getPendingBalance().subtract(amount));
-    }
-
-    private void applyBalanceIncreaseToCache(User user, BigDecimal amount) {
-        if (user == null || amount == null || amount.signum() <= 0) {
-            return;
-        }
-        user.setBalance(user.getBalance().add(amount));
-    }
-
-    private BigDecimal getBidderCommitment(Auction auction, String bidderId) {
-        if (auction == null || bidderId == null || bidderId.isBlank()) {
-            return BigDecimal.ZERO;
-        }
-        return getCommittedAmountsByBidder(auction).getOrDefault(StringUtil.normalizeString(bidderId), BigDecimal.ZERO);
-    }
-
-    private Map<String, BigDecimal> getCommittedAmountsByBidder(Auction auction) {
-        Map<String, BigDecimal> committedAmounts = new HashMap<>();
-        if (auction == null) {
-            return committedAmounts;
-        }
-        for (BidTransaction bid : auction.getBidHistory()) {
-            if (bid == null || bid.getBidderId() == null || bid.getAmount() == null) {
-                continue;
-            }
-            String bidderId = StringUtil.normalizeString(bid.getBidderId());
-            if (bidderId.isEmpty()) {
-                continue;
-            }
-            committedAmounts.merge(bidderId, bid.getAmount(), BigDecimal::max);
-        }
-        return committedAmounts;
+        finishAuction(auction, false, true);
     }
 
     private void broadcastAuctionStatusChanged(Auction auction) {
@@ -774,22 +564,12 @@ public final class AuctionService {
         if (status != AuctionStatus.PAID && status != AuctionStatus.CANCELED) {
             return;
         }
-        if (!announcedEndedAuctionIds.add(auction.getId())) {
-            return;
-        }
         trySendAuctionEndedNotifications(auction);
         ServerApp.broadcast(JsonUtil.toJson(new AuctionEndedMessage(
                 auction.getId(),
                 auction.getWinnerBidderId(),
                 auction.getCurrentPrice()
         )));
-    }
-
-    private void ensureBidAmountMeetsMinimum(Auction auction, BigDecimal amount) {
-        BigDecimal minimumNextBid = auction.getMinimumNextBid();
-        if (minimumNextBid != null && amount.compareTo(minimumNextBid) < 0) {
-            throw new InvalidBidException("Bid must be at least " + minimumNextBid + ".");
-        }
     }
 
     private void sendBidAccepted(ClientHandler handler, BidRequestMessage request, Auction auction) {
@@ -871,6 +651,10 @@ public final class AuctionService {
     private AuctionDetailsResponseMessage buildAuctionDetailsResponse(Auction auction) {
         synchronized (auction) {
             Item item = auction.getItem();
+            List<BidView> bidViews = new ArrayList<>();
+            for (BidTransaction bid : auction.getBidHistory()) {
+                bidViews.add(new BidView(bid.getId(), bid.getBidderId(), bid.getAmount(), bid.getTimestamp()));
+            }
             return new AuctionDetailsResponseMessage(
                     auction.getId(),
                     auction.getSellerId(),
@@ -885,7 +669,7 @@ public final class AuctionService {
                     auction.getStartTime(),
                     auction.getEndTime(),
                     item.getImageUrl(),
-                    getBidViews(auction.getId())
+                    bidViews
             );
         }
     }
@@ -915,8 +699,5 @@ public final class AuctionService {
         if (startTime == null || endTime == null || !endTime.isAfter(startTime)) {
             throw new ValidationException("Auction end time must be after start time.");
         }
-    }
-
-    public record BidSubmissionResult(BidTransaction bidTransaction, String previousLeadingBidderId) {
     }
 }

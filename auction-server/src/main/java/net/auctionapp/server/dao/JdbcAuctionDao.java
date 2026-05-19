@@ -14,6 +14,7 @@ import net.auctionapp.server.factories.ItemFactory;
 import net.auctionapp.server.factories.VehicleFactory;
 import net.auctionapp.server.services.DatabaseService;
 
+import java.math.BigDecimal;
 import java.sql.Connection;
 import java.sql.DatabaseMetaData;
 import java.sql.PreparedStatement;
@@ -24,6 +25,7 @@ import java.sql.Timestamp;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 
 public class JdbcAuctionDao implements AuctionDao {
     private static final String CREATE_AUCTIONS_TABLE_QUERY = """
@@ -129,8 +131,12 @@ public class JdbcAuctionDao implements AuctionDao {
                 year_created = ?
             WHERE id = ?
             """;
-    private static final String DELETE_AUCTION_BY_ID_QUERY =
-            "DELETE FROM auctions WHERE id = ?";
+    private static final String INCREASE_BALANCE_QUERY =
+            "UPDATE users SET balance = balance + ? WHERE lower(username) = ?";
+    private static final String RELEASE_FUNDS_QUERY =
+            "UPDATE users SET balance = balance + ?, pending_balance = pending_balance - ? WHERE lower(username) = ? AND pending_balance >= ?";
+    private static final String TRANSFER_PENDING_QUERY =
+            "UPDATE users SET pending_balance = pending_balance - ? WHERE lower(username) = ? AND pending_balance >= ?";
 
     private final DatabaseService databaseService;
 
@@ -190,13 +196,7 @@ public class JdbcAuctionDao implements AuctionDao {
     public boolean updateAuctionState(Auction auction) {
         try (Connection connection = databaseService.getConnection();
              PreparedStatement statement = connection.prepareStatement(UPDATE_AUCTION_STATE_QUERY)) {
-            statement.setBigDecimal(1, auction.getCurrentPrice());
-            statement.setString(2, auction.getStatus().name());
-            setNullableString(statement, 3, auction.getLeadingBidderId());
-            setNullableString(statement, 4, auction.getWinnerBidderId());
-            statement.setTimestamp(5, Timestamp.valueOf(auction.getEndTime()));
-            statement.setString(6, auction.getId());
-            return statement.executeUpdate() == 1;
+            return bindAuctionState(statement, auction).executeUpdate() == 1;
         } catch (SQLException e) {
             throw new DatabaseException("Failed to update auction state.", e);
         }
@@ -227,14 +227,118 @@ public class JdbcAuctionDao implements AuctionDao {
     }
 
     @Override
-    public boolean deleteAuctionById(String auctionId) {
-        try (Connection connection = databaseService.getConnection();
-             PreparedStatement statement = connection.prepareStatement(DELETE_AUCTION_BY_ID_QUERY)) {
-            statement.setString(1, auctionId);
-            return statement.executeUpdate() == 1;
+    public boolean settleAuction(Auction auction, Map<String, BigDecimal> committedAmountsByBidder) {
+        try (Connection connection = databaseService.getConnection()) {
+            boolean previousAutoCommit = connection.getAutoCommit();
+            connection.setAutoCommit(false);
+            try {
+                if (!updateAuctionState(connection, auction)) {
+                    connection.rollback();
+                    return false;
+                }
+                if (!settleUserBalances(connection, auction, committedAmountsByBidder)) {
+                    connection.rollback();
+                    return false;
+                }
+                connection.commit();
+                return true;
+            } catch (SQLException | RuntimeException e) {
+                connection.rollback();
+                throw e;
+            } finally {
+                connection.setAutoCommit(previousAutoCommit);
+            }
         } catch (SQLException e) {
-            throw new DatabaseException("Failed to delete auction.", e);
+            throw new DatabaseException("Failed to settle auction.", e);
         }
+    }
+
+    private boolean updateAuctionState(Connection connection, Auction auction) throws SQLException {
+        try (PreparedStatement statement = connection.prepareStatement(UPDATE_AUCTION_STATE_QUERY)) {
+            return bindAuctionState(statement, auction).executeUpdate() == 1;
+        }
+    }
+
+    private PreparedStatement bindAuctionState(PreparedStatement statement, Auction auction) throws SQLException {
+        statement.setBigDecimal(1, auction.getCurrentPrice());
+        statement.setString(2, auction.getStatus().name());
+        setNullableString(statement, 3, auction.getLeadingBidderId());
+        setNullableString(statement, 4, auction.getWinnerBidderId());
+        statement.setTimestamp(5, Timestamp.valueOf(auction.getEndTime()));
+        statement.setString(6, auction.getId());
+        return statement;
+    }
+
+    private boolean settleUserBalances(
+            Connection connection,
+            Auction auction,
+            Map<String, BigDecimal> committedAmountsByBidder
+    ) throws SQLException {
+        String winnerId = normalize(auction.getWinnerBidderId());
+        String sellerId = normalize(auction.getSellerId());
+        boolean hasWinner = auction.getStatus() == AuctionStatus.PAID && !winnerId.isEmpty();
+
+        if (hasWinner) {
+            BigDecimal winningAmount = auction.getCurrentPrice();
+            if (!transferPendingFunds(connection, winnerId, winningAmount)) {
+                return false;
+            }
+            if (!increaseBalance(connection, sellerId, winningAmount)) {
+                return false;
+            }
+        }
+
+        if (committedAmountsByBidder == null || committedAmountsByBidder.isEmpty()) {
+            return true;
+        }
+        for (Map.Entry<String, BigDecimal> entry : committedAmountsByBidder.entrySet()) {
+            String bidderId = normalize(entry.getKey());
+            BigDecimal committedAmount = entry.getValue();
+            if (bidderId.isEmpty() || committedAmount == null || committedAmount.signum() <= 0) {
+                continue;
+            }
+            if (hasWinner && bidderId.equals(winnerId)) {
+                continue;
+            }
+            if (!releaseFunds(connection, bidderId, committedAmount)) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    private boolean transferPendingFunds(Connection connection, String normalizedUsername, BigDecimal amount)
+            throws SQLException {
+        try (PreparedStatement statement = connection.prepareStatement(TRANSFER_PENDING_QUERY)) {
+            statement.setBigDecimal(1, amount);
+            statement.setString(2, normalizedUsername);
+            statement.setBigDecimal(3, amount);
+            return statement.executeUpdate() == 1;
+        }
+    }
+
+    private boolean increaseBalance(Connection connection, String normalizedUsername, BigDecimal amount)
+            throws SQLException {
+        try (PreparedStatement statement = connection.prepareStatement(INCREASE_BALANCE_QUERY)) {
+            statement.setBigDecimal(1, amount);
+            statement.setString(2, normalizedUsername);
+            return statement.executeUpdate() == 1;
+        }
+    }
+
+    private boolean releaseFunds(Connection connection, String normalizedUsername, BigDecimal amount)
+            throws SQLException {
+        try (PreparedStatement statement = connection.prepareStatement(RELEASE_FUNDS_QUERY)) {
+            statement.setBigDecimal(1, amount);
+            statement.setBigDecimal(2, amount);
+            statement.setString(3, normalizedUsername);
+            statement.setBigDecimal(4, amount);
+            return statement.executeUpdate() == 1;
+        }
+    }
+
+    private String normalize(String value) {
+        return value == null ? "" : value.trim().toLowerCase();
     }
 
     private void ensureAuctionsTable() {

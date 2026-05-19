@@ -50,7 +50,9 @@ public class ManageAuctionMenuController implements Initializable {
     @FXML
     private Button saveButton;
     @FXML
-    private Button deleteButton;
+    private Button cancelButton;
+    @FXML
+    private Button closeButton;
 
     private String currentAuctionId;
 
@@ -82,8 +84,13 @@ public class ManageAuctionMenuController implements Initializable {
     }
 
     @FXML
-    public void handleDelete(ActionEvent event) {
-        AuctionService.getInstance().deleteAuction(currentAuctionId, this::handleActionResponse);
+    public void handleCancel(ActionEvent event) {
+        AuctionService.getInstance().cancelAuction(currentAuctionId, this::handleActionResponse);
+    }
+
+    @FXML
+    public void handleClose(ActionEvent event) {
+        AuctionService.getInstance().closeAuction(currentAuctionId, this::handleActionResponse);
     }
 
     private void requestAuctionDetails() {
@@ -110,7 +117,10 @@ public class ManageAuctionMenuController implements Initializable {
                 : response.getMinimumNextBid().subtract(response.getCurrentPrice()).stripTrailingZeros().toPlainString());
         startTimeField.setText(formatDateTime(response.getStartTime()));
         endTimeField.setText(formatDateTime(response.getEndTime()));
-        saveButton.setDisable(response.getStatus() != AuctionStatus.RUNNING);
+        boolean canChangeOpenAuction = response.getStatus() == AuctionStatus.RUNNING;
+        saveButton.setDisable(!canChangeOpenAuction);
+        closeButton.setDisable(!canChangeOpenAuction);
+        cancelButton.setDisable(!canChangeOpenAuction);
         setSuccessStatus("Auction details loaded.");
     }
 
@@ -124,7 +134,7 @@ public class ManageAuctionMenuController implements Initializable {
             return;
         }
         setSuccessStatus(result.getMessage());
-        if (result.getMessage() != null && result.getMessage().toLowerCase().contains("deleted")) {
+        if (result.getMessage() != null && result.getMessage().toLowerCase().contains("canceled")) {
             SceneManager.switchSceneWithDelay("AuctionListMenu.fxml", 500);
             return;
         }
@@ -225,7 +235,8 @@ public class ManageAuctionMenuController implements Initializable {
         startTimeField.setDisable(true);
         endTimeField.setDisable(true);
         saveButton.setDisable(true);
-        deleteButton.setDisable(true);
+        cancelButton.setDisable(true);
+        closeButton.setDisable(true);
     }
 
     private void setSuccessStatus(String text) {

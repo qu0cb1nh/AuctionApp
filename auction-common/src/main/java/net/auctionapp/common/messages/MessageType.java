@@ -63,9 +63,14 @@ public enum MessageType {
     UPDATE_AUCTION_REQUEST,
 
     /**
-     * Request to delete an auction.
+     * Request to cancel an auction.
      */
-    DELETE_AUCTION_REQUEST,
+    CANCEL_AUCTION_REQUEST,
+
+    /**
+     * Request to close an auction early.
+     */
+    CLOSE_AUCTION_REQUEST,
 
     /**
      * Request to deposit funds.

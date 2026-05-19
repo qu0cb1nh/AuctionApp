@@ -3,15 +3,15 @@ package net.auctionapp.common.messages.types;
 import net.auctionapp.common.messages.Message;
 import net.auctionapp.common.messages.MessageType;
 
-public class DeleteAuctionRequestMessage extends Message {
+public class CancelAuctionRequestMessage extends Message {
     private String auctionId;
 
-    public DeleteAuctionRequestMessage() {
-        super(MessageType.DELETE_AUCTION_REQUEST);
+    public CancelAuctionRequestMessage() {
+        super(MessageType.CANCEL_AUCTION_REQUEST);
     }
 
-    public DeleteAuctionRequestMessage(String auctionId) {
-        super(MessageType.DELETE_AUCTION_REQUEST);
+    public CancelAuctionRequestMessage(String auctionId) {
+        super(MessageType.CANCEL_AUCTION_REQUEST);
         this.auctionId = auctionId;
     }
 

@@ -63,7 +63,8 @@
                         <HBox spacing="10.0">
                             <children>
                                 <Button fx:id="saveButton" mnemonicParsing="false" onAction="#handleSave" style="-fx-background-color: #1f8f4c; -fx-text-fill: white; -fx-font-weight: bold;" text="Save Changes" />
-                                <Button fx:id="deleteButton" mnemonicParsing="false" onAction="#handleDelete" style="-fx-background-color: #c13c21; -fx-text-fill: white; -fx-font-weight: bold;" text="Delete" />
+                                <Button fx:id="closeButton" mnemonicParsing="false" onAction="#handleClose" style="-fx-background-color: #d9822b; -fx-text-fill: white; -fx-font-weight: bold;" text="Close Auction" />
+                                <Button fx:id="cancelButton" mnemonicParsing="false" onAction="#handleCancel" style="-fx-background-color: #c13c21; -fx-text-fill: white; -fx-font-weight: bold;" text="Cancel Auction" />
                                 <Region HBox.hgrow="ALWAYS" />
                                 <Button mnemonicParsing="false" onAction="#handleRefresh" style="-fx-background-color: #3bb3d1; -fx-text-fill: white; -fx-font-weight: bold;" text="Refresh" />
                             </children>

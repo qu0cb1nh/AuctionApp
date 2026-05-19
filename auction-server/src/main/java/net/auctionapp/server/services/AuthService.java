@@ -11,7 +11,6 @@ import net.auctionapp.server.managers.SessionManager;
 import net.auctionapp.server.models.users.User;
 import net.auctionapp.common.users.UserRole;
 import net.auctionapp.common.utils.CredentialUtil;
-import net.auctionapp.common.utils.MoneyUtil;
 import net.auctionapp.common.utils.StringUtil;
 import net.auctionapp.server.ClientHandler;
 import net.auctionapp.server.dao.UserDao;
@@ -227,36 +226,6 @@ public class AuthService {
         return target;
     }
 
-    public User deposit(String userId, java.math.BigDecimal amount) {
-        MoneyUtil.requirePositiveMoney(amount, "Deposit amount");
-        String normalizedUserId = StringUtil.normalizeString(userId);
-        User user = requireUserById(normalizedUserId);
-        
-        if (requireUserDao().increaseBalance(normalizedUserId, amount)) {
-            user.setBalance(user.getBalance().add(amount));
-            cacheUser(user);
-            return user;
-        }
-        throw new DatabaseException("Failed to process deposit.");
-    }
-
-    public User withdraw(String userId, java.math.BigDecimal amount) {
-        MoneyUtil.requirePositiveMoney(amount, "Withdrawal amount");
-        String normalizedUserId = StringUtil.normalizeString(userId);
-        User user = requireUserById(normalizedUserId);
-        
-        if (user.getBalance().compareTo(amount) < 0) {
-            throw new ValidationException("Insufficient liquid balance for withdrawal.");
-        }
-
-        if (requireUserDao().tryDecreaseBalance(normalizedUserId, amount)) {
-            user.setBalance(user.getBalance().subtract(amount));
-            cacheUser(user);
-            return user;
-        }
-        throw new DatabaseException("Failed to process withdrawal.");
-    }
-
     private User cacheUser(User user) {
         if (user == null) {
             throw new NotFoundException("User not found.");
@@ -265,8 +234,13 @@ public class AuthService {
         if (normalizedUserId.isEmpty()) {
             throw new NotFoundException("User not found.");
         }
-        usersById.put(normalizedUserId, user);
-        return user;
+        return usersById.compute(normalizedUserId, (ignored, existingUser) -> {
+            if (existingUser == null) {
+                return user;
+            }
+            existingUser.copyMutableStateFrom(user);
+            return existingUser;
+        });
     }
 
     private void disconnectBannedUserSessions(String userId) {
