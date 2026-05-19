@@ -9,7 +9,6 @@
 <?import javafx.scene.control.Separator?>
 <?import javafx.scene.control.TextArea?>
 <?import javafx.scene.control.TextField?>
-<?import javafx.scene.image.Image?>
 <?import javafx.scene.image.ImageView?>
 <?import javafx.scene.layout.BorderPane?>
 <?import javafx.scene.layout.HBox?>
@@ -31,16 +30,12 @@
                     </padding>
                     <children>
 
-                <VBox alignment="TOP_CENTER" prefWidth="350.0" spacing="16.0" style="-fx-background-color: white; -fx-background-radius: 15px; -fx-effect: dropshadow(three-pass-box, rgba(0,0,0,0.1), 10, 0, 0, 0);">
+                <VBox alignment="TOP_CENTER" prefWidth="350.0" spacing="16.0" style="-fx-effect: dropshadow(three-pass-box, rgba(0,0,0,0.1), 10, 0, 0, 0);">
                     <padding>
                         <Insets bottom="20.0" left="20.0" right="20.0" top="20.0" />
                     </padding>
                     <children>
-                        <ImageView fx:id="previewImageView" fitHeight="360.0" fitWidth="300.0" pickOnBounds="true" preserveRatio="true">
-                            <image>
-                                <Image url="@../images/iphone.jpg" />
-                            </image>
-                        </ImageView>
+                        <ImageView fx:id="previewImageView" fitHeight="360.0" fitWidth="300.0" pickOnBounds="true" preserveRatio="true" />
                         <Button mnemonicParsing="false" onAction="#handleChooseImage" prefWidth="200.0" style="-fx-background-color: #3bb3c3; -fx-text-fill: white; -fx-background-radius: 20px; -fx-padding: 10px 20px; -fx-font-weight: bold; -fx-cursor: hand;" text="Choose Image" />
                         <Label fx:id="imageStatusLabel" style="-fx-font-size: 13px; -fx-text-fill: #888888;" text="Use a clear product photo for better bidding." wrapText="true" />
                     </children>

@@ -345,20 +345,9 @@ public class JdbcAuctionDao implements AuctionDao {
         try (Connection connection = databaseService.getConnection();
              Statement statement = connection.createStatement()) {
             statement.executeUpdate(CREATE_AUCTIONS_TABLE_QUERY);
-            ensureImageUrlColumn(connection, statement);
         } catch (SQLException e) {
             throw new DatabaseException("Failed to create auctions table.", e);
         }
-    }
-
-    private void ensureImageUrlColumn(Connection connection, Statement statement) throws SQLException {
-        DatabaseMetaData metadata = connection.getMetaData();
-        try (ResultSet columns = metadata.getColumns(null, null, "auctions", "image_url")) {
-            if (columns.next()) {
-                return;
-            }
-        }
-        statement.executeUpdate("ALTER TABLE auctions ADD COLUMN image_url TEXT");
     }
 
     private Auction mapAuction(ResultSet resultSet) throws SQLException {
