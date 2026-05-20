@@ -16,7 +16,7 @@ import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.VBox;
 import net.auctionapp.client.ClientApp;
-import net.auctionapp.client.services.AuthService;
+import net.auctionapp.client.ClientSession;
 import net.auctionapp.client.ui.managers.SceneManager;
 import net.auctionapp.client.utils.ResourcesUtil;
 import net.auctionapp.client.services.AuctionService;
@@ -216,9 +216,9 @@ public class MyActivityMenuController implements Initializable {
             return;
         }
 
-        String currentUsername = resolveCurrentUsername();
-        toBidActivity(response, currentUsername).ifPresent(loadedBidActivities::add);
-        toSellerActivity(response, currentUsername).ifPresent(loadedSellerActivities::add);
+        String currentUserId = resolveCurrentUserId();
+        toBidActivity(response, currentUserId).ifPresent(loadedBidActivities::add);
+        toSellerActivity(response, currentUserId).ifPresent(loadedSellerActivities::add);
 
         if (!pendingAuctionIds.isEmpty()) {
             setNeutralStatus("Loading auction details...");
@@ -392,15 +392,15 @@ public class MyActivityMenuController implements Initializable {
         }
     }
 
-    private Optional<ActivityCard> toBidActivity(AuctionDetailsResponseMessage response, String currentUsername) {
-        if (response == null || currentUsername == null || currentUsername.isBlank()) {
+    private Optional<ActivityCard> toBidActivity(AuctionDetailsResponseMessage response, String currentUserId) {
+        if (response == null || currentUserId == null || currentUserId.isBlank()) {
             return Optional.empty();
         }
 
         List<BidView> bidHistory = response.getBidHistory() == null ? List.of() : response.getBidHistory();
         List<BidView> userBids = bidHistory.stream()
                 .filter(Objects::nonNull)
-                .filter(bid -> bid.getBidderId() != null && bid.getBidderId().equalsIgnoreCase(currentUsername))
+                .filter(bid -> bid.getBidderId() != null && bid.getBidderId().equalsIgnoreCase(currentUserId))
                 .filter(bid -> bid.getAmount() != null)
                 .toList();
         if (userBids.isEmpty()) {
@@ -415,7 +415,7 @@ public class MyActivityMenuController implements Initializable {
                 response.getAuctionId(),
                 response.getTitle(),
                 SCOPE_BIDDING,
-                deriveBidStatus(response, currentUsername),
+                deriveBidStatus(response, currentUserId),
                 response.getStatus(),
                 yourMaxBid,
                 response.getStartingPrice(),
@@ -428,11 +428,11 @@ public class MyActivityMenuController implements Initializable {
         ));
     }
 
-    private Optional<ActivityCard> toSellerActivity(AuctionDetailsResponseMessage response, String currentUsername) {
-        if (response == null || currentUsername == null || currentUsername.isBlank()) {
+    private Optional<ActivityCard> toSellerActivity(AuctionDetailsResponseMessage response, String currentUserId) {
+        if (response == null || currentUserId == null || currentUserId.isBlank()) {
             return Optional.empty();
         }
-        if (response.getSellerId() == null || !response.getSellerId().equalsIgnoreCase(currentUsername)) {
+        if (response.getSellerId() == null || !response.getSellerId().equalsIgnoreCase(currentUserId)) {
             return Optional.empty();
         }
         int bidCount = response.getBidHistory() == null ? 0 : response.getBidHistory().size();
@@ -453,23 +453,23 @@ public class MyActivityMenuController implements Initializable {
         ));
     }
 
-    private String resolveCurrentUsername() {
-        if (AuthService.getInstance().getCurrentUsername() == null
-                || AuthService.getInstance().getCurrentUsername().isBlank()) {
+    private String resolveCurrentUserId() {
+        if (ClientSession.getInstance().getUserId() == null
+                || ClientSession.getInstance().getUserId().isBlank()) {
             return "";
         }
-        return AuthService.getInstance().getCurrentUsername();
+        return ClientSession.getInstance().getUserId();
     }
 
-    private String deriveBidStatus(AuctionDetailsResponseMessage response, String currentUsername) {
+    private String deriveBidStatus(AuctionDetailsResponseMessage response, String currentUserId) {
         AuctionStatus auctionStatus = response.getStatus();
         if (auctionStatus == AuctionStatus.CANCELED) {
             return STATUS_CANCELED;
         }
         if (isFinished(response) || auctionStatus == AuctionStatus.PAID) {
-            return currentUsername.equalsIgnoreCase(response.getWinnerBidderId()) ? STATUS_WON : STATUS_LOST;
+            return currentUserId.equalsIgnoreCase(response.getWinnerBidderId()) ? STATUS_WON : STATUS_LOST;
         }
-        return currentUsername.equalsIgnoreCase(response.getLeadingBidderId()) ? STATUS_LEADING : STATUS_OUTBID;
+        return currentUserId.equalsIgnoreCase(response.getLeadingBidderId()) ? STATUS_LEADING : STATUS_OUTBID;
     }
 
     private String deriveSellerStatus(AuctionDetailsResponseMessage response) {

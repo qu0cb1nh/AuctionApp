@@ -61,6 +61,7 @@ public class ClientHandler implements Runnable {
                 in = reader;
                 out = writer;
             }
+            ServerApp.registerClient(this);
             LOGGER.info("Client connected from {}", clientSocket.getInetAddress());
 
             String jsonString;
@@ -143,6 +144,12 @@ public class ClientHandler implements Runnable {
     public void authenticate(String userId, UserRole role) {
         this.authenticatedUserId = userId;
         this.authenticatedRole = role;
+    }
+
+    public synchronized void logout() {
+        authenticatedUserId = null;
+        authenticatedRole = null;
+        sessionManager.unbindSession(this);
     }
 
     public String getAuthenticatedId() {

@@ -9,7 +9,7 @@
 
 <BorderPane prefHeight="64.0" prefWidth="945.0" style="-fx-background-color: #3bb3c3;" xmlns="http://javafx.com/javafx/25" xmlns:fx="http://javafx.com/fxml/1" fx:controller="net.auctionapp.client.ui.controllers.components.HeaderController">
     <padding>
-        <Insets bottom="12.0" left="24.0" right="24.0" top="12.0" />
+        <Insets bottom="12.0" left="24.0" right="12.0" top="12.0" />
     </padding>
     <left>
         <Button fx:id="backButton" mnemonicParsing="false" onAction="#handleBack" prefHeight="34.0" prefWidth="88.0" style="-fx-background-color: white; -fx-text-fill: #3bb3c3; -fx-background-radius: 18px; -fx-font-weight: bold; -fx-cursor: hand;" text="Back" BorderPane.alignment="CENTER" />
@@ -21,7 +21,7 @@
          </BorderPane.margin></Label>
     </center>
     <right>
-        <MenuButton fx:id="userMenuButton" style="-fx-background-color: transparent; -fx-text-fill: white; -fx-font-size: 14px; -fx-font-weight: bold; -fx-cursor: hand;" text="Guest" BorderPane.alignment="CENTER">
+        <MenuButton fx:id="userMenuButton" alignment="CENTER_RIGHT" maxWidth="200.0" minWidth="128.0" prefWidth="200.0" style="-fx-background-color: transparent; -fx-text-fill: white; -fx-font-size: 14px; -fx-font-weight: bold; -fx-cursor: hand;" text="Guest" BorderPane.alignment="CENTER_RIGHT">
             <items>
                 <MenuItem mnemonicParsing="false" onAction="#handleOpenWallet" text="Wallet" />
                 <MenuItem mnemonicParsing="false" onAction="#handleOpenNotifications" text="Notifications" />

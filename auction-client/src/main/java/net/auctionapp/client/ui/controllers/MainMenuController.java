@@ -5,8 +5,9 @@ import net.auctionapp.client.ui.controllers.components.HeaderController;
 import javafx.event.ActionEvent;
 import javafx.fxml.FXML;
 import javafx.fxml.Initializable;
+import javafx.scene.control.Button;
 import javafx.scene.control.Label;
-import net.auctionapp.client.services.AuthService;
+import net.auctionapp.client.ClientSession;
 import net.auctionapp.client.ui.managers.SceneManager;
 
 import java.net.URL;
@@ -17,14 +18,18 @@ public class MainMenuController implements Initializable {
     private HeaderController appHeaderController;
     @FXML
     private Label usernameLabel;
+    @FXML
+    private Button sellItemButton;
 
     @Override
     public void initialize(URL location, ResourceBundle resources) {
         appHeaderController.setupHeader("Dashboard", false, null);
 
-        String username = AuthService.getInstance().getCurrentUsername();
+        ClientSession session = ClientSession.getInstance();
+        String username = session.getUsername();
 
         usernameLabel.setText("Welcome back, " + (username == null || username.isBlank() ? "Guest" : username));
+        setButtonVisible(sellItemButton, session.canCreateAuction());
     }
 
     @FXML
@@ -34,6 +39,15 @@ public class MainMenuController implements Initializable {
 
     @FXML
     public void handleSellItem(ActionEvent event) {
+        if (!ClientSession.getInstance().canCreateAuction()) {
+            return;
+        }
         SceneManager.switchScene("CreateAuctionMenu.fxml");
+    }
+
+    private void setButtonVisible(Button button, boolean visible) {
+        button.setVisible(visible);
+        button.setManaged(visible);
+        button.setDisable(!visible);
     }
 }

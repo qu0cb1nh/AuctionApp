@@ -3,6 +3,7 @@ package net.auctionapp.client.services;
 import javafx.application.Platform;
 import net.auctionapp.common.messages.Message;
 import net.auctionapp.common.messages.MessageType;
+import net.auctionapp.common.messages.types.ErrorMessage;
 import net.auctionapp.common.messages.types.PingMessage;
 import net.auctionapp.common.utils.JsonUtil;
 import org.slf4j.Logger;
@@ -12,6 +13,7 @@ import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.PrintWriter;
+import java.net.InetSocketAddress;
 import java.net.Socket;
 import java.time.Duration;
 import java.util.List;
@@ -24,6 +26,10 @@ import java.util.function.Consumer;
 public final class NetworkService {
     private static final NetworkService INSTANCE = new NetworkService();
     private static final Duration DEFAULT_REQUEST_TIMEOUT = Duration.ofSeconds(10);
+    private static final Duration CONNECT_TIMEOUT = Duration.ofSeconds(2);
+    private static final Duration RECONNECT_DELAY = Duration.ofSeconds(5);
+    private static final Duration HEARTBEAT_TIMEOUT = Duration.ofSeconds(3);
+    private static final String CLIENT_NOT_CONNECTED_MESSAGE = "Client is not connected.";
     private static final Logger LOGGER = LoggerFactory.getLogger(NetworkService.class);
 
     private final Map<MessageType, List<MessageListener<? extends Message>>> messageListeners = new ConcurrentHashMap<>();
@@ -36,6 +42,8 @@ public final class NetworkService {
     private int configuredPort;
 
     private ScheduledExecutorService heartbeatScheduler;
+    private ScheduledExecutorService reconnectScheduler;
+    private volatile boolean shuttingDown;
 
     private NetworkService() {
     }
@@ -53,7 +61,8 @@ public final class NetworkService {
         stopHeartbeat();
         closeResourcesQuietly();
         try {
-            Socket connectedSocket = new Socket(host, port);
+            Socket connectedSocket = new Socket();
+            connectedSocket.connect(new InetSocketAddress(host, port), (int) CONNECT_TIMEOUT.toMillis());
             PrintWriter connectedOut = new PrintWriter(connectedSocket.getOutputStream(), true);
             BufferedReader connectedIn = new BufferedReader(new InputStreamReader(connectedSocket.getInputStream()));
 
@@ -61,6 +70,7 @@ public final class NetworkService {
             out = connectedOut;
             in = connectedIn;
 
+            stopReconnect();
             Thread listenerThread = new Thread(() -> listenForServerMessages(connectedSocket, connectedIn));
             listenerThread.setName("auction-client-listener");
             listenerThread.setDaemon(true);
@@ -68,8 +78,9 @@ public final class NetworkService {
 
             sendHeartbeat();
         } catch (IOException e) {
-            LOGGER.error("Could not connect to the network service", e);
+            LOGGER.warn("Could not connect to the server at {}:{}.", host, port);
             closeResourcesQuietly();
+            scheduleReconnect();
         }
     }
 
@@ -84,11 +95,21 @@ public final class NetworkService {
 
         heartbeatScheduler = Executors.newSingleThreadScheduledExecutor(daemonThreadFactory);
         heartbeatScheduler.scheduleAtFixedRate(() -> {
-            try {
-                sendMessage(new PingMessage());
-            } catch (Exception e) {
-                LOGGER.error("Could not send heartbeat", e);
-            }
+            sendRequest(new PingMessage(), HEARTBEAT_TIMEOUT)
+                    .thenAccept(response -> {
+                        if (response == null || response.getType() != MessageType.PONG) {
+                            LOGGER.warn("Invalid heartbeat response from server.");
+                            markDisconnected("Disconnected from server.");
+                        }
+                    })
+                    .exceptionally(throwable -> {
+                        Throwable failure = unwrapCompletionException(throwable);
+                        if (!isDisconnectedFailure(failure)) {
+                            LOGGER.warn("Heartbeat failed: {}", failure.getMessage(), failure);
+                        }
+                        markDisconnected("Disconnected from server.");
+                        return null;
+                    });
         }, 30, 30, TimeUnit.SECONDS);
     }
 
@@ -98,50 +119,84 @@ public final class NetworkService {
         }
     }
 
+    private synchronized void scheduleReconnect() {
+        if (shuttingDown || isConnected()) {
+            return;
+        }
+        if (configuredHost == null || configuredHost.isBlank() || configuredPort <= 0) {
+            return;
+        }
+        if (reconnectScheduler != null && !reconnectScheduler.isShutdown()) {
+            return;
+        }
+        ThreadFactory daemonThreadFactory = r -> {
+            Thread thread = new Thread(r);
+            thread.setDaemon(true);
+            thread.setName("auction-client-reconnect");
+            return thread;
+        };
+        reconnectScheduler = Executors.newSingleThreadScheduledExecutor(daemonThreadFactory);
+        reconnectScheduler.scheduleWithFixedDelay(() -> {
+            if (shuttingDown || isConnected()) {
+                stopReconnect();
+                return;
+            }
+            connect(configuredHost, configuredPort);
+        }, 0, RECONNECT_DELAY.toSeconds(), TimeUnit.SECONDS);
+    }
+
+    private synchronized void stopReconnect() {
+        if (reconnectScheduler != null && !reconnectScheduler.isShutdown()) {
+            reconnectScheduler.shutdownNow();
+        }
+        reconnectScheduler = null;
+    }
+
     public void sendMessage(Message message) {
         if (message == null) {
             LOGGER.error("Cannot send a null message.");
             return;
         }
-        if (!ensureConnected()) {
-            LOGGER.error("Cannot send message: client is not connected.");
+        if (!isConnected()) {
+            scheduleReconnect();
             return;
         }
 
         if (!sendJson(JsonUtil.toJson(message))) {
-            LOGGER.error("Failed to send message to server.");
             closeResourcesQuietly();
+            scheduleReconnect();
         }
     }
 
     public void sendRequest(Message request, MessageListener<Message> callback, Consumer<Throwable> onError) {
         Objects.requireNonNull(request, "request must not be null");
         Objects.requireNonNull(callback, "callback must not be null");
+        Objects.requireNonNull(onError, "onError must not be null");
 
-        sendRequest(request)
-                .thenAccept(message -> Platform.runLater(() -> callback.onMessage(message)))
-                .exceptionally(throwable -> {
-                    LOGGER.error("Failed to send message to server.", throwable);
-                    Platform.runLater(() -> {
-                        onError.accept(throwable);
-                    });
-                    return null;
-                });
+        sendRequest(request).whenComplete((message, throwable) -> Platform.runLater(() -> {
+            if (throwable == null) {
+                callback.onMessage(message);
+                return;
+            }
+            Throwable failure = unwrapCompletionException(throwable);
+            logRequestFailure(failure);
+            onError.accept(failure);
+        }));
     }
 
     public void sendRequest(Message request, MessageListener<Message> callback) {
         Objects.requireNonNull(request, "request must not be null");
         Objects.requireNonNull(callback, "callback must not be null");
 
-        sendRequest(request)
-                .thenAccept(message -> Platform.runLater(() -> callback.onMessage(message)))
-                .exceptionally(throwable -> {
-                    LOGGER.error("Failed to send message to server.", throwable);
-                    Platform.runLater(() -> {
-                        // TODO: Actually handle the throwable and provide useful feedback to the user
-                    });
-                    return null;
-                });
+        sendRequest(request).whenComplete((message, throwable) -> Platform.runLater(() -> {
+            if (throwable == null) {
+                callback.onMessage(message);
+                return;
+            }
+            Throwable failure = unwrapCompletionException(throwable);
+            logRequestFailure(failure);
+            callback.onMessage(new ErrorMessage(toUserFacingErrorMessage(failure)));
+        }));
     }
 
     public CompletableFuture<Message> sendRequest(Message request) {
@@ -155,8 +210,9 @@ public final class NetworkService {
         if (timeout == null || timeout.isZero() || timeout.isNegative()) {
             return CompletableFuture.failedFuture(new IllegalArgumentException("Timeout must be greater than zero."));
         }
-        if (!ensureConnected()) {
-            return CompletableFuture.failedFuture(new IllegalStateException("Client is not connected."));
+        if (!isConnected()) {
+            scheduleReconnect();
+            return CompletableFuture.failedFuture(new IllegalStateException(CLIENT_NOT_CONNECTED_MESSAGE));
         }
 
         String requestId = request.getMessageId();
@@ -179,7 +235,8 @@ public final class NetworkService {
         if (!sendJson(JsonUtil.toJson(request))) {
             pendingRequests.remove(requestId);
             closeResourcesQuietly();
-            future.completeExceptionally(new IllegalStateException("Failed to send request to server."));
+            scheduleReconnect();
+            future.completeExceptionally(new IllegalStateException(CLIENT_NOT_CONNECTED_MESSAGE));
         }
 
         return future;
@@ -207,7 +264,9 @@ public final class NetworkService {
     }
 
     public synchronized void shutdown() {
+        shuttingDown = true;
         stopHeartbeat();
+        stopReconnect();
         failPendingRequests("Network service is shutting down.");
 
         closeResourcesQuietly();
@@ -234,6 +293,7 @@ public final class NetworkService {
                 stopHeartbeat();
                 failPendingRequests("Disconnected from server.");
                 closeResourcesQuietly(listenedSocket);
+                scheduleReconnect();
             }
         }
     }
@@ -250,6 +310,8 @@ public final class NetworkService {
                 pending.complete(message);
                 return;
             }
+            LOGGER.debug("Dropping response for unknown or timed-out request id: {}", correlationId);
+            return;
         }
 
         routeMessageToListeners(message);
@@ -278,6 +340,13 @@ public final class NetworkService {
         pendingRequests.clear();
     }
 
+    private void markDisconnected(String reason) {
+        stopHeartbeat();
+        failPendingRequests(reason);
+        closeResourcesQuietly();
+        scheduleReconnect();
+    }
+
     private synchronized boolean sendJson(String jsonPayload) {
         if (!isConnected() || out == null) {
             return false;
@@ -286,19 +355,8 @@ public final class NetworkService {
         return !out.checkError();
     }
 
-    private boolean isConnected() {
+    public synchronized boolean isConnected() {
         return socket != null && socket.isConnected() && !socket.isClosed();
-    }
-
-    private synchronized boolean ensureConnected() {
-        if (isConnected()) {
-            return true;
-        }
-        if (configuredHost == null || configuredHost.isBlank() || configuredPort <= 0) {
-            return false;
-        }
-        connect(configuredHost, configuredPort);
-        return isConnected();
     }
 
     private synchronized boolean ownsConnection(Socket expectedSocket) {
@@ -337,5 +395,42 @@ public final class NetworkService {
         in = null;
         out = null;
         socket = null;
+    }
+
+    private Throwable unwrapCompletionException(Throwable throwable) {
+        Throwable current = throwable;
+        while ((current instanceof CompletionException || current instanceof ExecutionException)
+                && current.getCause() != null) {
+            current = current.getCause();
+        }
+        return current;
+    }
+
+    private void logRequestFailure(Throwable throwable) {
+        if (isDisconnectedFailure(throwable)) {
+            return;
+        }
+        LOGGER.warn("Request failed: {}", throwable.getMessage(), throwable);
+    }
+
+    private boolean isDisconnectedFailure(Throwable throwable) {
+        if (!(throwable instanceof IllegalStateException) || throwable.getMessage() == null) {
+            return false;
+        }
+        String message = throwable.getMessage();
+        return CLIENT_NOT_CONNECTED_MESSAGE.equals(message)
+                || "Disconnected from server.".equals(message)
+                || "Network service is shutting down.".equals(message);
+    }
+
+    private String toUserFacingErrorMessage(Throwable throwable) {
+        if (isDisconnectedFailure(throwable)) {
+            return CLIENT_NOT_CONNECTED_MESSAGE;
+        }
+        if (throwable instanceof TimeoutException) {
+            return "The server did not respond in time.";
+        }
+        String message = throwable.getMessage();
+        return message == null || message.isBlank() ? "Network request failed." : message;
     }
 }

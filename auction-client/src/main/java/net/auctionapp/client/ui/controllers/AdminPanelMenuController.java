@@ -16,7 +16,7 @@ import javafx.scene.layout.VBox;
 import net.auctionapp.client.ClientApp;
 import net.auctionapp.client.services.AdminService;
 import net.auctionapp.client.services.AuctionService;
-import net.auctionapp.client.services.AuthService;
+import net.auctionapp.client.ClientSession;
 import net.auctionapp.client.ui.managers.SceneManager;
 import net.auctionapp.common.messages.Message;
 import net.auctionapp.common.messages.types.AdminActionResultMessage;
@@ -94,7 +94,7 @@ public class AdminPanelMenuController implements Initializable {
     public void initialize(URL location, ResourceBundle resources) {
         appHeaderController.setupHeader("Admin Panel", true, "MainMenu.fxml");
         configureTables();
-        boolean isAdmin = AuthService.getInstance().getCurrentUserRole() == UserRole.ADMIN;
+        boolean isAdmin = ClientSession.getInstance().isAdmin();
         if (!isAdmin) {
             setErrorStatus("Admin privileges are required to view this page.");
             disableAdminActions();
@@ -253,7 +253,7 @@ public class AdminPanelMenuController implements Initializable {
             auctionsTable.getItems().add(new AuctionRow(
                     summary.getAuctionId(),
                     summary.getTitle(),
-                    deriveDisplayStatus(summary.getStatus(), summary.getStartTime(), summary.getEndTime()),
+                    deriveDisplayStatus(summary.getStatus(), summary.getEndTime(), summary.getLeadingBidderId()),
                     formatPrice(summary.getCurrentPrice()),
                     formatDateTime(summary.getStartTime()),
                     formatDateTime(summary.getEndTime())
@@ -289,19 +289,15 @@ public class AdminPanelMenuController implements Initializable {
                 : "-fx-font-size: 15px; -fx-font-weight: bold; -fx-underline: true; -fx-text-fill: #153e5c; -fx-cursor: hand; -fx-padding: 6 10 6 10;");
     }
 
-    private String deriveDisplayStatus(AuctionStatus status, LocalDateTime startTime, LocalDateTime endTime) {
+    private String deriveDisplayStatus(AuctionStatus status, LocalDateTime endTime, String leadingBidderId) {
         if (status == AuctionStatus.CANCELED) {
             return "CANCELED";
         }
         if (status == AuctionStatus.PAID) {
             return "PAID";
         }
-        LocalDateTime now = LocalDateTime.now();
-        if (startTime != null && now.isBefore(startTime)) {
-            return "OPEN";
-        }
-        if (endTime != null && !now.isBefore(endTime)) {
-            return "FINISHED";
+        if (endTime != null && !LocalDateTime.now().isBefore(endTime)) {
+            return leadingBidderId == null || leadingBidderId.isBlank() ? "CANCELED" : "PAID";
         }
         return "RUNNING";
     }

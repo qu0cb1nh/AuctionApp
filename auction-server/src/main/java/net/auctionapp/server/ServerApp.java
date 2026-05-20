@@ -1,6 +1,7 @@
 package net.auctionapp.server;
 
 import java.io.IOException;
+import java.io.PrintWriter;
 import java.net.ServerSocket;
 import java.net.SocketException;
 import java.net.Socket;
@@ -12,7 +13,9 @@ import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
+import net.auctionapp.common.messages.types.ErrorMessage;
 import net.auctionapp.common.utils.ConfigUtil;
+import net.auctionapp.common.utils.JsonUtil;
 import net.auctionapp.server.dao.JdbcAuctionDao;
 import net.auctionapp.server.dao.JdbcNotificationDao;
 import net.auctionapp.server.dao.JdbcUserDao;
@@ -70,12 +73,11 @@ public class ServerApp {
 
                 // Each client will be handled by a separate thread
                 ClientHandler handler = new ClientHandler(clientSocket);
-                registerClient(handler);
                 try {
                     CLIENT_THREAD_POOL.execute(handler);
                 } catch (RejectedExecutionException e) {
                     LOGGER.warn("Rejected client {} due to overloaded worker pool.", clientSocket.getInetAddress());
-                    handler.closeConnection();
+                    rejectClient(clientSocket, "Server is busy. Try again later.");
                 }
             }
         } catch (SocketException e) {
@@ -142,9 +144,16 @@ public class ServerApp {
     private static void rejectClient(Socket clientSocket, String reason) {
         try {
             LOGGER.warn("Rejected client {}: {}", clientSocket.getInetAddress(), reason);
-            clientSocket.close();
+            PrintWriter writer = new PrintWriter(clientSocket.getOutputStream(), true);
+            writer.println(JsonUtil.toJson(new ErrorMessage(reason)));
         } catch (IOException e) {
-            LOGGER.warn("Failed to close rejected client socket: {}", e.getMessage());
+            LOGGER.warn("Failed to send rejection message to client: {}", e.getMessage());
+        } finally {
+            try {
+                clientSocket.close();
+            } catch (IOException e) {
+                LOGGER.warn("Failed to close rejected client socket: {}", e.getMessage());
+            }
         }
     }
 }

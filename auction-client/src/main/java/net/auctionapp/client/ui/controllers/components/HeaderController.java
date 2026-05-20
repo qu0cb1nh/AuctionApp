@@ -2,13 +2,17 @@ package net.auctionapp.client.ui.controllers.components;
 
 import javafx.event.ActionEvent;
 import javafx.fxml.FXML;
+import javafx.application.Platform;
+import javafx.geometry.Bounds;
 import javafx.scene.control.Button;
+import javafx.scene.control.ContextMenu;
 import javafx.scene.control.Label;
 import javafx.scene.control.MenuButton;
 import javafx.scene.control.MenuItem;
+import javafx.scene.input.MouseEvent;
 import net.auctionapp.client.services.AuthService;
+import net.auctionapp.client.ClientSession;
 import net.auctionapp.client.ui.managers.SceneManager;
-import net.auctionapp.common.users.UserRole;
 
 public class HeaderController {
     @FXML
@@ -21,13 +25,16 @@ public class HeaderController {
     private MenuItem adminPanelMenuItem;
 
     private String backTargetFxml = "MainMenu.fxml";
+    private ContextMenu userContextMenu;
 
     @FXML
     public void initialize() {
-        String username = AuthService.getInstance().getCurrentUsername();
+        ClientSession session = ClientSession.getInstance();
+        String username = session.getUsername();
         userMenuButton.setText((username == null || username.isBlank()) ? "Guest" : username);
-        boolean isAdmin = AuthService.getInstance().getCurrentUserRole() == UserRole.ADMIN;
-        adminPanelMenuItem.setVisible(isAdmin);
+        configureUserMenuPopup();
+        adminPanelMenuItem.setVisible(session.isAdmin());
+        adminPanelMenuItem.setDisable(!session.isAdmin());
     }
 
     public void setupHeader(String title, boolean showBackButton, String backTarget) {
@@ -70,12 +77,44 @@ public class HeaderController {
 
     @FXML
     public void handleLogout(ActionEvent event) {
-        AuthService.getInstance().setCurrentUser(null, null, null);
+        AuthService.getInstance().clearSessionAndCredentials();
         SceneManager.switchScene("LoginMenu.fxml");
     }
 
     private void setBackButtonVisible(boolean visible) {
         backButton.setVisible(visible);
         backButton.setDisable(!visible);
+    }
+
+    private void configureUserMenuPopup() {
+        userContextMenu = new ContextMenu();
+        userContextMenu.getItems().setAll(userMenuButton.getItems());
+        userMenuButton.getItems().clear();
+        userMenuButton.addEventFilter(MouseEvent.MOUSE_PRESSED, event -> {
+            if (userContextMenu.isShowing()) {
+                userContextMenu.hide();
+            } else {
+                showUserContextMenu();
+            }
+            event.consume();
+        });
+    }
+
+    private void showUserContextMenu() {
+        Bounds buttonBounds = userMenuButton.localToScreen(userMenuButton.getBoundsInLocal());
+        if (buttonBounds == null) {
+            return;
+        }
+        userContextMenu.show(userMenuButton, buttonBounds.getMaxX(), buttonBounds.getMaxY());
+        alignUserContextMenu(buttonBounds);
+        Platform.runLater(() -> alignUserContextMenu(buttonBounds));
+    }
+
+    private void alignUserContextMenu(Bounds buttonBounds) {
+        double popupWidth = userContextMenu.getWidth();
+        if (popupWidth <= 0) {
+            return;
+        }
+        userContextMenu.setX(buttonBounds.getMaxX() - popupWidth);
     }
 }

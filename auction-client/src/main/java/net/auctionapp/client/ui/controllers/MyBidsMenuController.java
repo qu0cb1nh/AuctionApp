@@ -15,7 +15,7 @@ import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.VBox;
 import net.auctionapp.client.ClientApp;
-import net.auctionapp.client.services.AuthService;
+import net.auctionapp.client.ClientSession;
 import net.auctionapp.client.ui.managers.SceneManager;
 import net.auctionapp.client.utils.ResourcesUtil;
 import net.auctionapp.client.services.AuctionService;
@@ -165,7 +165,7 @@ public class MyBidsMenuController implements Initializable {
             return;
         }
 
-        toBidCard(response, resolveCurrentUsername()).ifPresent(loadedUserBids::add);
+        toBidCard(response, resolveCurrentUserId()).ifPresent(loadedUserBids::add);
         if (!pendingAuctionIds.isEmpty()) {
             showStatus("Loading auction details...", STATUS_TEXT_STYLE);
             return;
@@ -277,14 +277,14 @@ public class MyBidsMenuController implements Initializable {
         }
     }
 
-    private java.util.Optional<BidCard> toBidCard(AuctionDetailsResponseMessage response, String currentUsername) {
-        if (response == null || currentUsername == null || currentUsername.isBlank()) {
+    private java.util.Optional<BidCard> toBidCard(AuctionDetailsResponseMessage response, String currentUserId) {
+        if (response == null || currentUserId == null || currentUserId.isBlank()) {
             return java.util.Optional.empty();
         }
         List<BidView> bidHistory = response.getBidHistory() == null ? List.of() : response.getBidHistory();
         List<BidView> userBids = bidHistory.stream()
                 .filter(Objects::nonNull)
-                .filter(bid -> bid.getBidderId() != null && bid.getBidderId().equalsIgnoreCase(currentUsername))
+                .filter(bid -> bid.getBidderId() != null && bid.getBidderId().equalsIgnoreCase(currentUserId))
                 .filter(bid -> bid.getAmount() != null)
                 .toList();
         if (userBids.isEmpty()) {
@@ -295,7 +295,7 @@ public class MyBidsMenuController implements Initializable {
                 .map(BidView::getAmount)
                 .max(BigDecimal::compareTo)
                 .orElse(BigDecimal.ZERO);
-        String status = deriveBidStatus(response, currentUsername);
+        String status = deriveBidStatus(response, currentUserId);
         return java.util.Optional.of(new BidCard(
                 response.getAuctionId(),
                 response.getTitle(),
@@ -309,22 +309,22 @@ public class MyBidsMenuController implements Initializable {
         ));
     }
 
-    private String resolveCurrentUsername() {
-        if (AuthService.getInstance().getCurrentUsername() == null || AuthService.getInstance().getCurrentUsername().isBlank()) {
+    private String resolveCurrentUserId() {
+        if (ClientSession.getInstance().getUserId() == null || ClientSession.getInstance().getUserId().isBlank()) {
             return "";
         }
-        return AuthService.getInstance().getCurrentUsername();
+        return ClientSession.getInstance().getUserId();
     }
 
-    private String deriveBidStatus(AuctionDetailsResponseMessage response, String currentUsername) {
+    private String deriveBidStatus(AuctionDetailsResponseMessage response, String currentUserId) {
         AuctionStatus auctionStatus = response.getStatus();
         if (auctionStatus == AuctionStatus.CANCELED) {
             return STATUS_CANCELED;
         }
         if (isFinished(response) || auctionStatus == AuctionStatus.PAID) {
-            return currentUsername.equalsIgnoreCase(response.getWinnerBidderId()) ? STATUS_WON : STATUS_LOST;
+            return currentUserId.equalsIgnoreCase(response.getWinnerBidderId()) ? STATUS_WON : STATUS_LOST;
         }
-        return currentUsername.equalsIgnoreCase(response.getLeadingBidderId()) ? STATUS_LEADING : STATUS_OUTBID;
+        return currentUserId.equalsIgnoreCase(response.getLeadingBidderId()) ? STATUS_LEADING : STATUS_OUTBID;
     }
 
     private int statusPriority(BidCard bidCard) {

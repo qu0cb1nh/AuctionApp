@@ -18,14 +18,13 @@ import net.auctionapp.client.ClientApp;
 import net.auctionapp.client.ui.managers.SceneManager;
 import net.auctionapp.client.utils.ResourcesUtil;
 import net.auctionapp.client.services.AuctionService;
-import net.auctionapp.client.services.AuthService;
+import net.auctionapp.client.ClientSession;
 import net.auctionapp.client.utils.DurationFormatUtil;
 import net.auctionapp.common.messages.Message;
 import net.auctionapp.common.messages.types.AuctionListResponseMessage;
 import net.auctionapp.common.messages.types.AuctionSummary;
 import net.auctionapp.common.messages.types.ErrorMessage;
 import net.auctionapp.common.auction.AuctionStatus;
-import net.auctionapp.common.users.UserRole;
 
 import java.io.IOException;
 import java.math.BigDecimal;
@@ -68,12 +67,10 @@ public class AuctionListMenuController implements Initializable {
     @Override
     public void initialize(URL location, ResourceBundle resources) {
         appHeaderController.setupHeader("Explore Auctions", true, "MainMenu.fxml");
-        adminUser = AuthService.getInstance().getCurrentUserRole() == UserRole.ADMIN;
+        adminUser = ClientSession.getInstance().isAdmin();
         statusFilterComboBox.getItems().setAll(
                 STATUS_ALL,
-                "OPEN",
                 "RUNNING",
-                "FINISHED",
                 "PAID",
                 "CANCELED"
         );
@@ -241,8 +238,9 @@ public class AuctionListMenuController implements Initializable {
     private int statusSortPriority(String status) {
         return switch (status) {
             case "RUNNING" -> 0;
-            case "OPEN" -> 1;
-            default -> 2;
+            case "PAID" -> 1;
+            case "CANCELED" -> 2;
+            default -> 3;
         };
     }
 
@@ -287,8 +285,6 @@ public class AuctionListMenuController implements Initializable {
     private String statusColor(String status) {
         return switch (status) {
             case "RUNNING" -> "#1f8f4c";
-            case "OPEN" -> "#2962ff";
-            case "FINISHED" -> "#c13c21";
             case "PAID" -> "#2e7d32";
             case "CANCELED" -> "#6b7280";
             default -> "#6b7280";
@@ -312,14 +308,14 @@ public class AuctionListMenuController implements Initializable {
         if (auction.getStatus() == AuctionStatus.PAID) {
             return "PAID";
         }
-        LocalDateTime now = LocalDateTime.now();
-        if (auction.getStartTime() != null && now.isBefore(auction.getStartTime())) {
-            return "OPEN";
-        }
-        if (auction.getEndTime() != null && !now.isBefore(auction.getEndTime())) {
-            return "FINISHED";
+        if (auction.getEndTime() != null && !LocalDateTime.now().isBefore(auction.getEndTime())) {
+            return formatClosedStatus(auction.getLeadingBidderId());
         }
         return "RUNNING";
+    }
+
+    private String formatClosedStatus(String leadingBidderId) {
+        return leadingBidderId == null || leadingBidderId.isBlank() ? "CANCELED" : "PAID";
     }
 
     private void handleViewItem(String auctionId) {
