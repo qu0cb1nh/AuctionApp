@@ -1,4 +1,4 @@
-import net.auctionapp.common.utils.ConfigUtil;
+import net.auctionapp.client.config.ClientConfig;
 
 import java.io.*;
 import java.net.Socket;
@@ -6,7 +6,7 @@ import java.util.Scanner;
 
 public class ConsoleTestClient {
     public static void main(String[] args) {
-        try (Socket socket = new Socket(ConfigUtil.getServerHost(), ConfigUtil.getServerPort())) {
+        try (Socket socket = new Socket(ClientConfig.getServerHost(), ClientConfig.getServerPort())) {
             System.out.println("Connected to the Auction Server!");
 
             BufferedReader in = new BufferedReader(new InputStreamReader(socket.getInputStream()));

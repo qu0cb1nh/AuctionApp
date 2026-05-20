@@ -9,11 +9,9 @@ public final class ConfigUtil {
 
     private ConfigUtil() { }
 
-    private static final Properties PROPERTIES = new Properties();
     private static final Dotenv DOTENV;
 
     static {
-        // Load dotenv with explicit directory
         Dotenv tempDotenv = null;
         try {
             tempDotenv = Dotenv.configure()
@@ -24,26 +22,33 @@ public final class ConfigUtil {
             System.err.println("DEBUG: Failed to load .env: " + e.getMessage());
         }
         DOTENV = tempDotenv;
-        
-        // Load application.properties
-        try (InputStream input = ConfigUtil.class.getClassLoader().getResourceAsStream("application.properties")) {
+    }
+
+    public static Properties loadProperties(Class<?> anchorClass, String resourceName) {
+        Properties properties = new Properties();
+        try (InputStream input = anchorClass.getResourceAsStream("/" + resourceName)) {
             if (input == null) {
-                System.out.println("application.properties was not found on the classpath.");
+                System.out.println(resourceName + " was not found on the classpath.");
             } else {
-                PROPERTIES.load(input);
+                properties.load(input);
             }
         } catch (Exception e) {
-            System.err.println("DEBUG: Failed to load application.properties: " + e.getMessage());
+            System.err.println("DEBUG: Failed to load " + resourceName + ": " + e.getMessage());
         }
+        return properties;
     }
 
-    public static int getServerPort() {
-        String portStr = PROPERTIES.getProperty("server.port", "5000");
-        return Integer.parseInt(portStr);
+    public static String getStringProperty(Properties properties, String propertyName, String defaultValue) {
+        String value = properties.getProperty(propertyName);
+        if (value == null || value.trim().isEmpty()) {
+            return defaultValue;
+        }
+        return value.trim();
     }
 
-    public static String getServerHost() {
-        return PROPERTIES.getProperty("server.host", "localhost");
+    public static int getIntProperty(Properties properties, String propertyName, int defaultValue) {
+        String value = getStringProperty(properties, propertyName, Integer.toString(defaultValue));
+        return Integer.parseInt(value);
     }
 
     public static String getDatabaseUrl() {
@@ -66,6 +71,10 @@ public final class ConfigUtil {
         String envValue = System.getenv(envKey);
         if (envValue != null && !envValue.trim().isEmpty()) {
             return envValue.trim();
+        }
+
+        if (DOTENV == null) {
+            return "";
         }
 
         String dotenvValue = DOTENV.get(envKey);

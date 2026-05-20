@@ -2,6 +2,7 @@ package net.auctionapp.server;
 
 import java.io.IOException;
 import java.io.PrintWriter;
+import java.net.InetSocketAddress;
 import java.net.ServerSocket;
 import java.net.SocketException;
 import java.net.Socket;
@@ -14,8 +15,8 @@ import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import net.auctionapp.common.messages.types.ErrorMessage;
-import net.auctionapp.common.utils.ConfigUtil;
 import net.auctionapp.common.utils.JsonUtil;
+import net.auctionapp.server.config.ServerConfig;
 import net.auctionapp.server.dao.JdbcAuctionDao;
 import net.auctionapp.server.dao.JdbcNotificationDao;
 import net.auctionapp.server.dao.JdbcUserDao;
@@ -60,8 +61,11 @@ public class ServerApp {
             NotificationService.getInstance().setNotificationDao(new JdbcNotificationDao());
             AuctionService.getInstance().startStatusScheduler();
 
-            serverSocket = new ServerSocket(ConfigUtil.getServerPort(), MAX_CLIENTS);
-            LOGGER.info("Auction server is running on port: {}", ConfigUtil.getServerPort());
+            String host = ServerConfig.getServerHost();
+            int port = ServerConfig.getServerPort();
+            serverSocket = new ServerSocket();
+            serverSocket.bind(new InetSocketAddress(host, port), MAX_CLIENTS);
+            LOGGER.info("Auction server is running on {}:{}", host, port);
 
             while (RUNNING.get()) {
                 Socket clientSocket = serverSocket.accept(); // accept() method blocks until a connection is made to the socket
