@@ -82,6 +82,8 @@
 
                         <Separator prefWidth="200.0" />
 
+                        <VBox fx:id="bidSection" spacing="8.0">
+                            <children>
                         <Label style="-fx-font-size: 18px; -fx-font-weight: bold; -fx-text-fill: #333333;" text="Place Your Bid" />
                         <HBox alignment="CENTER_LEFT" spacing="15.0">
                             <children>
@@ -91,6 +93,8 @@
                             </children>
                         </HBox>
                         <Label fx:id="messageLabel" style="-fx-font-size: 13px; -fx-text-fill: #888888;" text="Place at least the minimum next bid." />
+                            </children>
+                        </VBox>
 
                         <VBox prefHeight="250.0" VBox.vgrow="ALWAYS">
                             <VBox.margin>

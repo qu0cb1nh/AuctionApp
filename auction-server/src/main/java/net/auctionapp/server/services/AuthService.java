@@ -221,7 +221,7 @@ public class AuthService {
         target.setBanned(banned);
         cacheUser(target);
         if (banned) {
-            disconnectBannedUserSessions(normalizedTargetUserId);
+            logoutBannedUserSessions(normalizedTargetUserId);
         }
         return target;
     }
@@ -243,15 +243,15 @@ public class AuthService {
         });
     }
 
-    private void disconnectBannedUserSessions(String userId) {
+    private void logoutBannedUserSessions(String userId) {
         Set<ClientHandler> sessions = sessionManager.getClientsByUserId(userId);
         if (sessions.isEmpty()) {
             return;
         }
         List<ClientHandler> sessionSnapshot = List.copyOf(sessions);
         for (ClientHandler clientHandler : sessionSnapshot) {
-            clientHandler.sendMessage(new ErrorMessage("Your account has been banned. You have been disconnected."));
-            clientHandler.closeConnection();
+            clientHandler.sendMessage(new ErrorMessage("Your account has been banned. You have been logged out."));
+            clientHandler.logout();
         }
     }
 }

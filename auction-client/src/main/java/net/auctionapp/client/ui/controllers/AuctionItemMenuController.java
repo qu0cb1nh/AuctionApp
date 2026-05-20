@@ -13,9 +13,10 @@ import javafx.scene.control.TextField;
 import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
 import javafx.scene.layout.BorderPane;
+import javafx.scene.layout.VBox;
 import net.auctionapp.client.ClientApp;
 import net.auctionapp.client.services.AuctionService;
-import net.auctionapp.client.services.AuthService;
+import net.auctionapp.client.ClientSession;
 import net.auctionapp.client.services.MessageListener;
 import net.auctionapp.common.messages.Message;
 import net.auctionapp.common.messages.MessageType;
@@ -60,6 +61,8 @@ public class AuctionItemMenuController implements Initializable {
     private TextField bidAmountField;
     @FXML
     private Button placeBidButton;
+    @FXML
+    private VBox bidSection;
     @FXML
     private Label messageLabel;
     @FXML
@@ -249,9 +252,23 @@ public class AuctionItemMenuController implements Initializable {
     }
 
     private void updateBidControls(AuctionDetailsResponseMessage response) {
-        String currentUsername = AuthService.getInstance().getCurrentUsername();
+        ClientSession session = ClientSession.getInstance();
+        boolean closedAuction = isClosedAuction(response);
+        setBidSectionVisible(!closedAuction);
+        if (closedAuction) {
+            placeBidButton.setDisable(true);
+            messageLabel.setText("");
+            return;
+        }
+        if (!session.isAuthenticated()) {
+            placeBidButton.setDisable(true);
+            setInfoMessage("Please log in before bidding.");
+            return;
+        }
+        String currentUserId = session.getUserId();
         boolean isSellerViewingOwnAuction = response.getSellerId() != null
-                && response.getSellerId().equalsIgnoreCase(currentUsername);
+                && currentUserId != null
+                && response.getSellerId().equalsIgnoreCase(currentUserId);
 
         if (isSellerViewingOwnAuction) {
             placeBidButton.setDisable(true);
@@ -320,8 +337,6 @@ public class AuctionItemMenuController implements Initializable {
         String displayStatus = deriveDisplayStatus(response);
         String color = switch (displayStatus) {
             case "RUNNING" -> "#1f8f4c";
-            case "OPEN" -> "#2962ff";
-            case "FINISHED" -> "#c13c21";
             case "PAID" -> "#2e7d32";
             case "CANCELED" -> "#6b7280";
             default -> "#3f5569";
@@ -340,14 +355,32 @@ public class AuctionItemMenuController implements Initializable {
         if (response.getStatus() == AuctionStatus.PAID) {
             return "PAID";
         }
-        LocalDateTime now = LocalDateTime.now();
-        if (response.getStartTime() != null && now.isBefore(response.getStartTime())) {
-            return "OPEN";
-        }
-        if (response.getEndTime() != null && !now.isBefore(response.getEndTime())) {
-            return "FINISHED";
+        if (isClosedAuction(response)) {
+            return hasWinner(response.getLeadingBidderId(), response.getWinnerBidderId()) ? "PAID" : "CANCELED";
         }
         return "RUNNING";
+    }
+
+    private boolean isClosedAuction(AuctionDetailsResponseMessage response) {
+        if (response == null || response.getStatus() == null) {
+            return false;
+        }
+        if (response.getStatus() == AuctionStatus.PAID || response.getStatus() == AuctionStatus.CANCELED) {
+            return true;
+        }
+        return response.getStatus() == AuctionStatus.RUNNING
+                && response.getEndTime() != null
+                && !LocalDateTime.now().isBefore(response.getEndTime());
+    }
+
+    private boolean hasWinner(String leadingBidderId, String winnerBidderId) {
+        return (winnerBidderId != null && !winnerBidderId.isBlank())
+                || (leadingBidderId != null && !leadingBidderId.isBlank());
+    }
+
+    private void setBidSectionVisible(boolean visible) {
+        bidSection.setManaged(visible);
+        bidSection.setVisible(visible);
     }
 
     private void setSuccessMessage(String text) {

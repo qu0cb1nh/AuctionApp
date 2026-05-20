@@ -15,7 +15,7 @@ import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.VBox;
 import net.auctionapp.client.ClientApp;
-import net.auctionapp.client.services.AuthService;
+import net.auctionapp.client.ClientSession;
 import net.auctionapp.client.ui.managers.SceneManager;
 import net.auctionapp.client.utils.ResourcesUtil;
 import net.auctionapp.client.services.AuctionService;
@@ -172,7 +172,7 @@ public class PurchasesMenuController implements Initializable {
             return;
         }
 
-        toPurchaseCard(response, resolveCurrentUsername()).ifPresent(loadedPurchases::add);
+        toPurchaseCard(response, resolveCurrentUserId()).ifPresent(loadedPurchases::add);
         if (!pendingAuctionIds.isEmpty()) {
             showStatus("Loading auction details...", STATUS_TEXT_STYLE);
             return;
@@ -288,11 +288,11 @@ public class PurchasesMenuController implements Initializable {
         }
     }
 
-    private Optional<PurchaseCard> toPurchaseCard(AuctionDetailsResponseMessage response, String currentUsername) {
-        if (response == null || currentUsername == null || currentUsername.isBlank()) {
+    private Optional<PurchaseCard> toPurchaseCard(AuctionDetailsResponseMessage response, String currentUserId) {
+        if (response == null || currentUserId == null || currentUserId.isBlank()) {
             return Optional.empty();
         }
-        if (response.getWinnerBidderId() == null || !response.getWinnerBidderId().equalsIgnoreCase(currentUsername)) {
+        if (response.getWinnerBidderId() == null || !response.getWinnerBidderId().equalsIgnoreCase(currentUserId)) {
             return Optional.empty();
         }
 
@@ -311,11 +311,11 @@ public class PurchasesMenuController implements Initializable {
         ));
     }
 
-    private String resolveCurrentUsername() {
-        if (AuthService.getInstance().getCurrentUsername() == null || AuthService.getInstance().getCurrentUsername().isBlank()) {
+    private String resolveCurrentUserId() {
+        if (ClientSession.getInstance().getUserId() == null || ClientSession.getInstance().getUserId().isBlank()) {
             return "";
         }
-        return AuthService.getInstance().getCurrentUsername();
+        return ClientSession.getInstance().getUserId();
     }
 
     private String derivePurchaseStatus(AuctionDetailsResponseMessage response) {

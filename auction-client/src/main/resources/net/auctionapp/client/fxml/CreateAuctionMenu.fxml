@@ -166,7 +166,7 @@
                         <HBox alignment="CENTER_RIGHT" spacing="12.0">
                             <children>
                                 <Button mnemonicParsing="false" onAction="#handleCancel" style="-fx-background-color: #f0f0f0; -fx-text-fill: #555555; -fx-background-radius: 20px; -fx-padding: 10px 25px; -fx-font-weight: bold; -fx-cursor: hand;" text="Cancel" />
-                                <Button mnemonicParsing="false" onAction="#handleCreateAuction" style="-fx-background-color: #3bb3c3; -fx-text-fill: white; -fx-background-radius: 20px; -fx-padding: 10px 30px; -fx-font-weight: bold; -fx-cursor: hand;" text="Create Auction" />
+                                <Button fx:id="createAuctionButton" mnemonicParsing="false" onAction="#handleCreateAuction" style="-fx-background-color: #3bb3c3; -fx-text-fill: white; -fx-background-radius: 20px; -fx-padding: 10px 30px; -fx-font-weight: bold; -fx-cursor: hand;" text="Create Auction" />
                             </children>
                         </HBox>
                     </children>

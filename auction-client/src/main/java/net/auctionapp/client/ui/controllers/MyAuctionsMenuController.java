@@ -15,7 +15,7 @@ import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.VBox;
 import net.auctionapp.client.ClientApp;
-import net.auctionapp.client.services.AuthService;
+import net.auctionapp.client.ClientSession;
 import net.auctionapp.client.ui.managers.SceneManager;
 import net.auctionapp.client.utils.ResourcesUtil;
 import net.auctionapp.client.services.AuctionService;
@@ -161,7 +161,7 @@ public class MyAuctionsMenuController implements Initializable {
             return;
         }
 
-        toAuctionCard(response, resolveCurrentUsername()).ifPresent(loadedUserAuctions::add);
+        toAuctionCard(response, resolveCurrentUserId()).ifPresent(loadedUserAuctions::add);
         if (!pendingAuctionIds.isEmpty()) {
             showStatus("Loading auction details...", STATUS_TEXT_STYLE);
             return;
@@ -233,6 +233,7 @@ public class MyAuctionsMenuController implements Initializable {
         String winner = auction.winnerBidderId() == null || auction.winnerBidderId().isBlank()
                 ? "No winner yet"
                 : auction.winnerBidderId();
+        boolean canManageAuction = ClientSession.getInstance().canManageAuction(auction.sellerId());
         AuctionCardController.CardData cardData = new AuctionCardController.CardData(
                 auction.imageUrl(),
                 auction.title(),
@@ -256,8 +257,8 @@ public class MyAuctionsMenuController implements Initializable {
             ClientApp.getInstance().setSelectedAuctionId(auction.auctionId());
             SceneManager.switchScene("AuctionItemMenu.fxml");
         },
-                "Manage auction",
-                () -> handleManageAuction(auction.auctionId())
+                canManageAuction ? "Manage auction" : null,
+                canManageAuction ? () -> handleManageAuction(auction.auctionId()) : null
         );
         return loadAuctionCardComponent(cardData);
     }
@@ -281,11 +282,11 @@ public class MyAuctionsMenuController implements Initializable {
         }
     }
 
-    private java.util.Optional<AuctionCard> toAuctionCard(AuctionDetailsResponseMessage response, String currentUsername) {
-        if (response == null || currentUsername == null || currentUsername.isBlank()) {
+    private java.util.Optional<AuctionCard> toAuctionCard(AuctionDetailsResponseMessage response, String currentUserId) {
+        if (response == null || currentUserId == null || currentUserId.isBlank()) {
             return java.util.Optional.empty();
         }
-        if (response.getSellerId() == null || !response.getSellerId().equalsIgnoreCase(currentUsername)) {
+        if (response.getSellerId() == null || !response.getSellerId().equalsIgnoreCase(currentUserId)) {
             return java.util.Optional.empty();
         }
 
@@ -295,6 +296,7 @@ public class MyAuctionsMenuController implements Initializable {
                 response.getTitle(),
                 deriveSellerStatus(response),
                 response.getStatus(),
+                response.getSellerId(),
                 response.getStartingPrice(),
                 response.getCurrentPrice(),
                 bidCount,
@@ -304,11 +306,11 @@ public class MyAuctionsMenuController implements Initializable {
         ));
     }
 
-    private String resolveCurrentUsername() {
-        if (AuthService.getInstance().getCurrentUsername() == null || AuthService.getInstance().getCurrentUsername().isBlank()) {
+    private String resolveCurrentUserId() {
+        if (ClientSession.getInstance().getUserId() == null || ClientSession.getInstance().getUserId().isBlank()) {
             return "";
         }
-        return AuthService.getInstance().getCurrentUsername();
+        return ClientSession.getInstance().getUserId();
     }
 
     private String deriveSellerStatus(AuctionDetailsResponseMessage response) {
@@ -398,6 +400,7 @@ public class MyAuctionsMenuController implements Initializable {
             String title,
             String sellerStatus,
             AuctionStatus auctionStatus,
+            String sellerId,
             BigDecimal startingPrice,
             BigDecimal currentPrice,
             int bidCount,

@@ -6,6 +6,7 @@ import javafx.collections.FXCollections;
 import javafx.event.ActionEvent;
 import javafx.fxml.FXML;
 import javafx.fxml.Initializable;
+import javafx.scene.control.Button;
 import javafx.scene.control.ComboBox;
 import javafx.scene.control.DatePicker;
 import javafx.scene.control.Label;
@@ -17,6 +18,7 @@ import javafx.scene.layout.VBox;
 import javafx.stage.FileChooser;
 import net.auctionapp.client.ui.managers.SceneManager;
 import net.auctionapp.client.services.AuctionService;
+import net.auctionapp.client.ClientSession;
 import net.auctionapp.client.utils.ResourcesUtil;
 import net.auctionapp.common.messages.Message;
 import net.auctionapp.common.messages.MessageType;
@@ -88,6 +90,8 @@ public class CreateAuctionMenuController implements Initializable {
     private ImageView previewImageView;
     @FXML
     private Label imageStatusLabel;
+    @FXML
+    private Button createAuctionButton;
 
     private File selectedImageFile;
 
@@ -107,6 +111,7 @@ public class CreateAuctionMenuController implements Initializable {
         electronicsWarrantyField.setText("12");
         updateTypeSpecificFields(categoryComboBox.getValue());
         imageUploaded = false;
+        setButtonVisible(createAuctionButton, ClientSession.getInstance().canCreateAuction());
     }
 
     @FXML
@@ -151,6 +156,11 @@ public class CreateAuctionMenuController implements Initializable {
 
     @FXML
     public void handleCreateAuction(ActionEvent event) {
+        if (!ClientSession.getInstance().canCreateAuction()) {
+            statusLabel.setStyle("-fx-font-size: 13px; -fx-text-fill: #d9534f;");
+            statusLabel.setText("Please log in before creating an auction.");
+            return;
+        }
         try {
             CreateItemRequestMessage request = buildRequestFromForm();
             statusLabel.setStyle("-fx-font-size: 13px; -fx-text-fill: #666666;");
@@ -284,6 +294,12 @@ public class CreateAuctionMenuController implements Initializable {
     private void setSectionVisible(VBox section, boolean visible) {
         section.setVisible(visible);
         section.setManaged(visible);
+    }
+
+    private void setButtonVisible(Button button, boolean visible) {
+        button.setVisible(visible);
+        button.setManaged(visible);
+        button.setDisable(!visible);
     }
 
     private void handleCreateResponse(Message message) {

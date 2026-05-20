@@ -2,8 +2,6 @@ package net.auctionapp.client.ui.controllers.components;
 
 import javafx.fxml.FXML;
 import javafx.scene.control.Label;
-import net.auctionapp.common.notifications.Notification;
-
 public final class NotificationToastController {
     @FXML
     private Label titleLabel;
@@ -11,13 +9,8 @@ public final class NotificationToastController {
     @FXML
     private Label bodyLabel;
 
-    public void setNotification(Notification notification) {
-        if (notification == null) {
-            titleLabel.setText("Notification");
-            bodyLabel.setText("");
-            return;
-        }
-        titleLabel.setText(notification.getTitle() == null ? "Notification" : notification.getTitle());
-        bodyLabel.setText(notification.getBody() == null ? "" : notification.getBody());
+    public void setContent(String title, String body) {
+        titleLabel.setText(title == null || title.isBlank() ? "Notification" : title);
+        bodyLabel.setText(body == null ? "" : body);
     }
 }

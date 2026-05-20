@@ -11,6 +11,7 @@ import javafx.scene.control.TextArea;
 import javafx.scene.control.TextField;
 import net.auctionapp.client.ClientApp;
 import net.auctionapp.client.services.AuctionService;
+import net.auctionapp.client.ClientSession;
 import net.auctionapp.client.ui.managers.SceneManager;
 import net.auctionapp.common.messages.Message;
 import net.auctionapp.common.messages.types.AuctionActionResultMessage;
@@ -117,10 +118,17 @@ public class ManageAuctionMenuController implements Initializable {
                 : response.getMinimumNextBid().subtract(response.getCurrentPrice()).stripTrailingZeros().toPlainString());
         startTimeField.setText(formatDateTime(response.getStartTime()));
         endTimeField.setText(formatDateTime(response.getEndTime()));
-        boolean canChangeOpenAuction = response.getStatus() == AuctionStatus.RUNNING;
-        saveButton.setDisable(!canChangeOpenAuction);
-        closeButton.setDisable(!canChangeOpenAuction);
-        cancelButton.setDisable(!canChangeOpenAuction);
+        boolean canManageAuction = ClientSession.getInstance().canManageAuction(response.getSellerId());
+        setActionButtonsVisible(canManageAuction);
+        setFormEditable(canManageAuction);
+        boolean canChangeRunningAuction = canManageAuction && response.getStatus() == AuctionStatus.RUNNING;
+        saveButton.setDisable(!canChangeRunningAuction);
+        closeButton.setDisable(!canChangeRunningAuction);
+        cancelButton.setDisable(!canChangeRunningAuction);
+        if (!canManageAuction) {
+            setErrorStatus("Only the seller or an admin can manage this auction.");
+            return;
+        }
         setSuccessStatus("Auction details loaded.");
     }
 
@@ -206,14 +214,17 @@ public class ManageAuctionMenuController implements Initializable {
         if (response.getStatus() == AuctionStatus.PAID) {
             return "PAID";
         }
-        LocalDateTime now = LocalDateTime.now();
-        if (response.getStartTime() != null && now.isBefore(response.getStartTime())) {
-            return "OPEN";
-        }
-        if (response.getEndTime() != null && !now.isBefore(response.getEndTime())) {
-            return "FINISHED";
+        if (response.getEndTime() != null && !LocalDateTime.now().isBefore(response.getEndTime())) {
+            return hasWinner(response) ? "PAID" : "CANCELED";
         }
         return "RUNNING";
+    }
+
+    private boolean hasWinner(AuctionDetailsResponseMessage response) {
+        String winner = response.getWinnerBidderId();
+        String leadingBidder = response.getLeadingBidderId();
+        return (winner != null && !winner.isBlank())
+                || (leadingBidder != null && !leadingBidder.isBlank());
     }
 
     private String formatDateTime(LocalDateTime value) {
@@ -237,6 +248,27 @@ public class ManageAuctionMenuController implements Initializable {
         saveButton.setDisable(true);
         cancelButton.setDisable(true);
         closeButton.setDisable(true);
+    }
+
+    private void setFormEditable(boolean editable) {
+        titleField.setDisable(!editable);
+        descriptionField.setDisable(!editable);
+        startingPriceField.setDisable(!editable);
+        incrementField.setDisable(!editable);
+        startTimeField.setDisable(!editable);
+        endTimeField.setDisable(!editable);
+    }
+
+    private void setActionButtonsVisible(boolean visible) {
+        setButtonVisible(saveButton, visible);
+        setButtonVisible(cancelButton, visible);
+        setButtonVisible(closeButton, visible);
+    }
+
+    private void setButtonVisible(Button button, boolean visible) {
+        button.setVisible(visible);
+        button.setManaged(visible);
+        button.setDisable(!visible);
     }
 
     private void setSuccessStatus(String text) {

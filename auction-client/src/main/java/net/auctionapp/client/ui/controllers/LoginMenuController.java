@@ -11,6 +11,7 @@ import javafx.scene.control.TextField;
 import javafx.scene.input.MouseEvent;
 import net.auctionapp.client.ui.managers.SceneManager;
 import net.auctionapp.client.services.AuthService;
+import net.auctionapp.client.ClientSession;
 import net.auctionapp.common.exceptions.ValidationException;
 import net.auctionapp.common.messages.Message;
 import net.auctionapp.common.messages.MessageType;
@@ -23,6 +24,8 @@ import java.util.ResourceBundle;
 
 public class LoginMenuController implements Initializable {
     private final AuthService authService = AuthService.getInstance();
+    private String lastLoginUsername;
+    private String lastLoginPassword;
 
     @FXML
     private Button loginButton;
@@ -50,6 +53,8 @@ public class LoginMenuController implements Initializable {
             return;
         }
 
+        lastLoginUsername = username;
+        lastLoginPassword = password;
         authService.login(username, password, this::handleServerResponse);
     }
 
@@ -66,7 +71,8 @@ public class LoginMenuController implements Initializable {
         if (message.getType() == MessageType.LOGIN_SUCCESS) {
             assistantPanelController.speak(result.getMessage(), "#27ae60");
 
-            AuthService.getInstance().setCurrentUser(result.getUserId(), result.getUsername(), result.getRole());
+            authService.cacheLoginCredentials(lastLoginUsername, lastLoginPassword);
+            ClientSession.getInstance().login(result.getUserId(), result.getUsername(), result.getRole());
             SceneManager.switchSceneWithDelay("MainMenu.fxml", 1500);
 
         } else if (message.getType() == MessageType.LOGIN_FAILURE) {
