@@ -9,4 +9,5 @@ module net.auctionapp.server {
     requires mysql.connector.j;
 
     exports net.auctionapp.server;
+    exports net.auctionapp.server.config;
 }

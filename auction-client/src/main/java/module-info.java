@@ -6,6 +6,7 @@ module net.auctionapp.client {
     requires org.slf4j;
 
     exports net.auctionapp.client;
+    exports net.auctionapp.client.config;
     opens net.auctionapp.client to javafx.fxml;
     opens net.auctionapp.client.ui.controllers to javafx.fxml;
     opens net.auctionapp.client.ui.controllers.components to javafx.fxml;

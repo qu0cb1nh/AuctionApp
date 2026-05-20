@@ -4,6 +4,7 @@ import javafx.application.Platform;
 import net.auctionapp.client.services.AuthService;
 import net.auctionapp.client.services.MessageListener;
 import net.auctionapp.client.services.NetworkService;
+import net.auctionapp.client.config.ClientConfig;
 import net.auctionapp.client.services.NotificationService;
 import net.auctionapp.client.ui.managers.SceneManager;
 import net.auctionapp.client.ui.managers.NotificationToastManager;
@@ -14,7 +15,6 @@ import net.auctionapp.common.messages.types.LoginResultMessage;
 import net.auctionapp.common.messages.types.NotificationMessage;
 import net.auctionapp.common.notifications.Notification;
 import net.auctionapp.common.notifications.NotificationType;
-import net.auctionapp.common.utils.ConfigUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -69,8 +69,8 @@ public final class AppLifecycleManager {
     }
 
     private void connectToServer() {
-        String host = ConfigUtil.getServerHost();
-        int port = ConfigUtil.getServerPort();
+        String host = ClientConfig.getServerHost();
+        int port = ClientConfig.getServerPort();
         networkService.connect(host, port);
     }
 
