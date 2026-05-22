@@ -11,7 +11,6 @@ import javafx.fxml.Initializable;
 import javafx.scene.control.ComboBox;
 import javafx.scene.control.Label;
 import javafx.scene.control.TextField;
-import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.VBox;
 import net.auctionapp.client.ClientApp;
@@ -48,8 +47,6 @@ public class AuctionListMenuController implements Initializable {
     @FXML
     private HeaderController appHeaderController;
     @FXML
-    private BorderPane rootPane;
-    @FXML
     private VBox auctionFlowPane;
     @FXML
     private Label listStatusLabel;
@@ -66,7 +63,7 @@ public class AuctionListMenuController implements Initializable {
     @FXML
     @Override
     public void initialize(URL location, ResourceBundle resources) {
-        appHeaderController.setupHeader("Explore Auctions", true);
+        appHeaderController.setupHeader("Explore Auctions");
         adminUser = ClientSession.getInstance().isAdmin();
         statusFilterComboBox.getItems().setAll(
                 STATUS_ALL,
@@ -77,11 +74,6 @@ public class AuctionListMenuController implements Initializable {
         statusFilterComboBox.getSelectionModel().select("RUNNING");
         sortComboBox.getItems().setAll(SORT_ENDING_SOON, SORT_HIGHEST_BID, SORT_NEWEST_START);
         sortComboBox.getSelectionModel().select(SORT_ENDING_SOON);
-        rootPane.sceneProperty().addListener((observable, oldScene, newScene) -> {
-            if (oldScene != null) {
-                // No persistent request handlers to clean up.
-            }
-        });
 
         requestAuctionList();
     }

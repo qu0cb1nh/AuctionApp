@@ -12,10 +12,11 @@ import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.Pane;
 import javafx.scene.layout.Region;
 import javafx.scene.layout.VBox;
-import net.auctionapp.client.services.MessageListener;
 import net.auctionapp.client.services.NotificationService;
+import net.auctionapp.client.ui.managers.SceneManager;
 import net.auctionapp.client.utils.ResourcesUtil;
 import net.auctionapp.common.messages.Message;
+import net.auctionapp.common.messages.MessageType;
 import net.auctionapp.common.messages.types.ErrorMessage;
 import net.auctionapp.common.messages.types.NotificationMessage;
 import net.auctionapp.common.notifications.NotificationType;
@@ -81,12 +82,10 @@ public class NotificationsMenuController implements Initializable {
     private int activeFilterIndex;
 
     private final List<Notification> allNotifications = new ArrayList<>();
-    private MessageListener<NotificationMessage> notificationPushListener;
-    private boolean pushListenerRegistered;
 
     @Override
     public void initialize(URL location, ResourceBundle resources) {
-        appHeaderController.setupHeader("Notifications", true);
+        appHeaderController.setupHeader("Notifications");
 
         filterLabels = new Label[]{
                 filterLabelAll, filterLabelBids, filterLabelMyAuctions, filterLabelSystem, filterLabelResults
@@ -96,13 +95,6 @@ public class NotificationsMenuController implements Initializable {
                 filterUnderlineResults
         };
         registerMessageListeners();
-        if (notificationCardsContainer != null) {
-            notificationCardsContainer.sceneProperty().addListener((observable, oldScene, newScene) -> {
-                if (oldScene != null) {
-                    cleanupMessageListeners();
-                }
-            });
-        }
         setActiveFilter(0, "All");
         requestNotifications();
     }
@@ -149,19 +141,7 @@ public class NotificationsMenuController implements Initializable {
     }
 
     private void registerMessageListeners() {
-        notificationPushListener = this::handleNotificationPush;
-        NotificationService.getInstance().addNotificationListener(notificationPushListener);
-        pushListenerRegistered = true;
-    }
-
-    private void cleanupMessageListeners() {
-        if (!pushListenerRegistered) {
-            return;
-        }
-        if (notificationPushListener != null) {
-            NotificationService.getInstance().removeNotificationListener(notificationPushListener);
-        }
-        pushListenerRegistered = false;
+        SceneManager.registerSceneMessageListener(MessageType.NOTIFICATION, this::handleNotificationPush);
     }
 
     private void requestNotifications() {
@@ -316,12 +296,4 @@ public class NotificationsMenuController implements Initializable {
                 ? "-fx-text-fill: #d9534f; -fx-font-size: 12;"
                 : "-fx-text-fill: #6b7280; -fx-font-size: 12;");
     }
-
-    private String safeText(String value, String fallback) {
-        if (value == null || value.isBlank()) {
-            return fallback;
-        }
-        return value;
-    }
-
 }

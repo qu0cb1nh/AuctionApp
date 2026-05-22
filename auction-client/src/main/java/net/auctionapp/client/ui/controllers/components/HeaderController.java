@@ -1,10 +1,8 @@
 package net.auctionapp.client.ui.controllers.components;
 
-import javafx.event.ActionEvent;
 import javafx.fxml.FXML;
 import javafx.application.Platform;
 import javafx.geometry.Bounds;
-import javafx.scene.control.Button;
 import javafx.scene.control.ContextMenu;
 import javafx.scene.control.Label;
 import javafx.scene.control.MenuButton;
@@ -15,8 +13,6 @@ import net.auctionapp.client.ClientSession;
 import net.auctionapp.client.ui.managers.SceneManager;
 
 public class HeaderController {
-    @FXML
-    private Button backButton;
     @FXML
     private Label titleLabel;
     @FXML
@@ -36,56 +32,49 @@ public class HeaderController {
         adminPanelMenuItem.setDisable(!session.isAdmin());
     }
 
-    public void setupHeader(String title, boolean showBackButton) {
+    public void setupHeader(String title) {
         titleLabel.setText((title == null || title.isBlank()) ? "Auction App" : title);
-        setBackButtonEnabled(showBackButton && SceneManager.canGoBack());
     }
 
     @FXML
-    public void handleBack(ActionEvent event) {
+    public void handleBack() {
         SceneManager.goBack();
     }
 
     @FXML
-    public void handleOpenDashboard(ActionEvent event) {
+    public void handleOpenDashboard() {
         SceneManager.switchScene("DashboardMenu.fxml");
     }
 
     @FXML
-    public void handleOpenNotifications(ActionEvent event) {
+    public void handleOpenNotifications() {
         SceneManager.switchScene("NotificationsMenu.fxml");
     }
 
     @FXML
-    public void handleOpenWallet(ActionEvent event) {
+    public void handleOpenWallet() {
         SceneManager.switchScene("WalletMenu.fxml");
     }
 
     @FXML
-    public void handleOpenActivity(ActionEvent event) {
+    public void handleOpenActivity() {
         SceneManager.switchScene("MyActivityMenu.fxml");
     }
 
     @FXML
-    public void handleOpenPurchases(ActionEvent event) {
+    public void handleOpenPurchases() {
         SceneManager.switchScene("PurchasesMenu.fxml");
     }
 
     @FXML
-    public void handleOpenAdminPanel(ActionEvent event) {
+    public void handleOpenAdminPanel() {
         SceneManager.switchScene("AdminPanelMenu.fxml");
     }
 
     @FXML
-    public void handleLogout(ActionEvent event) {
+    public void handleLogout() {
         AuthService.getInstance().clearSessionAndCredentials();
         SceneManager.resetAndSwitchScene("LoginMenu.fxml");
-    }
-
-    private void setBackButtonEnabled(boolean enabled) {
-        backButton.setVisible(true);
-        backButton.setManaged(true);
-        backButton.setDisable(!enabled);
     }
 
     private void configureUserMenuPopup() {

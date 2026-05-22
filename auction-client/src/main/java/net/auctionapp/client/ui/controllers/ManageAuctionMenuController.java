@@ -59,7 +59,7 @@ public class ManageAuctionMenuController implements Initializable {
 
     @Override
     public void initialize(URL location, ResourceBundle resources) {
-        appHeaderController.setupHeader("Manage Auction", true);
+        appHeaderController.setupHeader("Manage Auction");
         currentAuctionId = ClientApp.getInstance().getSelectedAuctionId();
         if (currentAuctionId == null || currentAuctionId.isBlank()) {
             setErrorStatus("No auction selected.");
