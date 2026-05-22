@@ -73,7 +73,7 @@ public class LoginMenuController implements Initializable {
 
             authService.cacheLoginCredentials(lastLoginUsername, lastLoginPassword);
             ClientSession.getInstance().login(result.getUserId(), result.getUsername(), result.getRole());
-            SceneManager.switchSceneWithDelay("MainMenu.fxml", 1500);
+            SceneManager.resetAndSwitchSceneWithDelay("DashboardMenu.fxml", 1500);
 
         } else if (message.getType() == MessageType.LOGIN_FAILURE) {
             assistantPanelController.speak(result.getMessage(), "#e74c3c");

@@ -77,7 +77,7 @@ public class AuctionItemMenuController implements Initializable {
 
     @Override
     public void initialize(URL location, ResourceBundle resources) {
-        appHeaderController.setupHeader("Auction Details", true, "AuctionListMenu.fxml");
+        appHeaderController.setupHeader("Auction Details", true);
         messageLabel.setText("");
         placeBidButton.setDisable(true);
         auctionStatusLabel.setText("N/A");

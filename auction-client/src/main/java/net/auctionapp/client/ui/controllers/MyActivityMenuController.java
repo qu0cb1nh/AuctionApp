@@ -95,7 +95,7 @@ public class MyActivityMenuController implements Initializable {
 
     @Override
     public void initialize(URL location, ResourceBundle resources) {
-        appHeaderController.setupHeader("Activity", true, "MainMenu.fxml");
+        appHeaderController.setupHeader("Activity", true);
 
         statusFilterComboBox.getItems().setAll(
                 STATUS_ALL,
@@ -126,13 +126,6 @@ public class MyActivityMenuController implements Initializable {
 
     @FXML
     public void handleFilterChanged() {
-        applyFilters();
-    }
-
-    @FXML
-    public void handleClearFilters(ActionEvent event) {
-        searchField.clear();
-        statusFilterComboBox.getSelectionModel().selectFirst();
         applyFilters();
     }
 

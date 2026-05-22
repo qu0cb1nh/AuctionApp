@@ -24,7 +24,6 @@ public class HeaderController {
     @FXML
     private MenuItem adminPanelMenuItem;
 
-    private String backTargetFxml = "MainMenu.fxml";
     private ContextMenu userContextMenu;
 
     @FXML
@@ -37,17 +36,19 @@ public class HeaderController {
         adminPanelMenuItem.setDisable(!session.isAdmin());
     }
 
-    public void setupHeader(String title, boolean showBackButton, String backTarget) {
+    public void setupHeader(String title, boolean showBackButton) {
         titleLabel.setText((title == null || title.isBlank()) ? "Auction App" : title);
-        setBackButtonVisible(showBackButton);
-        if (backTarget != null && !backTarget.isBlank()) {
-            backTargetFxml = backTarget;
-        }
+        setBackButtonEnabled(showBackButton && SceneManager.canGoBack());
     }
 
     @FXML
     public void handleBack(ActionEvent event) {
-        SceneManager.switchScene(backTargetFxml);
+        SceneManager.goBack();
+    }
+
+    @FXML
+    public void handleOpenDashboard(ActionEvent event) {
+        SceneManager.switchScene("DashboardMenu.fxml");
     }
 
     @FXML
@@ -78,12 +79,13 @@ public class HeaderController {
     @FXML
     public void handleLogout(ActionEvent event) {
         AuthService.getInstance().clearSessionAndCredentials();
-        SceneManager.switchScene("LoginMenu.fxml");
+        SceneManager.resetAndSwitchScene("LoginMenu.fxml");
     }
 
-    private void setBackButtonVisible(boolean visible) {
-        backButton.setVisible(visible);
-        backButton.setDisable(!visible);
+    private void setBackButtonEnabled(boolean enabled) {
+        backButton.setVisible(true);
+        backButton.setManaged(true);
+        backButton.setDisable(!enabled);
     }
 
     private void configureUserMenuPopup() {

@@ -106,7 +106,7 @@ public final class AppLifecycleManager {
             return;
         }
         AuthService.getInstance().clearSessionAndCredentials();
-        Platform.runLater(() -> SceneManager.switchScene("LoginMenu.fxml"));
+        Platform.runLater(() -> SceneManager.resetAndSwitchScene("LoginMenu.fxml"));
     }
 
     private synchronized void startConnectionMonitor() {
@@ -175,7 +175,7 @@ public final class AppLifecycleManager {
                 .exceptionally(throwable -> {
                     autoLoginInProgress.set(false);
                     NotificationToastManager.showWarning("Reconnected, but automatic login failed.");
-                    Platform.runLater(() -> SceneManager.switchScene("LoginMenu.fxml"));
+                    Platform.runLater(() -> SceneManager.resetAndSwitchScene("LoginMenu.fxml"));
                     return null;
                 });
     }
@@ -190,12 +190,12 @@ public final class AppLifecycleManager {
             if (message.getType() == MessageType.LOGIN_FAILURE) {
                 AuthService.getInstance().clearSessionAndCredentials();
                 NotificationToastManager.showWarning("Reconnected, but automatic login failed.");
-                Platform.runLater(() -> SceneManager.switchScene("LoginMenu.fxml"));
+                Platform.runLater(() -> SceneManager.resetAndSwitchScene("LoginMenu.fxml"));
                 return;
             }
         }
         AuthService.getInstance().clearSessionAndCredentials();
         NotificationToastManager.showWarning("Reconnected, but automatic login failed.");
-        Platform.runLater(() -> SceneManager.switchScene("LoginMenu.fxml"));
+        Platform.runLater(() -> SceneManager.resetAndSwitchScene("LoginMenu.fxml"));
     }
 }

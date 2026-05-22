@@ -97,7 +97,7 @@ public class CreateAuctionMenuController implements Initializable {
 
     @Override
     public void initialize(URL location, ResourceBundle resources) {
-        appHeaderController.setupHeader("Create Auction", true, "MainMenu.fxml");
+        appHeaderController.setupHeader("Create Auction", true);
 
         categoryComboBox.setItems(FXCollections.observableArrayList(ItemType.values()));
         categoryComboBox.getSelectionModel().select(ItemType.ELECTRONICS);
@@ -115,13 +115,8 @@ public class CreateAuctionMenuController implements Initializable {
     }
 
     @FXML
-    public void handleBack(ActionEvent event) {
-        SceneManager.switchScene("MainMenu.fxml");
-    }
-
-    @FXML
     public void handleCancel(ActionEvent event) {
-        SceneManager.switchScene("MainMenu.fxml");
+        SceneManager.goBackOrSwitchScene("DashboardMenu.fxml");
     }
 
     @FXML

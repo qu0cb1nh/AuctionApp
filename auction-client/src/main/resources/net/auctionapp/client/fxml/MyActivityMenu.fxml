@@ -22,7 +22,6 @@
                     <children>
                         <TextField fx:id="searchField" onKeyReleased="#handleFilterChanged" prefHeight="35.0" prefWidth="280.0" promptText="Search your bids and auctions..." style="-fx-background-radius: 15;" />
                         <ComboBox fx:id="statusFilterComboBox" onAction="#handleFilterChanged" prefHeight="35.0" prefWidth="170.0" promptText="Status" style="-fx-background-radius: 10;" />
-                        <Button mnemonicParsing="false" onAction="#handleClearFilters" prefHeight="35.0" prefWidth="110.0" style="-fx-background-color: #e7f8fb; -fx-text-fill: #217b93; -fx-background-radius: 10; -fx-font-weight: bold;" text="Clear Filters" />
                         <Region HBox.hgrow="ALWAYS" />
                         <Button mnemonicParsing="false" onAction="#handleRefresh" prefHeight="35.0" prefWidth="100.0" style="-fx-background-color: white; -fx-text-fill: #3bb3d1; -fx-background-radius: 10; -fx-font-weight: bold;" text="Refresh" />
                     </children>
