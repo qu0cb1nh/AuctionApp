@@ -593,6 +593,7 @@ public final class AuctionService {
                     auction.getId(),
                     auction.getCurrentPrice(),
                     auction.getLeadingBidderId(),
+                    auction.getEndTime(),
                     "Bid accepted."
             ), request);
         }
@@ -618,7 +619,8 @@ public final class AuctionService {
             ServerApp.broadcast(JsonUtil.toJson(new PriceUpdateMessage(
                     auction.getId(),
                     auction.getCurrentPrice().doubleValue(),
-                    auction.getLeadingBidderId()
+                    auction.getLeadingBidderId(),
+                    auction.getEndTime()
             )));
         }
     }
