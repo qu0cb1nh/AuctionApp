@@ -2,6 +2,7 @@
 
 <?import javafx.geometry.Insets?>
 <?import javafx.scene.control.Button?>
+<?import javafx.scene.control.ComboBox?>
 <?import javafx.scene.control.Label?>
 <?import javafx.scene.control.ScrollPane?>
 <?import javafx.scene.control.TextField?>
@@ -17,7 +18,8 @@
                 <fx:include fx:id="appHeader" source="components/Header.fxml" />
                 <HBox alignment="CENTER_LEFT" spacing="16.0" style="-fx-background-color: #3bb3d1;">
                     <children>
-                        <TextField fx:id="searchField" onKeyReleased="#handleFilterChanged" prefHeight="35.0" prefWidth="250.0" promptText="Search your purchases..." style="-fx-background-radius: 15;" />
+                        <TextField fx:id="searchField" onKeyReleased="#handleFilterChanged" prefHeight="35.0" prefWidth="280.0" promptText="Search your listings..." style="-fx-background-radius: 15;" />
+                        <ComboBox fx:id="statusFilterComboBox" onAction="#handleFilterChanged" prefHeight="35.0" prefWidth="170.0" promptText="Status" style="-fx-background-radius: 10;" />
                         <Region HBox.hgrow="ALWAYS" />
                         <Button mnemonicParsing="false" onAction="#handleRefresh" prefHeight="35.0" prefWidth="100.0" style="-fx-background-color: white; -fx-text-fill: #3bb3d1; -fx-background-radius: 10; -fx-font-weight: bold;" text="Refresh" />
                     </children>
@@ -34,10 +36,10 @@
             <content>
                 <VBox spacing="10.0" style="-fx-padding: 20;">
                     <children>
-                        <Label style="-fx-font-size: 20px; -fx-font-weight: bold; -fx-text-fill: #153e5c;" text="Purchase History" />
-                        <Label fx:id="statusLabel" style="-fx-text-fill: #666666;" text="Loading purchases..." />
+                        <Label style="-fx-font-size: 20px; -fx-font-weight: bold; -fx-text-fill: #153e5c;" text="My Listings" />
+                        <Label fx:id="statusLabel" style="-fx-text-fill: #666666;" text="Loading listings..." />
                         <Label fx:id="summaryLabel" style="-fx-text-fill: #3f5569; -fx-font-size: 12px;" text="" />
-                        <VBox fx:id="purchaseFlowPane" spacing="8.0" />
+                        <VBox fx:id="listingFlowPane" spacing="8.0" />
                     </children>
                 </VBox>
             </content>

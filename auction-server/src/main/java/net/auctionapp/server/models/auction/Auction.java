@@ -12,6 +12,7 @@ import java.math.BigDecimal;
 import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
 
 /**
@@ -116,6 +117,22 @@ public class Auction extends Entity {
 
     public synchronized List<BidTransaction> getBidHistory() {
         return new ArrayList<>(bidHistory);
+    }
+
+    public synchronized void restoreBidHistory(List<BidTransaction> persistedBids) {
+        bidHistory.clear();
+        if (persistedBids == null || persistedBids.isEmpty()) {
+            restoreLeadingBidFromAuctionState();
+            return;
+        }
+        persistedBids.stream()
+                .filter(bid -> bid != null && getId().equals(bid.getAuctionId()))
+                .filter(bid -> bid.getAmount() != null && bid.getBidderId() != null && !bid.getBidderId().isBlank())
+                .sorted(Comparator.comparing(BidTransaction::getTimestamp, Comparator.nullsLast(LocalDateTime::compareTo)))
+                .forEach(bidHistory::add);
+        if (bidHistory.isEmpty()) {
+            restoreLeadingBidFromAuctionState();
+        }
     }
 
     public synchronized boolean placeBid(BidTransaction bid, LocalDateTime now) {
@@ -223,6 +240,22 @@ public class Auction extends Entity {
         );
         copy.bidHistory.addAll(bidHistory);
         return copy;
+    }
+
+    private void restoreLeadingBidFromAuctionState() {
+        if (leadingBidderId == null || leadingBidderId.isBlank() || currentPrice == null) {
+            return;
+        }
+        if (startingPrice != null && currentPrice.compareTo(startingPrice) <= 0) {
+            return;
+        }
+        bidHistory.add(new BidTransaction(
+                "restored-" + getId(),
+                currentPrice,
+                startTime,
+                leadingBidderId,
+                getId()
+        ));
     }
 
     private Item copyItem(Item source) {

@@ -1,31 +1,32 @@
 package net.auctionapp.client.ui.controllers;
 
-import net.auctionapp.client.ui.controllers.components.AuctionCardController;
-
-import net.auctionapp.client.ui.controllers.components.HeaderController;
-
 import javafx.event.ActionEvent;
 import javafx.fxml.FXML;
 import javafx.fxml.FXMLLoader;
 import javafx.fxml.Initializable;
+import javafx.scene.control.ComboBox;
 import javafx.scene.control.Label;
 import javafx.scene.control.TextField;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.VBox;
 import net.auctionapp.client.ClientApp;
 import net.auctionapp.client.ClientSession;
-import net.auctionapp.client.ui.managers.SceneManager;
-import net.auctionapp.client.utils.ResourcesUtil;
 import net.auctionapp.client.services.AuctionService;
+import net.auctionapp.client.ui.controllers.components.AuctionCardController;
+import net.auctionapp.client.ui.controllers.components.HeaderController;
+import net.auctionapp.client.ui.managers.SceneManager;
+import net.auctionapp.client.utils.DurationFormatUtil;
+import net.auctionapp.client.utils.ResourcesUtil;
+import net.auctionapp.common.auction.AuctionStatus;
 import net.auctionapp.common.messages.Message;
 import net.auctionapp.common.messages.types.AuctionDetailsResponseMessage;
 import net.auctionapp.common.messages.types.AuctionListResponseMessage;
 import net.auctionapp.common.messages.types.ErrorMessage;
-import net.auctionapp.common.auction.AuctionStatus;
 
 import java.io.IOException;
 import java.math.BigDecimal;
 import java.net.URL;
+import java.time.Duration;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
@@ -40,34 +41,40 @@ import java.util.Set;
 public class PurchasesMenuController implements Initializable {
     private static final DateTimeFormatter CARD_TIME_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm");
     private static final String STATUS_TEXT_STYLE = "-fx-text-fill: #666666;";
+    private static final String STATUS_ACTIVE = "Active";
+    private static final String STATUS_SOLD = "Sold";
+    private static final String STATUS_CANCELED = "Canceled";
 
     @FXML
     private HeaderController appHeaderController;
     @FXML
-    private VBox purchaseFlowPane;
+    private VBox listingFlowPane;
     @FXML
     private TextField searchField;
+    @FXML
+    private ComboBox<String> statusFilterComboBox;
     @FXML
     private Label statusLabel;
     @FXML
     private Label summaryLabel;
 
-    private final List<PurchaseCard> allPurchases = new ArrayList<>();
-    private final List<PurchaseCard> loadedPurchases = new ArrayList<>();
+    private final List<ListingCard> allListings = new ArrayList<>();
+    private final List<ListingCard> loadedListings = new ArrayList<>();
     private final Set<String> pendingAuctionIds = new HashSet<>();
 
     @Override
     public void initialize(URL location, ResourceBundle resources) {
-        appHeaderController.setupHeader("Purchases");
+        appHeaderController.setupHeader("My Listings");
+        statusFilterComboBox.getItems().setAll(STATUS_ACTIVE, STATUS_SOLD, STATUS_CANCELED);
+        statusFilterComboBox.getSelectionModel().select(STATUS_ACTIVE);
         summaryLabel.setManaged(false);
         summaryLabel.setVisible(false);
-
-        loadPurchases();
+        loadListings();
     }
 
     @FXML
     public void handleRefresh(ActionEvent event) {
-        loadPurchases();
+        loadListings();
     }
 
     @FXML
@@ -75,12 +82,12 @@ public class PurchasesMenuController implements Initializable {
         applyFilters();
     }
 
-    private void loadPurchases() {
+    private void loadListings() {
         pendingAuctionIds.clear();
-        allPurchases.clear();
-        loadedPurchases.clear();
-        renderPurchaseCards(allPurchases, false);
-        showStatus("Loading your purchases...", STATUS_TEXT_STYLE);
+        allListings.clear();
+        loadedListings.clear();
+        renderListingCards(List.of(), false);
+        showStatus("Loading your listings...", STATUS_TEXT_STYLE);
         AuctionService.getInstance().requestAuctionList(this::handleAuctionListRequestResult);
     }
 
@@ -98,7 +105,7 @@ public class PurchasesMenuController implements Initializable {
 
     private void handleAuctionListResponse(AuctionListResponseMessage response) {
         pendingAuctionIds.clear();
-        loadedPurchases.clear();
+        loadedListings.clear();
 
         List<String> auctionIds = response.getAuctions() == null ? List.of()
                 : response.getAuctions().stream()
@@ -107,9 +114,10 @@ public class PurchasesMenuController implements Initializable {
                 .toList();
 
         if (auctionIds.isEmpty()) {
-            allPurchases.clear();
-            renderPurchaseCards(allPurchases, false);
+            allListings.clear();
+            renderListingCards(List.of(), false);
             showStatus("No auctions available yet.", STATUS_TEXT_STYLE);
+            updateSummary();
             return;
         }
 
@@ -118,7 +126,7 @@ public class PurchasesMenuController implements Initializable {
         for (String auctionId : auctionIds) {
             AuctionService.getInstance().requestAuctionDetails(
                     auctionId,
-                    (detailResponse) -> handleAuctionDetailsRequestResult(auctionId, detailResponse)
+                    detailResponse -> handleAuctionDetailsRequestResult(auctionId, detailResponse)
             );
         }
     }
@@ -139,13 +147,12 @@ public class PurchasesMenuController implements Initializable {
             return;
         }
 
-        toPurchaseCard(response, resolveCurrentUserId()).ifPresent(loadedPurchases::add);
+        toListingCard(response, resolveCurrentUserId()).ifPresent(loadedListings::add);
         if (!pendingAuctionIds.isEmpty()) {
             showStatus("Loading auction details...", STATUS_TEXT_STYLE);
             return;
         }
-
-        finalizeLoadedPurchases();
+        finalizeLoadedListings();
     }
 
     private void completeLoadingAfterDetailFailure(String auctionId, String errorMessage) {
@@ -159,15 +166,16 @@ public class PurchasesMenuController implements Initializable {
             showStatus("Loading auction details...", STATUS_TEXT_STYLE);
             return;
         }
-        finalizeLoadedPurchases();
+        finalizeLoadedListings();
     }
 
-    private void finalizeLoadedPurchases() {
-        allPurchases.clear();
-        allPurchases.addAll(
-                loadedPurchases.stream()
-                        .sorted(Comparator.comparing(PurchaseCard::endTime, Comparator.nullsLast(Comparator.reverseOrder()))
-                                .thenComparing(PurchaseCard::title, String.CASE_INSENSITIVE_ORDER))
+    private void finalizeLoadedListings() {
+        allListings.clear();
+        allListings.addAll(
+                loadedListings.stream()
+                        .sorted(Comparator.<ListingCard>comparingInt(card -> statusPriority(card.status()))
+                                .thenComparing(ListingCard::endTime, Comparator.nullsLast(LocalDateTime::compareTo))
+                                .thenComparing(ListingCard::title, String.CASE_INSENSITIVE_ORDER))
                         .toList()
         );
         applyFilters();
@@ -179,58 +187,79 @@ public class PurchasesMenuController implements Initializable {
 
     private void applyFilters() {
         String search = searchField.getText() == null ? "" : searchField.getText().trim().toLowerCase(Locale.ROOT);
+        String selectedStatus = statusFilterComboBox.getSelectionModel().getSelectedItem();
+        if (selectedStatus == null || selectedStatus.isBlank()) {
+            selectedStatus = STATUS_ACTIVE;
+        }
 
-        List<PurchaseCard> filtered = allPurchases.stream()
-                .filter(purchase -> search.isBlank() || purchase.title().toLowerCase(Locale.ROOT).contains(search))
+        String statusFilter = selectedStatus;
+        List<ListingCard> filtered = allListings.stream()
+                .filter(listing -> search.isBlank() || listing.title().toLowerCase(Locale.ROOT).contains(search))
+                .filter(listing -> listing.status().equalsIgnoreCase(statusFilter))
                 .toList();
 
-        renderPurchaseCards(filtered, !allPurchases.isEmpty());
-        hideStatus();
+        renderListingCards(filtered, !allListings.isEmpty());
+        updateSummary();
+        if (pendingAuctionIds.isEmpty()) {
+            hideStatus();
+        }
     }
 
-    private void renderPurchaseCards(List<PurchaseCard> purchases, boolean hasAnyPurchases) {
-        purchaseFlowPane.getChildren().clear();
-        if (purchases.isEmpty()) {
-            Label emptyLabel = new Label(hasAnyPurchases
-                    ? "No purchases match your search."
-                    : "You do not have any purchases yet.");
+    private void renderListingCards(List<ListingCard> listings, boolean hasAnyListings) {
+        listingFlowPane.getChildren().clear();
+        if (listings.isEmpty()) {
+            String selectedStatus = statusFilterComboBox.getSelectionModel().getSelectedItem();
+            String statusText = selectedStatus == null || selectedStatus.isBlank()
+                    ? STATUS_ACTIVE.toLowerCase(Locale.ROOT)
+                    : selectedStatus.toLowerCase(Locale.ROOT);
+            Label emptyLabel = new Label(hasAnyListings
+                    ? "No " + statusText + " listings match your current filters."
+                    : "You have not created any listings yet.");
             emptyLabel.setStyle("-fx-font-size: 14px; -fx-font-weight: bold; -fx-text-fill: #4a5f73;");
-            purchaseFlowPane.getChildren().add(emptyLabel);
+            listingFlowPane.getChildren().add(emptyLabel);
             return;
         }
-        for (PurchaseCard purchase : purchases) {
-            purchaseFlowPane.getChildren().add(loadPurchaseCard(purchase));
+
+        for (ListingCard listing : listings) {
+            listingFlowPane.getChildren().add(loadListingCard(listing));
         }
     }
 
-    private HBox loadPurchaseCard(PurchaseCard purchase) {
+    private HBox loadListingCard(ListingCard listing) {
+        boolean active = STATUS_ACTIVE.equals(listing.status());
+        boolean canManageAuction = active && ClientSession.getInstance().canManageAuction(listing.sellerId());
         AuctionCardController.CardData cardData = new AuctionCardController.CardData(
-                purchase.imageUrl(),
-                purchase.title(),
-                "Item won",
-                "#1f8f4c",
-                "Seller: " + safeText(purchase.sellerId()),
-                "Ended at: " + formatEndTime(purchase.endTime()),
-                null,
-                "Final Price",
-                formatMoney(purchase.finalPrice()),
-                "#0057ff",
-                "Ownership",
-                "Item received automatically.",
-                "#1f8f4c",
-                "",
-                "",
+                listing.imageUrl(),
+                listing.title(),
+                "Status: " + listing.status(),
+                statusColor(listing.status()),
+                "Auction state: " + listing.auctionStatus().name(),
+                "Starting price: " + formatMoney(listing.startingPrice()),
+                formatTimingLabel(listing.endTime(), listing.auctionStatus()),
+                active ? "Current Price" : "Final Price",
+                formatMoney(listing.currentPrice()),
+                active ? "#0057ff" : "#1f2933",
+                "Bids",
+                String.valueOf(listing.bidCount()),
+                "#1f2933",
+                "Winner",
+                safeWinnerName(listing.winnerBidderId()),
                 "#1f2933",
                 "View auction",
                 () -> {
-            statusLabel.setText("Opening purchase: " + purchase.title());
-            ClientApp.getInstance().setSelectedAuctionId(purchase.auctionId());
+            statusLabel.setText("Opening listing: " + listing.title());
+            ClientApp.getInstance().setSelectedAuctionId(listing.auctionId());
             SceneManager.switchScene("AuctionItemMenu.fxml");
         },
-                null,
-                null
+                canManageAuction ? "Manage auction" : null,
+                canManageAuction ? () -> handleManageAuction(listing.auctionId()) : null
         );
         return loadAuctionCardComponent(cardData);
+    }
+
+    private void handleManageAuction(String auctionId) {
+        ClientApp.getInstance().setSelectedAuctionId(auctionId);
+        SceneManager.switchScene("ManageAuctionMenu.fxml");
     }
 
     private HBox loadAuctionCardComponent(AuctionCardController.CardData cardData) {
@@ -241,31 +270,32 @@ public class PurchasesMenuController implements Initializable {
             controller.bindCard(cardData);
             return card;
         } catch (IOException | RuntimeException e) {
-            Label fallback = new Label("Failed to load purchase card.");
+            Label fallback = new Label("Failed to load listing card.");
             fallback.setStyle("-fx-text-fill: #d9534f;");
             return new HBox(fallback);
         }
     }
 
-    private Optional<PurchaseCard> toPurchaseCard(AuctionDetailsResponseMessage response, String currentUserId) {
+    private Optional<ListingCard> toListingCard(AuctionDetailsResponseMessage response, String currentUserId) {
         if (response == null || currentUserId == null || currentUserId.isBlank()) {
             return Optional.empty();
         }
-        if (response.getWinnerBidderId() == null || !response.getWinnerBidderId().equalsIgnoreCase(currentUserId)) {
-            if (!isEndedWinningBid(response, currentUserId)) {
-                return Optional.empty();
-            }
-        }
-        if (!isCompletedAuction(response)) {
+        if (response.getSellerId() == null || !response.getSellerId().equalsIgnoreCase(currentUserId)) {
             return Optional.empty();
         }
 
-        return Optional.of(new PurchaseCard(
+        int bidCount = response.getBidHistory() == null ? 0 : response.getBidHistory().size();
+        return Optional.of(new ListingCard(
                 response.getAuctionId(),
                 response.getTitle(),
+                deriveListingStatus(response, bidCount),
+                response.getStatus(),
                 response.getSellerId(),
+                response.getStartingPrice(),
                 response.getCurrentPrice(),
+                bidCount,
                 response.getEndTime(),
+                resolveWinner(response),
                 response.getImageUrl()
         ));
     }
@@ -277,26 +307,54 @@ public class PurchasesMenuController implements Initializable {
         return ClientSession.getInstance().getUserId();
     }
 
-    private boolean isCompletedAuction(AuctionDetailsResponseMessage response) {
-        if (response == null || response.getStatus() == null) {
-            return false;
+    private String deriveListingStatus(AuctionDetailsResponseMessage response, int bidCount) {
+        if (response.getStatus() == AuctionStatus.CANCELED) {
+            return STATUS_CANCELED;
         }
-        AuctionStatus status = response.getStatus();
-        if (status == AuctionStatus.PAID) {
-            return true;
+        if (isActive(response)) {
+            return STATUS_ACTIVE;
         }
-        return status == AuctionStatus.RUNNING
-                && response.getEndTime() != null
-                && !LocalDateTime.now().isBefore(response.getEndTime());
+        if (hasWinner(response) || response.getStatus() == AuctionStatus.RUNNING && isEnded(response) && bidCount > 0) {
+            return STATUS_SOLD;
+        }
+        return STATUS_CANCELED;
     }
 
-    private boolean isEndedWinningBid(AuctionDetailsResponseMessage response, String currentUserId) {
-        return response != null
-                && currentUserId != null
-                && !currentUserId.isBlank()
+    private String resolveWinner(AuctionDetailsResponseMessage response) {
+        if (response.getWinnerBidderId() != null && !response.getWinnerBidderId().isBlank()) {
+            return response.getWinnerBidderId();
+        }
+        if (response.getStatus() != AuctionStatus.CANCELED
+                && isFinished(response)
                 && response.getLeadingBidderId() != null
-                && response.getLeadingBidderId().equalsIgnoreCase(currentUserId)
-                && isCompletedAuction(response);
+                && !response.getLeadingBidderId().isBlank()) {
+            return response.getLeadingBidderId();
+        }
+        return null;
+    }
+
+    private boolean hasWinner(AuctionDetailsResponseMessage response) {
+        return response != null
+                && response.getWinnerBidderId() != null
+                && !response.getWinnerBidderId().isBlank();
+    }
+
+    private int statusPriority(String status) {
+        return switch (status) {
+            case STATUS_ACTIVE -> 0;
+            case STATUS_SOLD -> 1;
+            case STATUS_CANCELED -> 2;
+            default -> 3;
+        };
+    }
+
+    private String statusColor(String status) {
+        return switch (status) {
+            case STATUS_ACTIVE -> "#1f8f4c";
+            case STATUS_SOLD -> "#2962ff";
+            case STATUS_CANCELED -> "#6b7280";
+            default -> "#3f5569";
+        };
     }
 
     private String formatMoney(BigDecimal amount) {
@@ -306,28 +364,65 @@ public class PurchasesMenuController implements Initializable {
         return "$" + amount.stripTrailingZeros().toPlainString();
     }
 
-    private String formatEndTime(LocalDateTime endTime) {
+    private String safeWinnerName(String winner) {
+        if (winner == null || winner.isBlank()) {
+            return "No winner";
+        }
+        return winner;
+    }
+
+    private String formatTimingLabel(LocalDateTime endTime, AuctionStatus auctionStatus) {
         if (endTime == null) {
-            return "N/A";
+            return "End time: N/A";
         }
-        return CARD_TIME_FORMATTER.format(endTime);
+        if (auctionStatus == AuctionStatus.RUNNING) {
+            Duration remaining = Duration.between(LocalDateTime.now(), endTime);
+            if (!remaining.isNegative() && !remaining.isZero()) {
+                return "Ends in: " + DurationFormatUtil.formatRemainingDuration(remaining);
+            }
+        }
+        return "Ended at: " + CARD_TIME_FORMATTER.format(endTime);
     }
 
-    private String safeText(String value) {
-        if (value == null || value.isBlank()) {
-            return "N/A";
-        }
-        return value;
+    private boolean isActive(AuctionDetailsResponseMessage response) {
+        return response != null
+                && response.getStatus() == AuctionStatus.RUNNING
+                && response.getEndTime() != null
+                && LocalDateTime.now().isBefore(response.getEndTime());
     }
 
-    private record PurchaseCard(
-            String auctionId,
-            String title,
-            String sellerId,
-            BigDecimal finalPrice,
-            LocalDateTime endTime,
-            String imageUrl
-    ) {
+    private boolean isFinished(AuctionDetailsResponseMessage response) {
+        return response != null
+                && (response.getStatus() == AuctionStatus.PAID
+                || response.getStatus() == AuctionStatus.CANCELED
+                || response.getStatus() == AuctionStatus.RUNNING && isEnded(response));
+    }
+
+    private boolean isEnded(AuctionDetailsResponseMessage response) {
+        return response != null
+                && response.getEndTime() != null
+                && !LocalDateTime.now().isBefore(response.getEndTime());
+    }
+
+    private void updateSummary() {
+        long activeCount = countByStatus(STATUS_ACTIVE);
+        long soldCount = countByStatus(STATUS_SOLD);
+        long canceledCount = countByStatus(STATUS_CANCELED);
+        if (allListings.isEmpty()) {
+            summaryLabel.setText("");
+            summaryLabel.setManaged(false);
+            summaryLabel.setVisible(false);
+            return;
+        }
+        summaryLabel.setText("Active: " + activeCount + "  Sold: " + soldCount + "  Canceled: " + canceledCount);
+        summaryLabel.setManaged(true);
+        summaryLabel.setVisible(true);
+    }
+
+    private long countByStatus(String status) {
+        return allListings.stream()
+                .filter(listing -> listing.status().equals(status))
+                .count();
     }
 
     private void hideStatus() {
@@ -345,5 +440,20 @@ public class PurchasesMenuController implements Initializable {
         statusLabel.setVisible(true);
         statusLabel.setStyle(style);
         statusLabel.setText(text);
+    }
+
+    private record ListingCard(
+            String auctionId,
+            String title,
+            String status,
+            AuctionStatus auctionStatus,
+            String sellerId,
+            BigDecimal startingPrice,
+            BigDecimal currentPrice,
+            int bidCount,
+            LocalDateTime endTime,
+            String winnerBidderId,
+            String imageUrl
+    ) {
     }
 }

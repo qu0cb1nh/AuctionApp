@@ -1,6 +1,7 @@
 package net.auctionapp.server.dao;
 
 import net.auctionapp.server.models.auction.Auction;
+import net.auctionapp.server.models.auction.BidTransaction;
 import net.auctionapp.common.auction.AuctionStatus;
 import net.auctionapp.server.models.items.Art;
 import net.auctionapp.server.models.items.Electronics;
@@ -16,7 +17,6 @@ import net.auctionapp.server.services.DatabaseService;
 
 import java.math.BigDecimal;
 import java.sql.Connection;
-import java.sql.DatabaseMetaData;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
@@ -24,6 +24,7 @@ import java.sql.Statement;
 import java.sql.Timestamp;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -52,6 +53,17 @@ public class JdbcAuctionDao implements AuctionDao {
                 year_created INT
             )
             """;
+    private static final String CREATE_BID_TRANSACTIONS_TABLE_QUERY = """
+            CREATE TABLE IF NOT EXISTS bid_transactions (
+                id VARCHAR(64) PRIMARY KEY,
+                auction_id VARCHAR(64) NOT NULL,
+                bidder_id VARCHAR(255) NOT NULL,
+                amount DECIMAL(19, 2) NOT NULL,
+                bid_time DATETIME NOT NULL,
+                INDEX idx_bid_transactions_auction_id (auction_id),
+                INDEX idx_bid_transactions_bidder_id (bidder_id)
+            )
+            """;
     private static final String FIND_ALL_AUCTIONS_QUERY = """
             SELECT
                 id,
@@ -76,6 +88,11 @@ public class JdbcAuctionDao implements AuctionDao {
                 year_created
             FROM auctions
             """;
+    private static final String FIND_ALL_BID_TRANSACTIONS_QUERY = """
+            SELECT id, auction_id, bidder_id, amount, bid_time
+            FROM bid_transactions
+            ORDER BY auction_id ASC, bid_time ASC, id ASC
+            """;
     private static final String CREATE_AUCTION_QUERY = """
             INSERT INTO auctions (
                 id,
@@ -99,6 +116,10 @@ public class JdbcAuctionDao implements AuctionDao {
                 author,
                 year_created
             ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """;
+    private static final String INSERT_BID_TRANSACTION_QUERY = """
+            INSERT INTO bid_transactions (id, auction_id, bidder_id, amount, bid_time)
+            VALUES (?, ?, ?, ?, ?)
             """;
     private static final String UPDATE_AUCTION_STATE_QUERY = """
             UPDATE auctions
@@ -146,17 +167,22 @@ public class JdbcAuctionDao implements AuctionDao {
 
     public JdbcAuctionDao(DatabaseService databaseService) {
         this.databaseService = databaseService;
-        ensureAuctionsTable();
+        ensureAuctionsSchema();
     }
 
     @Override
     public List<Auction> findAllAuctions() {
         List<Auction> auctions = new ArrayList<>();
         try (Connection connection = databaseService.getConnection();
-             PreparedStatement statement = connection.prepareStatement(FIND_ALL_AUCTIONS_QUERY);
-             ResultSet resultSet = statement.executeQuery()) {
-            while (resultSet.next()) {
-                auctions.add(mapAuction(resultSet));
+             PreparedStatement statement = connection.prepareStatement(FIND_ALL_AUCTIONS_QUERY)) {
+            try (ResultSet resultSet = statement.executeQuery()) {
+                while (resultSet.next()) {
+                    auctions.add(mapAuction(resultSet));
+                }
+            }
+            Map<String, List<BidTransaction>> bidsByAuctionId = findAllBidTransactions(connection);
+            for (Auction auction : auctions) {
+                auction.restoreBidHistory(bidsByAuctionId.get(auction.getId()));
             }
         } catch (SQLException e) {
             throw new DatabaseException("Failed to load auctions.", e);
@@ -199,6 +225,29 @@ public class JdbcAuctionDao implements AuctionDao {
             return bindAuctionState(statement, auction).executeUpdate() == 1;
         } catch (SQLException e) {
             throw new DatabaseException("Failed to update auction state.", e);
+        }
+    }
+
+    @Override
+    public boolean recordBid(Auction auction, BidTransaction bid) {
+        try (Connection connection = databaseService.getConnection()) {
+            boolean previousAutoCommit = connection.getAutoCommit();
+            connection.setAutoCommit(false);
+            try {
+                if (!updateAuctionState(connection, auction) || !insertBidTransaction(connection, bid)) {
+                    connection.rollback();
+                    return false;
+                }
+                connection.commit();
+                return true;
+            } catch (SQLException | RuntimeException e) {
+                connection.rollback();
+                throw e;
+            } finally {
+                connection.setAutoCommit(previousAutoCommit);
+            }
+        } catch (SQLException e) {
+            throw new DatabaseException("Failed to record bid.", e);
         }
     }
 
@@ -256,6 +305,17 @@ public class JdbcAuctionDao implements AuctionDao {
     private boolean updateAuctionState(Connection connection, Auction auction) throws SQLException {
         try (PreparedStatement statement = connection.prepareStatement(UPDATE_AUCTION_STATE_QUERY)) {
             return bindAuctionState(statement, auction).executeUpdate() == 1;
+        }
+    }
+
+    private boolean insertBidTransaction(Connection connection, BidTransaction bid) throws SQLException {
+        try (PreparedStatement statement = connection.prepareStatement(INSERT_BID_TRANSACTION_QUERY)) {
+            statement.setString(1, bid.getId());
+            statement.setString(2, bid.getAuctionId());
+            statement.setString(3, bid.getBidderId());
+            statement.setBigDecimal(4, bid.getAmount());
+            statement.setTimestamp(5, Timestamp.valueOf(bid.getTimestamp()));
+            return statement.executeUpdate() == 1;
         }
     }
 
@@ -341,6 +401,11 @@ public class JdbcAuctionDao implements AuctionDao {
         return value == null ? "" : value.trim().toLowerCase();
     }
 
+    private void ensureAuctionsSchema() {
+        ensureAuctionsTable();
+        ensureBidTransactionsTable();
+    }
+
     private void ensureAuctionsTable() {
         try (Connection connection = databaseService.getConnection();
              Statement statement = connection.createStatement()) {
@@ -348,6 +413,27 @@ public class JdbcAuctionDao implements AuctionDao {
         } catch (SQLException e) {
             throw new DatabaseException("Failed to create auctions table.", e);
         }
+    }
+
+    private void ensureBidTransactionsTable() {
+        try (Connection connection = databaseService.getConnection();
+             Statement statement = connection.createStatement()) {
+            statement.executeUpdate(CREATE_BID_TRANSACTIONS_TABLE_QUERY);
+        } catch (SQLException e) {
+            throw new DatabaseException("Failed to create bid transactions table.", e);
+        }
+    }
+
+    private Map<String, List<BidTransaction>> findAllBidTransactions(Connection connection) throws SQLException {
+        Map<String, List<BidTransaction>> bidsByAuctionId = new HashMap<>();
+        try (PreparedStatement statement = connection.prepareStatement(FIND_ALL_BID_TRANSACTIONS_QUERY);
+             ResultSet resultSet = statement.executeQuery()) {
+            while (resultSet.next()) {
+                BidTransaction bid = mapBidTransaction(resultSet);
+                bidsByAuctionId.computeIfAbsent(bid.getAuctionId(), ignored -> new ArrayList<>()).add(bid);
+            }
+        }
+        return bidsByAuctionId;
     }
 
     private Auction mapAuction(ResultSet resultSet) throws SQLException {
@@ -372,6 +458,20 @@ public class JdbcAuctionDao implements AuctionDao {
                 resultSet.getString("leading_bidder_id"),
                 winnerBidderId,
                 parseAuctionStatus(resultSet.getString("status"), winnerBidderId)
+        );
+    }
+
+    private BidTransaction mapBidTransaction(ResultSet resultSet) throws SQLException {
+        Timestamp bidTimestamp = resultSet.getTimestamp("bid_time");
+        if (bidTimestamp == null) {
+            throw new DatabaseException("Bid timestamp cannot be null.", new IllegalStateException());
+        }
+        return new BidTransaction(
+                resultSet.getString("id"),
+                resultSet.getBigDecimal("amount"),
+                bidTimestamp.toLocalDateTime(),
+                resultSet.getString("bidder_id"),
+                resultSet.getString("auction_id")
         );
     }
 

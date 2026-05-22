@@ -359,7 +359,7 @@ public final class AuctionService {
             }
         }
 
-        persistAuctionState(auction);
+        persistAcceptedBid(auction, bid);
         return previousLeadingBidderId;
     }
 
@@ -499,6 +499,20 @@ public final class AuctionService {
             throw new AuctionAppException("Failed to persist auction state.");
         }
         throw new AuctionAppException("Auction state could not be persisted.");
+    }
+
+    private void persistAcceptedBid(Auction auction, BidTransaction bid) {
+        if (auctionDao == null) {
+            return;
+        }
+        try {
+            if (auctionDao.recordBid(auction, bid)) {
+                return;
+            }
+        } catch (DatabaseException e) {
+            throw new AuctionAppException("Failed to persist bid.");
+        }
+        throw new AuctionAppException("Bid could not be persisted.");
     }
 
     private void persistAuctionDetails(Auction auction) {
