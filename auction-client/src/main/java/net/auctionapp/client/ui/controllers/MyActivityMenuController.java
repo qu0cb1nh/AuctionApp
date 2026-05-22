@@ -12,7 +12,6 @@ import javafx.scene.control.ComboBox;
 import javafx.scene.control.Label;
 import javafx.scene.control.TextField;
 import javafx.scene.input.MouseEvent;
-import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.VBox;
 import net.auctionapp.client.ClientApp;
@@ -62,8 +61,6 @@ public class MyActivityMenuController implements Initializable {
     @FXML
     private HeaderController appHeaderController;
     @FXML
-    private BorderPane rootPane;
-    @FXML
     private VBox bidActivityFlowPane;
     @FXML
     private VBox sellerActivityFlowPane;
@@ -95,7 +92,7 @@ public class MyActivityMenuController implements Initializable {
 
     @Override
     public void initialize(URL location, ResourceBundle resources) {
-        appHeaderController.setupHeader("Activity", true);
+        appHeaderController.setupHeader("Activity");
 
         statusFilterComboBox.getItems().setAll(
                 STATUS_ALL,
@@ -110,11 +107,6 @@ public class MyActivityMenuController implements Initializable {
         );
         statusFilterComboBox.getSelectionModel().selectFirst();
         setActiveSection(ActivitySection.BIDS);
-        rootPane.sceneProperty().addListener((observable, oldScene, newScene) -> {
-            if (oldScene != null) {
-                // No persistent request handlers to clean up.
-            }
-        });
 
         loadActivity();
     }

@@ -23,7 +23,7 @@ public class DashboardMenuController implements Initializable {
 
     @Override
     public void initialize(URL location, ResourceBundle resources) {
-        appHeaderController.setupHeader("Dashboard", true);
+        appHeaderController.setupHeader("Dashboard");
 
         ClientSession session = ClientSession.getInstance();
         String username = session.getUsername();

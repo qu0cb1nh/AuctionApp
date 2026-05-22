@@ -18,14 +18,10 @@ public final class UserRoleUtil {
     }
 
     public static String toDatabaseRole(User user) {
-        return hasAdminRole(user == null ? null : user.getRole()) ? ADMIN_ROLE : USER_ROLE;
+        return user != null && user.getRole() == UserRole.ADMIN ? ADMIN_ROLE : USER_ROLE;
     }
 
     public static UserRole toClientRole(User user) {
-        return hasAdminRole(user == null ? null : user.getRole()) ? UserRole.ADMIN : UserRole.USER;
-    }
-
-    private static boolean hasAdminRole(UserRole role) {
-        return role == UserRole.ADMIN;
+        return user != null && user.getRole() == UserRole.ADMIN ? UserRole.ADMIN : UserRole.USER;
     }
 }

@@ -97,7 +97,7 @@ public class CreateAuctionMenuController implements Initializable {
 
     @Override
     public void initialize(URL location, ResourceBundle resources) {
-        appHeaderController.setupHeader("Create Auction", true);
+        appHeaderController.setupHeader("Create Auction");
 
         categoryComboBox.setItems(FXCollections.observableArrayList(ItemType.values()));
         categoryComboBox.getSelectionModel().select(ItemType.ELECTRONICS);

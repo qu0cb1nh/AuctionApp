@@ -14,13 +14,12 @@ import javafx.scene.control.Label;
 import javafx.scene.control.TextField;
 import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
-import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.VBox;
 import javafx.util.Duration;
 import net.auctionapp.client.ClientApp;
 import net.auctionapp.client.services.AuctionService;
 import net.auctionapp.client.ClientSession;
-import net.auctionapp.client.services.MessageListener;
+import net.auctionapp.client.ui.managers.SceneManager;
 import net.auctionapp.common.messages.Message;
 import net.auctionapp.common.messages.MessageType;
 import net.auctionapp.common.messages.types.AuctionDetailsResponseMessage;
@@ -41,8 +40,6 @@ import java.util.ResourceBundle;
 public class AuctionItemMenuController implements Initializable {
     @FXML
     private HeaderController appHeaderController;
-    @FXML
-    private BorderPane rootPane;
     @FXML
     private ImageView productImageView;
     @FXML
@@ -81,7 +78,7 @@ public class AuctionItemMenuController implements Initializable {
 
     @Override
     public void initialize(URL location, ResourceBundle resources) {
-        appHeaderController.setupHeader("Auction Details", true);
+        appHeaderController.setupHeader("Auction Details");
         messageLabel.setText("");
         placeBidButton.setDisable(true);
         auctionStatusLabel.setText("N/A");
@@ -89,12 +86,6 @@ public class AuctionItemMenuController implements Initializable {
         priceHistoryChart.getData().clear();
         priceSeries.setName("Bid price");
         priceHistoryChart.getData().add(priceSeries);
-
-        rootPane.sceneProperty().addListener((observable, oldScene, newScene) -> {
-            if (oldScene != null) {
-                cleanupEventListeners();
-            }
-        });
 
         currentAuctionId = ClientApp.getInstance().getSelectedAuctionId();
         if (currentAuctionId == null || currentAuctionId.isBlank()) {

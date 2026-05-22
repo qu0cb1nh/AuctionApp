@@ -10,7 +10,6 @@ import javafx.fxml.FXMLLoader;
 import javafx.fxml.Initializable;
 import javafx.scene.control.Label;
 import javafx.scene.control.TextField;
-import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.VBox;
 import net.auctionapp.client.ClientApp;
@@ -45,8 +44,6 @@ public class PurchasesMenuController implements Initializable {
     @FXML
     private HeaderController appHeaderController;
     @FXML
-    private BorderPane rootPane;
-    @FXML
     private VBox purchaseFlowPane;
     @FXML
     private TextField searchField;
@@ -61,14 +58,9 @@ public class PurchasesMenuController implements Initializable {
 
     @Override
     public void initialize(URL location, ResourceBundle resources) {
-        appHeaderController.setupHeader("Purchases", true);
+        appHeaderController.setupHeader("Purchases");
         summaryLabel.setManaged(false);
         summaryLabel.setVisible(false);
-        rootPane.sceneProperty().addListener((observable, oldScene, newScene) -> {
-            if (oldScene != null) {
-                // No persistent request handlers to clean up.
-            }
-        });
 
         loadPurchases();
     }
@@ -81,10 +73,6 @@ public class PurchasesMenuController implements Initializable {
     @FXML
     public void handleFilterChanged() {
         applyFilters();
-    }
-
-    private void cleanupHandlers() {
-        // Deprecated: request/response now uses sendRequest with correlation IDs.
     }
 
     private void loadPurchases() {

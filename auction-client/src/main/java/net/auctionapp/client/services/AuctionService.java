@@ -1,14 +1,12 @@
 package net.auctionapp.client.services;
 
 import net.auctionapp.common.messages.Message;
-import net.auctionapp.common.messages.MessageType;
 import net.auctionapp.common.messages.types.BidRequestMessage;
 import net.auctionapp.common.messages.types.CancelAuctionRequestMessage;
 import net.auctionapp.common.messages.types.CloseAuctionRequestMessage;
 import net.auctionapp.common.messages.types.CreateItemRequestMessage;
 import net.auctionapp.common.messages.types.GetAuctionDetailsRequestMessage;
 import net.auctionapp.common.messages.types.GetAuctionListRequestMessage;
-import net.auctionapp.common.messages.types.PriceUpdateMessage;
 import net.auctionapp.common.messages.types.UpdateAuctionRequestMessage;
 
 import java.math.BigDecimal;
@@ -49,13 +47,5 @@ public final class AuctionService {
 
     public void placeBid(String auctionId, BigDecimal amount, MessageListener<Message> callback) {
         NetworkService.getInstance().sendRequest(new BidRequestMessage(auctionId, amount), callback);
-    }
-
-    public void addPriceUpdateListener(MessageListener<PriceUpdateMessage> listener) {
-        NetworkService.getInstance().addMessageListener(MessageType.PRICE_UPDATE, listener);
-    }
-
-    public void removePriceUpdateListener(MessageListener<PriceUpdateMessage> listener) {
-        NetworkService.getInstance().removeMessageListener(MessageType.PRICE_UPDATE, listener);
     }
 }

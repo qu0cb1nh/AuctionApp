@@ -5,7 +5,6 @@ import net.auctionapp.client.services.AuthService;
 import net.auctionapp.client.services.MessageListener;
 import net.auctionapp.client.services.NetworkService;
 import net.auctionapp.client.config.ClientConfig;
-import net.auctionapp.client.services.NotificationService;
 import net.auctionapp.client.ui.managers.SceneManager;
 import net.auctionapp.client.ui.managers.NotificationToastManager;
 import net.auctionapp.common.messages.Message;
@@ -54,7 +53,7 @@ public final class AppLifecycleManager {
         LOGGER.info("Shutting down application...");
         stopConnectionMonitor();
         if (notificationPushListener != null) {
-            NotificationService.getInstance().removeNotificationListener(notificationPushListener);
+            networkService.removeMessageListener(MessageType.NOTIFICATION, notificationPushListener);
             notificationPushListener = null;
         }
         if (errorListener != null) {
@@ -79,7 +78,7 @@ public final class AppLifecycleManager {
             return;
         }
         notificationPushListener = this::handleGlobalNotificationPush;
-        NotificationService.getInstance().addNotificationListener(notificationPushListener);
+        networkService.addMessageListener(MessageType.NOTIFICATION, notificationPushListener);
         errorListener = this::handleGlobalErrorMessage;
         networkService.addMessageListener(MessageType.ERROR, errorListener);
     }
