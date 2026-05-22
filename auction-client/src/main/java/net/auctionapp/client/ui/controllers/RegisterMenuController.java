@@ -72,7 +72,7 @@ public class RegisterMenuController implements Initializable {
 
         if (message.getType() == MessageType.REGISTER_SUCCESS) {
             assistantPanelController.speak(result.getMessage(), "#27ae60");
-            SceneManager.switchSceneWithDelay("LoginMenu.fxml", 1500);
+            SceneManager.resetAndSwitchSceneWithDelay("LoginMenu.fxml", 1500);
         } else if (message.getType() == MessageType.REGISTER_FAILURE) {
             assistantPanelController.speak(result.getMessage(), "#e74c3c");
         }
@@ -80,6 +80,6 @@ public class RegisterMenuController implements Initializable {
 
     @FXML
     public void switchToLogin(MouseEvent event) {
-        SceneManager.switchScene("LoginMenu.fxml");
+        SceneManager.resetAndSwitchScene("LoginMenu.fxml");
     }
 }

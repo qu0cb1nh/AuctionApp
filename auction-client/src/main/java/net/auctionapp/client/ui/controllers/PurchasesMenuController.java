@@ -8,7 +8,6 @@ import javafx.event.ActionEvent;
 import javafx.fxml.FXML;
 import javafx.fxml.FXMLLoader;
 import javafx.fxml.Initializable;
-import javafx.scene.control.ComboBox;
 import javafx.scene.control.Label;
 import javafx.scene.control.TextField;
 import javafx.scene.layout.BorderPane;
@@ -42,9 +41,6 @@ import java.util.Set;
 public class PurchasesMenuController implements Initializable {
     private static final DateTimeFormatter CARD_TIME_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm");
     private static final String STATUS_TEXT_STYLE = "-fx-text-fill: #666666;";
-    private static final String STATUS_ALL = "All";
-    private static final String STATUS_PENDING_PAYMENT = "PENDING_PAYMENT";
-    private static final String STATUS_PAID = "PAID";
 
     @FXML
     private HeaderController appHeaderController;
@@ -54,8 +50,6 @@ public class PurchasesMenuController implements Initializable {
     private VBox purchaseFlowPane;
     @FXML
     private TextField searchField;
-    @FXML
-    private ComboBox<String> statusFilterComboBox;
     @FXML
     private Label statusLabel;
     @FXML
@@ -67,9 +61,7 @@ public class PurchasesMenuController implements Initializable {
 
     @Override
     public void initialize(URL location, ResourceBundle resources) {
-        appHeaderController.setupHeader("Purchases", true, "MainMenu.fxml");
-        statusFilterComboBox.getItems().setAll(STATUS_ALL, STATUS_PENDING_PAYMENT, STATUS_PAID);
-        statusFilterComboBox.getSelectionModel().selectFirst();
+        appHeaderController.setupHeader("Purchases", true);
         summaryLabel.setManaged(false);
         summaryLabel.setVisible(false);
         rootPane.sceneProperty().addListener((observable, oldScene, newScene) -> {
@@ -82,25 +74,12 @@ public class PurchasesMenuController implements Initializable {
     }
 
     @FXML
-    public void handleBack(ActionEvent event) {
-        cleanupHandlers();
-        SceneManager.switchScene("MainMenu.fxml");
-    }
-
-    @FXML
     public void handleRefresh(ActionEvent event) {
         loadPurchases();
     }
 
     @FXML
     public void handleFilterChanged() {
-        applyFilters();
-    }
-
-    @FXML
-    public void handleClearFilters(ActionEvent event) {
-        searchField.clear();
-        statusFilterComboBox.getSelectionModel().selectFirst();
         applyFilters();
     }
 
@@ -199,8 +178,7 @@ public class PurchasesMenuController implements Initializable {
         allPurchases.clear();
         allPurchases.addAll(
                 loadedPurchases.stream()
-                        .sorted(Comparator.comparingInt(this::statusPriority)
-                                .thenComparing(PurchaseCard::endTime, Comparator.nullsLast(Comparator.reverseOrder()))
+                        .sorted(Comparator.comparing(PurchaseCard::endTime, Comparator.nullsLast(Comparator.reverseOrder()))
                                 .thenComparing(PurchaseCard::title, String.CASE_INSENSITIVE_ORDER))
                         .toList()
         );
@@ -213,13 +191,9 @@ public class PurchasesMenuController implements Initializable {
 
     private void applyFilters() {
         String search = searchField.getText() == null ? "" : searchField.getText().trim().toLowerCase(Locale.ROOT);
-        String selectedStatus = statusFilterComboBox.getSelectionModel().getSelectedItem();
 
         List<PurchaseCard> filtered = allPurchases.stream()
                 .filter(purchase -> search.isBlank() || purchase.title().toLowerCase(Locale.ROOT).contains(search))
-                .filter(purchase -> selectedStatus == null
-                        || STATUS_ALL.equals(selectedStatus)
-                        || purchase.purchaseStatus().equalsIgnoreCase(selectedStatus))
                 .toList();
 
         renderPurchaseCards(filtered, !allPurchases.isEmpty());
@@ -230,7 +204,7 @@ public class PurchasesMenuController implements Initializable {
         purchaseFlowPane.getChildren().clear();
         if (purchases.isEmpty()) {
             Label emptyLabel = new Label(hasAnyPurchases
-                    ? "No purchases match your current filters."
+                    ? "No purchases match your search."
                     : "You do not have any purchases yet.");
             emptyLabel.setStyle("-fx-font-size: 14px; -fx-font-weight: bold; -fx-text-fill: #4a5f73;");
             purchaseFlowPane.getChildren().add(emptyLabel);
@@ -242,23 +216,20 @@ public class PurchasesMenuController implements Initializable {
     }
 
     private HBox loadPurchaseCard(PurchaseCard purchase) {
-        String actionHint = STATUS_PENDING_PAYMENT.equalsIgnoreCase(purchase.purchaseStatus())
-                ? "Action needed: complete payment."
-                : "Payment completed.";
         AuctionCardController.CardData cardData = new AuctionCardController.CardData(
                 purchase.imageUrl(),
                 purchase.title(),
-                "Order status: " + purchase.purchaseStatus(),
-                statusColor(purchase.purchaseStatus()),
+                "Item won",
+                "#1f8f4c",
                 "Seller: " + safeText(purchase.sellerId()),
                 "Ended at: " + formatEndTime(purchase.endTime()),
                 null,
                 "Final Price",
                 formatMoney(purchase.finalPrice()),
                 "#0057ff",
-                "Payment",
-                actionHint,
-                statusColor(purchase.purchaseStatus()),
+                "Ownership",
+                "Item received automatically.",
+                "#1f8f4c",
                 "",
                 "",
                 "#1f2933",
@@ -293,19 +264,19 @@ public class PurchasesMenuController implements Initializable {
             return Optional.empty();
         }
         if (response.getWinnerBidderId() == null || !response.getWinnerBidderId().equalsIgnoreCase(currentUserId)) {
+            if (!isEndedWinningBid(response, currentUserId)) {
+                return Optional.empty();
+            }
+        }
+        if (!isCompletedAuction(response)) {
             return Optional.empty();
         }
 
-        String purchaseStatus = derivePurchaseStatus(response);
-        if (purchaseStatus == null) {
-            return Optional.empty();
-        }
         return Optional.of(new PurchaseCard(
                 response.getAuctionId(),
                 response.getTitle(),
                 response.getSellerId(),
                 response.getCurrentPrice(),
-                purchaseStatus,
                 response.getEndTime(),
                 response.getImageUrl()
         ));
@@ -318,32 +289,26 @@ public class PurchasesMenuController implements Initializable {
         return ClientSession.getInstance().getUserId();
     }
 
-    private String derivePurchaseStatus(AuctionDetailsResponseMessage response) {
+    private boolean isCompletedAuction(AuctionDetailsResponseMessage response) {
         if (response == null || response.getStatus() == null) {
-            return null;
+            return false;
         }
         AuctionStatus status = response.getStatus();
         if (status == AuctionStatus.PAID) {
-            return STATUS_PAID;
+            return true;
         }
-        if (status == AuctionStatus.RUNNING
+        return status == AuctionStatus.RUNNING
                 && response.getEndTime() != null
-                && !LocalDateTime.now().isBefore(response.getEndTime())) {
-            return STATUS_PENDING_PAYMENT;
-        }
-        return null;
+                && !LocalDateTime.now().isBefore(response.getEndTime());
     }
 
-    private int statusPriority(PurchaseCard card) {
-        return STATUS_PENDING_PAYMENT.equals(card.purchaseStatus()) ? 0 : 1;
-    }
-
-    private String statusColor(String status) {
-        return switch (status) {
-            case STATUS_PENDING_PAYMENT -> "#c13c21";
-            case STATUS_PAID -> "#1f8f4c";
-            default -> "#3f5569";
-        };
+    private boolean isEndedWinningBid(AuctionDetailsResponseMessage response, String currentUserId) {
+        return response != null
+                && currentUserId != null
+                && !currentUserId.isBlank()
+                && response.getLeadingBidderId() != null
+                && response.getLeadingBidderId().equalsIgnoreCase(currentUserId)
+                && isCompletedAuction(response);
     }
 
     private String formatMoney(BigDecimal amount) {
@@ -372,7 +337,6 @@ public class PurchasesMenuController implements Initializable {
             String title,
             String sellerId,
             BigDecimal finalPrice,
-            String purchaseStatus,
             LocalDateTime endTime,
             String imageUrl
     ) {

@@ -66,7 +66,7 @@ public class AuctionListMenuController implements Initializable {
     @FXML
     @Override
     public void initialize(URL location, ResourceBundle resources) {
-        appHeaderController.setupHeader("Explore Auctions", true, "MainMenu.fxml");
+        appHeaderController.setupHeader("Explore Auctions", true);
         adminUser = ClientSession.getInstance().isAdmin();
         statusFilterComboBox.getItems().setAll(
                 STATUS_ALL,
@@ -122,14 +122,6 @@ public class AuctionListMenuController implements Initializable {
     @FXML
     public void handleRefresh(ActionEvent event) {
         requestAuctionList();
-    }
-
-    @FXML
-    public void handleClearFilters(ActionEvent event) {
-        searchField.clear();
-        statusFilterComboBox.getSelectionModel().select("RUNNING");
-        sortComboBox.getSelectionModel().select(SORT_ENDING_SOON);
-        applyFilters();
     }
 
     private void applyFilters() {

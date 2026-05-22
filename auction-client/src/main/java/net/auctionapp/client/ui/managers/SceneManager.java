@@ -10,22 +10,57 @@ import net.auctionapp.client.utils.ResourcesUtil;
 
 import java.io.IOException;
 import java.net.URL;
+import java.util.ArrayDeque;
+import java.util.Deque;
 import java.util.Objects;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 
 public final class SceneManager {
+    private static final Deque<String> BACK_STACK = new ArrayDeque<>();
     private static final ScheduledExecutorService SCHEDULER = Executors.newSingleThreadScheduledExecutor(r -> {
         Thread t = new Thread(r, "SceneManager-Scheduler");
         t.setDaemon(true);
         return t;
     });
+    private static String currentFxmlFile;
 
     private SceneManager() {
     }
 
     public static void switchScene(String fxmlFile) {
+        if (currentFxmlFile != null && !currentFxmlFile.equals(fxmlFile)) {
+            BACK_STACK.push(currentFxmlFile);
+        }
+        loadScene(fxmlFile);
+    }
+
+    public static void resetAndSwitchScene(String fxmlFile) {
+        BACK_STACK.clear();
+        loadScene(fxmlFile);
+    }
+
+    public static boolean canGoBack() {
+        return !BACK_STACK.isEmpty();
+    }
+
+    public static void goBack() {
+        if (!canGoBack()) {
+            return;
+        }
+        loadScene(BACK_STACK.pop());
+    }
+
+    public static void goBackOrSwitchScene(String fallbackFxmlFile) {
+        if (canGoBack()) {
+            goBack();
+            return;
+        }
+        resetAndSwitchScene(fallbackFxmlFile);
+    }
+
+    private static void loadScene(String fxmlFile) {
         Objects.requireNonNull(fxmlFile, "fxmlFile");
 
         Stage stage = ClientApp.getPrimaryStage();
@@ -35,6 +70,8 @@ public final class SceneManager {
 
         requireFxmlFilename(fxmlFile);
         URL resource = ResourcesUtil.fxml(fxmlFile);
+
+        currentFxmlFile = fxmlFile;
 
         Parent root = loadRoot(resource, fxmlFile);
         Parent wrappedRoot = NotificationToastManager.wrapWithNotificationHost(root);
@@ -51,6 +88,15 @@ public final class SceneManager {
         Objects.requireNonNull(fxmlFile, "fxmlFile");
         SCHEDULER.schedule(
                 () -> Platform.runLater(() -> switchScene(fxmlFile)),
+                delayMillis,
+                TimeUnit.MILLISECONDS
+        );
+    }
+
+    public static void resetAndSwitchSceneWithDelay(String fxmlFile, long delayMillis) {
+        Objects.requireNonNull(fxmlFile, "fxmlFile");
+        SCHEDULER.schedule(
+                () -> Platform.runLater(() -> resetAndSwitchScene(fxmlFile)),
                 delayMillis,
                 TimeUnit.MILLISECONDS
         );

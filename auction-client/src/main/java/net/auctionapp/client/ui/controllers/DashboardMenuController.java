@@ -13,7 +13,7 @@ import net.auctionapp.client.ui.managers.SceneManager;
 import java.net.URL;
 import java.util.ResourceBundle;
 
-public class MainMenuController implements Initializable {
+public class DashboardMenuController implements Initializable {
     @FXML
     private HeaderController appHeaderController;
     @FXML
@@ -23,7 +23,7 @@ public class MainMenuController implements Initializable {
 
     @Override
     public void initialize(URL location, ResourceBundle resources) {
-        appHeaderController.setupHeader("Dashboard", false, null);
+        appHeaderController.setupHeader("Dashboard", true);
 
         ClientSession session = ClientSession.getInstance();
         String username = session.getUsername();

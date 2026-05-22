@@ -71,7 +71,7 @@ public class MyBidsMenuController implements Initializable {
 
     @Override
     public void initialize(URL location, ResourceBundle resources) {
-        appHeaderController.setupHeader("My Bids", true, "MainMenu.fxml");
+        appHeaderController.setupHeader("My Bids", true);
 
         statusFilterComboBox.getItems().setAll(
                 STATUS_ALL,

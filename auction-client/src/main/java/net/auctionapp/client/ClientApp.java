@@ -1,14 +1,8 @@
 package net.auctionapp.client;
 
 import javafx.application.Application;
-import javafx.fxml.FXMLLoader;
-import javafx.scene.Parent;
-import javafx.scene.Scene;
 import javafx.stage.Stage;
-import net.auctionapp.client.ui.managers.NotificationToastManager;
-import net.auctionapp.client.utils.ResourcesUtil;
-
-import java.io.IOException;
+import net.auctionapp.client.ui.managers.SceneManager;
 
 public class ClientApp extends Application {
     public static final double WINDOW_WIDTH = 1067;
@@ -39,15 +33,9 @@ public class ClientApp extends Application {
     }
 
     @Override
-    public void start(Stage stage) throws IOException {
+    public void start(Stage stage) {
         primaryStage = stage;
-        AppLifecycleManager.getInstance().start();
-
-        FXMLLoader loader = ResourcesUtil.fxmlLoader("LoginMenu.fxml");
-        Parent root = loader.load();
-        Scene scene = new Scene(NotificationToastManager.wrapWithNotificationHost(root), WINDOW_WIDTH, WINDOW_HEIGHT);
         primaryStage.setTitle("Auction App");
-        primaryStage.setScene(scene);
         primaryStage.setWidth(WINDOW_WIDTH);
         primaryStage.setHeight(WINDOW_HEIGHT);
         primaryStage.setMinWidth(WINDOW_WIDTH);
@@ -55,7 +43,9 @@ public class ClientApp extends Application {
         primaryStage.setMinHeight(WINDOW_HEIGHT);
         primaryStage.setMaxHeight(WINDOW_HEIGHT);
         primaryStage.setResizable(false);
-        primaryStage.show();
+
+        AppLifecycleManager.getInstance().start();
+        SceneManager.resetAndSwitchScene("LoginMenu.fxml");
     }
 
     @Override

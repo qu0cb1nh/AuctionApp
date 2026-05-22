@@ -86,7 +86,7 @@ public class NotificationsMenuController implements Initializable {
 
     @Override
     public void initialize(URL location, ResourceBundle resources) {
-        appHeaderController.setupHeader("Notifications", true, "MainMenu.fxml");
+        appHeaderController.setupHeader("Notifications", true);
 
         filterLabels = new Label[]{
                 filterLabelAll, filterLabelBids, filterLabelMyAuctions, filterLabelSystem, filterLabelResults

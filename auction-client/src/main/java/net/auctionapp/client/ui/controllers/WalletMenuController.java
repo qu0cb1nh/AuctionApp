@@ -45,7 +45,7 @@ public class WalletMenuController implements Initializable {
 
     @Override
     public void initialize(URL location, ResourceBundle resources) {
-        appHeaderController.setupHeader("Wallet", true, "MainMenu.fxml");
+        appHeaderController.setupHeader("Wallet", true);
         updateBalanceDisplay();
         requestWallet();
     }
