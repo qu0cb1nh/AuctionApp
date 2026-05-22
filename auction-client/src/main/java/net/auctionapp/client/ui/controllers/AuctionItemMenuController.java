@@ -2,6 +2,8 @@ package net.auctionapp.client.ui.controllers;
 
 import net.auctionapp.client.ui.controllers.components.HeaderController;
 
+import javafx.animation.KeyFrame;
+import javafx.animation.Timeline;
 import javafx.event.ActionEvent;
 import javafx.fxml.FXML;
 import javafx.fxml.Initializable;
@@ -14,6 +16,7 @@ import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.VBox;
+import javafx.util.Duration;
 import net.auctionapp.client.ClientApp;
 import net.auctionapp.client.services.AuctionService;
 import net.auctionapp.client.ClientSession;
@@ -30,7 +33,6 @@ import net.auctionapp.common.utils.MoneyUtil;
 
 import java.math.BigDecimal;
 import java.net.URL;
-import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Locale;
@@ -74,6 +76,8 @@ public class AuctionItemMenuController implements Initializable {
     private final XYChart.Series<String, Number> priceSeries = new XYChart.Series<>();
     private MessageListener<PriceUpdateMessage> priceUpdateListener;
     private boolean priceUpdateListenerRegistered;
+    private LocalDateTime auctionEndTime;
+    private Timeline countdownTimeline;
 
     @Override
     public void initialize(URL location, ResourceBundle resources) {
@@ -100,6 +104,7 @@ public class AuctionItemMenuController implements Initializable {
         }
 
         registerEventListeners();
+        startCountdownTimer();
         requestAuctionDetails();
     }
 
@@ -137,6 +142,7 @@ public class AuctionItemMenuController implements Initializable {
             AuctionService.getInstance().removePriceUpdateListener(priceUpdateListener);
         }
         priceUpdateListenerRegistered = false;
+        stopCountdownTimer();
     }
 
     private void requestAuctionDetails() {
@@ -164,9 +170,7 @@ public class AuctionItemMenuController implements Initializable {
         currentBidLabel.setText("$" + currentHighestBid.toPlainString());
         minimumNextBidLabel.setText("$" + minimumNextBid.stripTrailingZeros().toPlainString());
         leadingBidderLabel.setText(formatTopBidder(response.getLeadingBidderId()));
-        LocalDateTime auctionEndTime = response.getEndTime();
-        timeRemainingLabel.setText(formatTimeRemaining(auctionEndTime));
-        updateTimeRemainingStyle(auctionEndTime);
+        setAuctionEndTime(response.getEndTime());
         updateAuctionStatusLabel(response);
         renderBidHistory(response.getBidHistory());
         updateBidControls(response);
@@ -190,6 +194,7 @@ public class AuctionItemMenuController implements Initializable {
                 currentHighestBid = result.getCurrentPrice();
                 currentBidLabel.setText("$" + currentHighestBid.toPlainString());
             }
+            setAuctionEndTime(result.getEndTime());
             setSuccessMessage(result.getMessage());
             bidAmountField.clear();
             requestAuctionDetails();
@@ -209,6 +214,7 @@ public class AuctionItemMenuController implements Initializable {
         currentHighestBid = BigDecimal.valueOf(update.getNewPrice());
         currentBidLabel.setText("$" + currentHighestBid.toPlainString());
         leadingBidderLabel.setText(formatTopBidder(update.getLeadingUserName()));
+        setAuctionEndTime(update.getEndTime());
         requestAuctionDetails();
         setInfoMessage("New highest bid by " + update.getLeadingUserName());
     }
@@ -298,7 +304,7 @@ public class AuctionItemMenuController implements Initializable {
         if (endTime == null) {
             return "N/A";
         }
-        Duration duration = Duration.between(LocalDateTime.now(), endTime);
+        java.time.Duration duration = java.time.Duration.between(LocalDateTime.now(), endTime);
         if (duration.isNegative() || duration.isZero()) {
             return "Ended";
         }
@@ -321,7 +327,7 @@ public class AuctionItemMenuController implements Initializable {
             timeRemainingLabel.setStyle("-fx-font-size: 16px; -fx-font-weight: bold; -fx-text-fill: #333333;");
             return;
         }
-        Duration remaining = Duration.between(LocalDateTime.now(), endTime);
+        java.time.Duration remaining = java.time.Duration.between(LocalDateTime.now(), endTime);
         if (remaining.isNegative() || remaining.isZero()) {
             timeRemainingLabel.setStyle("-fx-font-size: 16px; -fx-font-weight: bold; -fx-text-fill: #6b7280;");
             return;
@@ -376,6 +382,33 @@ public class AuctionItemMenuController implements Initializable {
     private boolean hasWinner(String leadingBidderId, String winnerBidderId) {
         return (winnerBidderId != null && !winnerBidderId.isBlank())
                 || (leadingBidderId != null && !leadingBidderId.isBlank());
+    }
+
+    private void setAuctionEndTime(LocalDateTime endTime) {
+        if (endTime == null) {
+            return;
+        }
+        auctionEndTime = endTime;
+        refreshTimeRemaining();
+    }
+
+    private void startCountdownTimer() {
+        stopCountdownTimer();
+        countdownTimeline = new Timeline(new KeyFrame(Duration.seconds(1), event -> refreshTimeRemaining()));
+        countdownTimeline.setCycleCount(Timeline.INDEFINITE);
+        countdownTimeline.play();
+    }
+
+    private void stopCountdownTimer() {
+        if (countdownTimeline != null) {
+            countdownTimeline.stop();
+            countdownTimeline = null;
+        }
+    }
+
+    private void refreshTimeRemaining() {
+        timeRemainingLabel.setText(formatTimeRemaining(auctionEndTime));
+        updateTimeRemainingStyle(auctionEndTime);
     }
 
     private void setBidSectionVisible(boolean visible) {
