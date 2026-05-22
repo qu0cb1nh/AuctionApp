@@ -14,6 +14,7 @@ import javafx.scene.control.Label;
 import javafx.scene.control.TextField;
 import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
+import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.VBox;
 import javafx.util.Duration;
 import net.auctionapp.client.ClientApp;
@@ -40,6 +41,8 @@ import java.util.ResourceBundle;
 public class AuctionItemMenuController implements Initializable {
     @FXML
     private HeaderController appHeaderController;
+    @FXML
+    private BorderPane rootPane;
     @FXML
     private ImageView productImageView;
     @FXML
@@ -71,8 +74,6 @@ public class AuctionItemMenuController implements Initializable {
     private BigDecimal currentHighestBid = BigDecimal.ZERO;
     private BigDecimal minimumNextBid = BigDecimal.ZERO;
     private final XYChart.Series<String, Number> priceSeries = new XYChart.Series<>();
-    private MessageListener<PriceUpdateMessage> priceUpdateListener;
-    private boolean priceUpdateListenerRegistered;
     private LocalDateTime auctionEndTime;
     private Timeline countdownTimeline;
 
@@ -87,6 +88,11 @@ public class AuctionItemMenuController implements Initializable {
         priceSeries.setName("Bid price");
         priceHistoryChart.getData().add(priceSeries);
 
+        rootPane.sceneProperty().addListener((observable, oldScene, newScene) -> {
+            if (oldScene != null) {
+                stopCountdownTimer();
+            }
+        });
         currentAuctionId = ClientApp.getInstance().getSelectedAuctionId();
         if (currentAuctionId == null || currentAuctionId.isBlank()) {
             setErrorMessage("No auction selected.");
@@ -120,20 +126,7 @@ public class AuctionItemMenuController implements Initializable {
     }
 
     private void registerEventListeners() {
-        priceUpdateListener = this::handlePriceUpdate;
-        AuctionService.getInstance().addPriceUpdateListener(priceUpdateListener);
-        priceUpdateListenerRegistered = true;
-    }
-
-    private void cleanupEventListeners() {
-        if (!priceUpdateListenerRegistered) {
-            return;
-        }
-        if (priceUpdateListener != null) {
-            AuctionService.getInstance().removePriceUpdateListener(priceUpdateListener);
-        }
-        priceUpdateListenerRegistered = false;
-        stopCountdownTimer();
+        SceneManager.registerSceneMessageListener(MessageType.PRICE_UPDATE, this::handlePriceUpdate);
     }
 
     private void requestAuctionDetails() {
