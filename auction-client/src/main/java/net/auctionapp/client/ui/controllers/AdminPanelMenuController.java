@@ -92,7 +92,7 @@ public class AdminPanelMenuController implements Initializable {
 
     @Override
     public void initialize(URL location, ResourceBundle resources) {
-        appHeaderController.setupHeader("Admin Panel", true);
+        appHeaderController.setupHeader("Admin Panel");
         configureTables();
         boolean isAdmin = ClientSession.getInstance().isAdmin();
         if (!isAdmin) {

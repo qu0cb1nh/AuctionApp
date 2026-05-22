@@ -6,12 +6,18 @@ import javafx.scene.Parent;
 import javafx.scene.Scene;
 import javafx.stage.Stage;
 import net.auctionapp.client.ClientApp;
+import net.auctionapp.client.services.MessageListener;
+import net.auctionapp.client.services.NetworkService;
 import net.auctionapp.client.utils.ResourcesUtil;
+import net.auctionapp.common.messages.Message;
+import net.auctionapp.common.messages.MessageType;
 
 import java.io.IOException;
 import java.net.URL;
 import java.util.ArrayDeque;
+import java.util.ArrayList;
 import java.util.Deque;
+import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
@@ -19,6 +25,7 @@ import java.util.concurrent.TimeUnit;
 
 public final class SceneManager {
     private static final Deque<String> BACK_STACK = new ArrayDeque<>();
+    private static final List<Runnable> SCENE_LISTENER_CLEANUPS = new ArrayList<>();
     private static final ScheduledExecutorService SCHEDULER = Executors.newSingleThreadScheduledExecutor(r -> {
         Thread t = new Thread(r, "SceneManager-Scheduler");
         t.setDaemon(true);
@@ -41,23 +48,28 @@ public final class SceneManager {
         loadScene(fxmlFile);
     }
 
-    public static boolean canGoBack() {
-        return !BACK_STACK.isEmpty();
-    }
-
     public static void goBack() {
-        if (!canGoBack()) {
+        if (BACK_STACK.isEmpty()) {
             return;
         }
         loadScene(BACK_STACK.pop());
     }
 
     public static void goBackOrSwitchScene(String fallbackFxmlFile) {
-        if (canGoBack()) {
+        if (!BACK_STACK.isEmpty()) {
             goBack();
             return;
         }
         resetAndSwitchScene(fallbackFxmlFile);
+    }
+
+    public static <T extends Message> void registerSceneMessageListener(MessageType type, MessageListener<T> listener) {
+        Objects.requireNonNull(type, "type");
+        Objects.requireNonNull(listener, "listener");
+
+        NetworkService networkService = NetworkService.getInstance();
+        networkService.addMessageListener(type, listener);
+        SCENE_LISTENER_CLEANUPS.add(() -> networkService.removeMessageListener(type, listener));
     }
 
     private static void loadScene(String fxmlFile) {
@@ -71,6 +83,7 @@ public final class SceneManager {
         requireFxmlFilename(fxmlFile);
         URL resource = ResourcesUtil.fxml(fxmlFile);
 
+        cleanupSceneMessageListeners();
         currentFxmlFile = fxmlFile;
 
         Parent root = loadRoot(resource, fxmlFile);
@@ -82,6 +95,13 @@ public final class SceneManager {
             stage.setScene(new Scene(wrappedRoot, ClientApp.WINDOW_WIDTH, ClientApp.WINDOW_HEIGHT));
         }
         stage.show();
+    }
+
+    private static void cleanupSceneMessageListeners() {
+        for (Runnable cleanup : SCENE_LISTENER_CLEANUPS) {
+            cleanup.run();
+        }
+        SCENE_LISTENER_CLEANUPS.clear();
     }
 
     public static void switchSceneWithDelay(String fxmlFile, long delayMillis) {
