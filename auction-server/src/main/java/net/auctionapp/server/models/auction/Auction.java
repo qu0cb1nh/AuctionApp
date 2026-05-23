@@ -16,8 +16,8 @@ import java.util.List;
  * Aggregate root for an auction session.
  */
 public class Auction extends Entity {
-    private static final long ANTI_SNIPING_THRESHOLD_SECONDS = 10;
-    private static final long ANTI_SNIPING_EXTENSION_SECONDS = 10;
+    private static final long ANTI_SNIPING_THRESHOLD_SECONDS = 30;
+    private static final long ANTI_SNIPING_EXTENSION_SECONDS = 100;
 
     private final String sellerId;
     private LocalDateTime startTime;

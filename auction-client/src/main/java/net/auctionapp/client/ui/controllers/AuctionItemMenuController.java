@@ -20,14 +20,17 @@ import javafx.util.Duration;
 import net.auctionapp.client.services.AuctionService;
 import net.auctionapp.client.ClientSession;
 import net.auctionapp.client.ui.managers.SceneManager;
+import net.auctionapp.client.utils.ResourcesUtil;
 import net.auctionapp.common.messages.Message;
 import net.auctionapp.common.messages.MessageType;
 import net.auctionapp.common.messages.types.AuctionDetailsResponseMessage;
+import net.auctionapp.common.messages.types.AuctionEndedMessage;
 import net.auctionapp.common.messages.types.BidResultMessage;
 import net.auctionapp.common.messages.types.BidView;
 import net.auctionapp.common.messages.types.ErrorMessage;
 import net.auctionapp.common.messages.types.PriceUpdateMessage;
 import net.auctionapp.common.auction.AuctionStatus;
+import net.auctionapp.common.items.ItemType;
 import net.auctionapp.common.utils.MoneyUtil;
 
 import java.math.BigDecimal;
@@ -75,6 +78,7 @@ public class AuctionItemMenuController implements Initializable, AuctionContextC
     private final XYChart.Series<String, Number> priceSeries = new XYChart.Series<>();
     private LocalDateTime auctionEndTime;
     private Timeline countdownTimeline;
+    private boolean closeRefreshRequested;
 
     @Override
     public void initialize(URL location, ResourceBundle resources) {
@@ -97,6 +101,7 @@ public class AuctionItemMenuController implements Initializable, AuctionContextC
     @Override
     public void setAuctionId(String auctionId) {
         currentAuctionId = auctionId;
+        closeRefreshRequested = false;
         if (currentAuctionId == null || currentAuctionId.isBlank()) {
             setErrorMessage("No auction selected.");
             placeBidButton.setDisable(true);
@@ -133,6 +138,7 @@ public class AuctionItemMenuController implements Initializable, AuctionContextC
 
     private void registerEventListeners() {
         SceneManager.registerSceneMessageListener(MessageType.PRICE_UPDATE, this::handlePriceUpdate);
+        SceneManager.registerSceneMessageListener(MessageType.AUCTION_ENDED, this::handleAuctionEnded);
     }
 
     private void requestAuctionDetails() {
@@ -154,12 +160,13 @@ public class AuctionItemMenuController implements Initializable, AuctionContextC
 
         productNameLabel.setText(response.getTitle());
         descriptionLabel.setText(response.getDescription());
-        updateProductImage(response.getImageUrl());
+        updateProductImage(response.getImageUrl(), response.getItemType());
         currentHighestBid = response.getCurrentPrice() == null ? BigDecimal.ZERO : response.getCurrentPrice();
         minimumNextBid = response.getMinimumNextBid() == null ? currentHighestBid : response.getMinimumNextBid();
         currentBidLabel.setText("$" + currentHighestBid.toPlainString());
         minimumNextBidLabel.setText("$" + minimumNextBid.stripTrailingZeros().toPlainString());
         leadingBidderLabel.setText(formatTopBidder(response.getLeadingBidderId()));
+        closeRefreshRequested = isClosedAuction(response);
         setAuctionEndTime(response.getEndTime());
         updateAuctionStatusLabel(response);
         renderBidHistory(response.getBidHistory());
@@ -212,6 +219,19 @@ public class AuctionItemMenuController implements Initializable, AuctionContextC
         setInfoMessage("New highest bid by " + update.getLeadingUserName());
     }
 
+    private void handleAuctionEnded(AuctionEndedMessage update) {
+        if (!currentAuctionId.equals(update.getAuctionId())) {
+            return;
+        }
+        if (update.getFinalPrice() != null) {
+            currentHighestBid = update.getFinalPrice();
+            currentBidLabel.setText("$" + currentHighestBid.toPlainString());
+        }
+        closeRefreshRequested = true;
+        applyClosedBidState();
+        requestAuctionDetails();
+    }
+
     private void renderBidHistory(List<BidView> bidHistory) {
         priceSeries.getData().clear();
         if (bidHistory == null) {
@@ -225,11 +245,11 @@ public class AuctionItemMenuController implements Initializable, AuctionContextC
         }
     }
 
-    private void updateProductImage(String imageUrl) {
-        if (imageUrl == null || imageUrl.isBlank()) {
-            return;
-        }
-        Image image = new Image(imageUrl, true);
+    private void updateProductImage(String imageUrl, ItemType itemType) {
+        String source = imageUrl == null || imageUrl.isBlank()
+                ? ResourcesUtil.itemPlaceholder(itemType).toExternalForm()
+                : imageUrl;
+        Image image = new Image(source, true);
         productImageView.setImage(image);
     }
 
@@ -255,7 +275,7 @@ public class AuctionItemMenuController implements Initializable, AuctionContextC
         boolean closedAuction = isClosedAuction(response);
         setBidSectionVisible(!closedAuction);
         if (closedAuction) {
-            placeBidButton.setDisable(true);
+            applyClosedBidState();
             messageLabel.setText("");
             return;
         }
@@ -402,11 +422,27 @@ public class AuctionItemMenuController implements Initializable, AuctionContextC
     private void refreshTimeRemaining() {
         timeRemainingLabel.setText(formatTimeRemaining(auctionEndTime));
         updateTimeRemainingStyle(auctionEndTime);
+        if (auctionEndTime != null
+                && !LocalDateTime.now().isBefore(auctionEndTime)
+                && !closeRefreshRequested
+                && currentAuctionId != null) {
+            closeRefreshRequested = true;
+            applyClosedBidState();
+            requestAuctionDetails();
+        }
     }
 
     private void setBidSectionVisible(boolean visible) {
         bidSection.setManaged(visible);
         bidSection.setVisible(visible);
+    }
+
+    private void applyClosedBidState() {
+        setBidSectionVisible(false);
+        placeBidButton.setDisable(true);
+        stopCountdownTimer();
+        timeRemainingLabel.setText("Ended");
+        updateTimeRemainingStyle(LocalDateTime.now());
     }
 
     private void setSuccessMessage(String text) {

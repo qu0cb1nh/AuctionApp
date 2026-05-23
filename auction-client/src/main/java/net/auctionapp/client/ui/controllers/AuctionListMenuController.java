@@ -159,6 +159,7 @@ public class AuctionListMenuController implements Initializable {
         String displayStatus = deriveDisplayStatus(auction);
         AuctionCardController.CardData cardData = new AuctionCardController.CardData(
                 auction.getImageUrl(),
+                auction.getItemType(),
                 auction.getTitle(),
                 "Status: " + displayStatus,
                 statusColor(displayStatus),

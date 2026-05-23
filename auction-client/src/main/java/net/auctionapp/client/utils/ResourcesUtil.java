@@ -1,12 +1,15 @@
 package net.auctionapp.client.utils;
 
 import javafx.fxml.FXMLLoader;
+import net.auctionapp.common.items.ItemType;
 
 import java.net.URL;
+import java.util.Locale;
 import java.util.Objects;
 
 public final class ResourcesUtil {
     private static final String UI_ROOT = "/net/auctionapp/client/";
+    private static final String DEFAULT_ITEM_PLACEHOLDER = "art.png";
 
     private ResourcesUtil() {
     }
@@ -21,6 +24,13 @@ public final class ResourcesUtil {
 
     public static URL image(String relativePath) {
         return requireResource("images/" + relativePath);
+    }
+
+    public static URL itemPlaceholder(ItemType itemType) {
+        if (itemType == null) {
+            return image(DEFAULT_ITEM_PLACEHOLDER);
+        }
+        return image(itemType.name().toLowerCase(Locale.ROOT) + ".png");
     }
 
     public static URL sound(String relativePath) {

@@ -215,7 +215,7 @@ public class CreateAuctionMenuController implements Initializable {
 
     private void applyImageFields(CreateItemRequestMessage request) {
         if (selectedImageFile == null) {
-            throw new IllegalArgumentException("Product image is required.");
+            return;
         }
         try {
             String contentType = resolveImageContentType(selectedImageFile);
@@ -280,8 +280,8 @@ public class CreateAuctionMenuController implements Initializable {
         setSectionVisible(electronicsFieldsBox, itemType == ItemType.ELECTRONICS);
         setSectionVisible(artFieldsBox, itemType == ItemType.ART);
         setSectionVisible(vehicleFieldsBox, itemType == ItemType.VEHICLE);
-        if(!imageUploaded) {
-            previewImageView.setImage(new Image(ResourcesUtil.image(itemType.name().toLowerCase() + ".png").toExternalForm(), true));
+        if (!imageUploaded) {
+            previewImageView.setImage(new Image(ResourcesUtil.itemPlaceholder(itemType).toExternalForm(), true));
         }
     }
 

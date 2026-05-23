@@ -269,7 +269,8 @@ public final class AuctionService {
                         auction.getLeadingBidderId(),
                         auction.getStartTime(),
                         auction.getEndTime(),
-                        item.getImageUrl()
+                        item.getImageUrl(),
+                        item.getType()
                 ));
             }
         }
@@ -725,6 +726,7 @@ public final class AuctionService {
                     auction.getStartTime(),
                     auction.getEndTime(),
                     item.getImageUrl(),
+                    item.getType(),
                     bidViews
             );
         }
