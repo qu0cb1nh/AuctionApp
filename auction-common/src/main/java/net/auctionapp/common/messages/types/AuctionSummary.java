@@ -1,6 +1,7 @@
 package net.auctionapp.common.messages.types;
 
 import net.auctionapp.common.auction.AuctionStatus;
+import net.auctionapp.common.items.ItemType;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
@@ -15,6 +16,7 @@ public class AuctionSummary {
     private final LocalDateTime startTime;
     private final LocalDateTime endTime;
     private final String imageUrl;
+    private final ItemType itemType;
 
     public AuctionSummary(
             String auctionId,
@@ -26,7 +28,7 @@ public class AuctionSummary {
             LocalDateTime startTime,
             LocalDateTime endTime
     ) {
-        this(auctionId, title, currentPrice, minimumNextBid, status, leadingBidderId, startTime, endTime, null);
+        this(auctionId, title, currentPrice, minimumNextBid, status, leadingBidderId, startTime, endTime, null, null);
     }
 
     public AuctionSummary(
@@ -40,6 +42,21 @@ public class AuctionSummary {
             LocalDateTime endTime,
             String imageUrl
     ) {
+        this(auctionId, title, currentPrice, minimumNextBid, status, leadingBidderId, startTime, endTime, imageUrl, null);
+    }
+
+    public AuctionSummary(
+            String auctionId,
+            String title,
+            BigDecimal currentPrice,
+            BigDecimal minimumNextBid,
+            AuctionStatus status,
+            String leadingBidderId,
+            LocalDateTime startTime,
+            LocalDateTime endTime,
+            String imageUrl,
+            ItemType itemType
+    ) {
         this.auctionId = auctionId;
         this.title = title;
         this.currentPrice = currentPrice;
@@ -49,6 +66,7 @@ public class AuctionSummary {
         this.startTime = startTime;
         this.endTime = endTime;
         this.imageUrl = imageUrl;
+        this.itemType = itemType;
     }
 
     public String getAuctionId() {
@@ -85,5 +103,9 @@ public class AuctionSummary {
 
     public String getImageUrl() {
         return imageUrl;
+    }
+
+    public ItemType getItemType() {
+        return itemType;
     }
 }

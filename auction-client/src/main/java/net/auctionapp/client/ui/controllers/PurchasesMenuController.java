@@ -17,6 +17,7 @@ import net.auctionapp.client.ui.managers.SceneManager;
 import net.auctionapp.client.utils.DurationFormatUtil;
 import net.auctionapp.client.utils.ResourcesUtil;
 import net.auctionapp.common.auction.AuctionStatus;
+import net.auctionapp.common.items.ItemType;
 import net.auctionapp.common.messages.Message;
 import net.auctionapp.common.messages.types.AuctionDetailsResponseMessage;
 import net.auctionapp.common.messages.types.AuctionListResponseMessage;
@@ -229,6 +230,7 @@ public class PurchasesMenuController implements Initializable {
         boolean canManageAuction = active && ClientSession.getInstance().canManageAuction(listing.sellerId());
         AuctionCardController.CardData cardData = new AuctionCardController.CardData(
                 listing.imageUrl(),
+                listing.itemType(),
                 listing.title(),
                 "Status: " + listing.status(),
                 statusColor(listing.status()),
@@ -293,7 +295,8 @@ public class PurchasesMenuController implements Initializable {
                 bidCount,
                 response.getEndTime(),
                 resolveWinner(response),
-                response.getImageUrl()
+                response.getImageUrl(),
+                response.getItemType()
         ));
     }
 
@@ -450,7 +453,8 @@ public class PurchasesMenuController implements Initializable {
             int bidCount,
             LocalDateTime endTime,
             String winnerBidderId,
-            String imageUrl
+            String imageUrl,
+            ItemType itemType
     ) {
     }
 }

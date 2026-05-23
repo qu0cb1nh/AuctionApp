@@ -17,6 +17,7 @@ import net.auctionapp.client.ui.managers.SceneManager;
 import net.auctionapp.client.utils.DurationFormatUtil;
 import net.auctionapp.client.utils.ResourcesUtil;
 import net.auctionapp.common.auction.AuctionStatus;
+import net.auctionapp.common.items.ItemType;
 import net.auctionapp.common.messages.Message;
 import net.auctionapp.common.messages.types.AuctionDetailsResponseMessage;
 import net.auctionapp.common.messages.types.AuctionListResponseMessage;
@@ -236,6 +237,7 @@ public class MyActivityMenuController implements Initializable {
         String metricThreeValue = active ? formatMoney(activity.minimumNextBid()) : safeWinnerName(activity.winnerBidderId());
         AuctionCardController.CardData cardData = new AuctionCardController.CardData(
                 activity.imageUrl(),
+                activity.itemType(),
                 activity.auctionTitle(),
                 "Status: " + activity.status(),
                 statusColor(activity.status()),
@@ -308,7 +310,8 @@ public class MyActivityMenuController implements Initializable {
                 bidHistory.size(),
                 response.getWinnerBidderId(),
                 response.getEndTime(),
-                response.getImageUrl()
+                response.getImageUrl(),
+                response.getItemType()
         ));
     }
 
@@ -453,7 +456,8 @@ public class MyActivityMenuController implements Initializable {
             int bidCount,
             String winnerBidderId,
             LocalDateTime endTime,
-            String imageUrl
+            String imageUrl,
+            ItemType itemType
     ) {
     }
 }
