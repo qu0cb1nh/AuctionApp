@@ -5,6 +5,7 @@ import net.auctionapp.common.messages.types.CreateItemRequestMessage;
 import net.auctionapp.server.models.items.Item;
 
 import java.math.BigDecimal;
+import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 
@@ -24,4 +25,6 @@ public abstract class ItemFactory {
     public abstract Item createItem(CreateItemRequestMessage message);
 
     public abstract Item createItem(ResultSet resultSet) throws SQLException;
+
+    public abstract void bindAttributes(PreparedStatement statement, int startIndex, Item item) throws SQLException;
 }

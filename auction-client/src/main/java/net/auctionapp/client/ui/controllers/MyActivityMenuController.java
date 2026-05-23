@@ -9,7 +9,6 @@ import javafx.scene.control.Label;
 import javafx.scene.control.TextField;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.VBox;
-import net.auctionapp.client.ClientApp;
 import net.auctionapp.client.ClientSession;
 import net.auctionapp.client.services.AuctionService;
 import net.auctionapp.client.ui.controllers.components.AuctionCardController;
@@ -255,8 +254,7 @@ public class MyActivityMenuController implements Initializable {
                 buttonLabelForActivity(activity),
                 () -> {
             statusLabel.setText("Opening auction: " + activity.auctionTitle());
-            ClientApp.getInstance().setSelectedAuctionId(activity.auctionId());
-            SceneManager.switchScene("AuctionItemMenu.fxml");
+            SceneManager.switchToAuctionDetails(activity.auctionId());
         },
                 null,
                 null

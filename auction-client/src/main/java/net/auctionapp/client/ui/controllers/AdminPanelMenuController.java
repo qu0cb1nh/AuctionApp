@@ -13,7 +13,6 @@ import javafx.scene.control.Label;
 import javafx.scene.control.TableColumn;
 import javafx.scene.control.TableView;
 import javafx.scene.layout.VBox;
-import net.auctionapp.client.ClientApp;
 import net.auctionapp.client.services.AdminService;
 import net.auctionapp.client.services.AuctionService;
 import net.auctionapp.client.ClientSession;
@@ -159,8 +158,7 @@ public class AdminPanelMenuController implements Initializable {
             setErrorStatus("Please select an auction to open.");
             return;
         }
-        ClientApp.getInstance().setSelectedAuctionId(selected.auctionId());
-        SceneManager.switchScene("AuctionItemMenu.fxml");
+        SceneManager.switchToAuctionDetails(selected.auctionId());
     }
 
     @FXML
@@ -170,8 +168,7 @@ public class AdminPanelMenuController implements Initializable {
             setErrorStatus("Please select an auction to manage.");
             return;
         }
-        ClientApp.getInstance().setSelectedAuctionId(selected.auctionId());
-        SceneManager.switchScene("ManageAuctionMenu.fxml");
+        SceneManager.switchToManageAuction(selected.auctionId());
     }
 
     private void configureTables() {

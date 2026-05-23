@@ -5,12 +5,15 @@ import com.cloudinary.utils.ObjectUtils;
 import net.auctionapp.common.messages.types.CreateItemRequestMessage;
 import net.auctionapp.common.utils.ConfigUtil;
 import net.auctionapp.server.exceptions.ValidationException;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.util.Base64;
 import java.util.Map;
 
 public final class CloudinaryImageService {
+    private static final Logger LOGGER = LoggerFactory.getLogger(CloudinaryImageService.class);
     private static final String DEFAULT_IMAGE_CONTENT_TYPE = "image/jpeg";
     private static final String CLOUDINARY_FOLDER = "auction-items";
     private static CloudinaryImageService instance;
@@ -33,7 +36,7 @@ public final class CloudinaryImageService {
         return instance;
     }
 
-    public String uploadAuctionItemImage(CreateItemRequestMessage request) {
+    public UploadedImage uploadAuctionItemImage(CreateItemRequestMessage request) {
         if (request == null || isBlank(request.getImageBase64())) {
             return null;
         }
@@ -55,12 +58,25 @@ public final class CloudinaryImageService {
                     )
             );
             Object secureUrl = uploadResult.get("secure_url");
-            if (secureUrl == null || secureUrl.toString().isBlank()) {
+            Object publicId = uploadResult.get("public_id");
+            if (secureUrl == null || secureUrl.toString().isBlank()
+                    || publicId == null || publicId.toString().isBlank()) {
                 throw new ValidationException("Cloudinary did not return an image URL.");
             }
-            return secureUrl.toString();
+            return new UploadedImage(secureUrl.toString(), publicId.toString());
         } catch (IOException | RuntimeException e) {
             throw new ValidationException("Failed to upload image to Cloudinary.");
+        }
+    }
+
+    public void deleteAuctionItemImage(UploadedImage uploadedImage) {
+        if (uploadedImage == null || isBlank(uploadedImage.publicId()) || cloudinary == null) {
+            return;
+        }
+        try {
+            cloudinary.uploader().destroy(uploadedImage.publicId(), Map.of());
+        } catch (IOException | RuntimeException e) {
+            LOGGER.warn("Failed to remove uploaded auction image {}.", uploadedImage.publicId());
         }
     }
 
@@ -85,5 +101,8 @@ public final class CloudinaryImageService {
 
     private boolean isBlank(String value) {
         return value == null || value.isBlank();
+    }
+
+    public record UploadedImage(String url, String publicId) {
     }
 }

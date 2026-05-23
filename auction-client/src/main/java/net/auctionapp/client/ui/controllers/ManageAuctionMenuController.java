@@ -9,7 +9,6 @@ import javafx.scene.control.Button;
 import javafx.scene.control.Label;
 import javafx.scene.control.TextArea;
 import javafx.scene.control.TextField;
-import net.auctionapp.client.ClientApp;
 import net.auctionapp.client.services.AuctionService;
 import net.auctionapp.client.ClientSession;
 import net.auctionapp.client.ui.managers.SceneManager;
@@ -27,7 +26,7 @@ import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
 import java.util.ResourceBundle;
 
-public class ManageAuctionMenuController implements Initializable {
+public class ManageAuctionMenuController implements Initializable, AuctionContextController {
     private static final DateTimeFormatter DATE_TIME_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm");
 
     @FXML
@@ -60,7 +59,11 @@ public class ManageAuctionMenuController implements Initializable {
     @Override
     public void initialize(URL location, ResourceBundle resources) {
         appHeaderController.setupHeader("Manage Auction");
-        currentAuctionId = ClientApp.getInstance().getSelectedAuctionId();
+    }
+
+    @Override
+    public void setAuctionId(String auctionId) {
+        currentAuctionId = auctionId;
         if (currentAuctionId == null || currentAuctionId.isBlank()) {
             setErrorStatus("No auction selected.");
             disableActions();

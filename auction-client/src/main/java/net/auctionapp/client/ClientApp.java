@@ -8,21 +8,6 @@ public class ClientApp extends Application {
     public static final double WINDOW_WIDTH = 1067;
     public static final double WINDOW_HEIGHT = 700;
     private static Stage primaryStage;
-    private String selectedAuctionId;
-
-    public String getSelectedAuctionId() {
-        return selectedAuctionId;
-    }
-
-    public void setSelectedAuctionId(String selectedAuctionId) {
-        this.selectedAuctionId = selectedAuctionId;
-    }
-
-    private static final ClientApp INSTANCE = new ClientApp();
-
-    public static ClientApp getInstance() {
-        return INSTANCE;
-    }
 
     public static Stage getPrimaryStage() {
         return primaryStage;

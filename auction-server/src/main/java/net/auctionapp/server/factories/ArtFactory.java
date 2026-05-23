@@ -3,11 +3,12 @@ package net.auctionapp.server.factories;
 import net.auctionapp.common.messages.types.CreateItemRequestMessage;
 import net.auctionapp.server.models.items.Art;
 import net.auctionapp.server.models.items.Item;
-import net.auctionapp.server.models.items.Vehicle;
 
 import java.math.BigDecimal;
+import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.sql.Types;
 import java.util.UUID;
 
 public class ArtFactory extends ItemFactory {
@@ -33,5 +34,15 @@ public class ArtFactory extends ItemFactory {
                 resultSet.getInt("year_created"),
                 resultSet.getString("image_url")
         );
+    }
+
+    @Override
+    public void bindAttributes(PreparedStatement statement, int startIndex, Item item) throws SQLException {
+        Art art = (Art) item;
+        statement.setNull(startIndex, Types.VARCHAR);
+        statement.setNull(startIndex + 1, Types.VARCHAR);
+        statement.setNull(startIndex + 2, Types.INTEGER);
+        statement.setString(startIndex + 3, art.getAuthor());
+        statement.setInt(startIndex + 4, art.getYearCreated());
     }
 }

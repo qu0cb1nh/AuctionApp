@@ -5,9 +5,10 @@ import net.auctionapp.server.models.items.Item;
 import net.auctionapp.server.models.items.Vehicle;
 
 import java.math.BigDecimal;
+import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
-import java.time.LocalDateTime;
+import java.sql.Types;
 import java.util.UUID;
 
 public class VehicleFactory extends ItemFactory {
@@ -35,5 +36,15 @@ public class VehicleFactory extends ItemFactory {
                 resultSet.getInt("year_created"),
                 resultSet.getString("image_url")
         );
+    }
+
+    @Override
+    public void bindAttributes(PreparedStatement statement, int startIndex, Item item) throws SQLException {
+        Vehicle vehicle = (Vehicle) item;
+        statement.setString(startIndex, vehicle.getBrand());
+        statement.setString(startIndex + 1, vehicle.getModel());
+        statement.setNull(startIndex + 2, Types.INTEGER);
+        statement.setNull(startIndex + 3, Types.VARCHAR);
+        statement.setInt(startIndex + 4, vehicle.getYearCreated());
     }
 }

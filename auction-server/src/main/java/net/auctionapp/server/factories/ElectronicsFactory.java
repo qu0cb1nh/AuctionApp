@@ -3,11 +3,12 @@ package net.auctionapp.server.factories;
 import net.auctionapp.common.messages.types.CreateItemRequestMessage;
 import net.auctionapp.server.models.items.Electronics;
 import net.auctionapp.server.models.items.Item;
-import net.auctionapp.server.models.items.Vehicle;
 
 import java.math.BigDecimal;
+import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.sql.Types;
 import java.util.UUID;
 
 public class ElectronicsFactory extends ItemFactory {
@@ -42,5 +43,15 @@ public class ElectronicsFactory extends ItemFactory {
                 resultSet.getInt("warranty_months"),
                 resultSet.getString("image_url")
         );
+    }
+
+    @Override
+    public void bindAttributes(PreparedStatement statement, int startIndex, Item item) throws SQLException {
+        Electronics electronics = (Electronics) item;
+        statement.setString(startIndex, electronics.getBrand());
+        statement.setString(startIndex + 1, electronics.getModel());
+        statement.setInt(startIndex + 2, electronics.getWarrantyMonths());
+        statement.setNull(startIndex + 3, Types.VARCHAR);
+        statement.setNull(startIndex + 4, Types.INTEGER);
     }
 }

@@ -33,4 +33,17 @@ public class Art extends Item {
     public int getYearCreated() {
         return yearCreated;
     }
+
+    @Override
+    public Item copy() {
+        return new Art(
+                getId(),
+                getTitle(),
+                getDescription(),
+                getBasePrice(),
+                author,
+                yearCreated,
+                getImageUrl()
+        );
+    }
 }

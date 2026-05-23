@@ -40,4 +40,18 @@ public class Vehicle extends Item {
     public String getBrand() {
         return brand;
     }
+
+    @Override
+    public Item copy() {
+        return new Vehicle(
+                getId(),
+                getTitle(),
+                getDescription(),
+                getBasePrice(),
+                brand,
+                model,
+                yearCreated,
+                getImageUrl()
+        );
+    }
 }

@@ -3,10 +3,7 @@ package net.auctionapp.server.models.auction;
 import net.auctionapp.common.auction.AuctionStatus;
 
 import net.auctionapp.server.models.Entity;
-import net.auctionapp.server.models.items.Art;
-import net.auctionapp.server.models.items.Electronics;
 import net.auctionapp.server.models.items.Item;
-import net.auctionapp.server.models.items.Vehicle;
 
 import java.math.BigDecimal;
 import java.time.Duration;
@@ -88,7 +85,7 @@ public class Auction extends Entity {
     }
 
     public synchronized Item getItem() {
-        return copyItem(item);
+        return item.copy();
     }
 
     public synchronized BigDecimal getStartingPrice() {
@@ -230,7 +227,7 @@ public class Auction extends Entity {
                 sellerId,
                 startTime,
                 endTime,
-                copyItem(item),
+                item.copy(),
                 startingPrice,
                 minimumBidIncrement,
                 currentPrice,
@@ -240,6 +237,25 @@ public class Auction extends Entity {
         );
         copy.bidHistory.addAll(bidHistory);
         return copy;
+    }
+
+    public synchronized void applySnapshot(Auction snapshot) {
+        if (snapshot == null || !getId().equals(snapshot.getId())) {
+            throw new IllegalArgumentException("Snapshot must belong to this auction.");
+        }
+        Item snapshotItem = snapshot.getItem();
+        item.updateDetails(snapshotItem.getTitle(), snapshotItem.getDescription(), snapshotItem.getBasePrice());
+        item.setImageUrl(snapshotItem.getImageUrl());
+        startTime = snapshot.getStartTime();
+        endTime = snapshot.getEndTime();
+        startingPrice = snapshot.getStartingPrice();
+        minimumBidIncrement = snapshot.getMinimumBidIncrement();
+        currentPrice = snapshot.getCurrentPrice();
+        leadingBidderId = snapshot.getLeadingBidderId();
+        winnerBidderId = snapshot.getWinnerBidderId();
+        status = snapshot.getStatus();
+        bidHistory.clear();
+        bidHistory.addAll(snapshot.getBidHistory());
     }
 
     private void restoreLeadingBidFromAuctionState() {
@@ -258,45 +274,4 @@ public class Auction extends Entity {
         ));
     }
 
-    private Item copyItem(Item source) {
-        if (source == null) {
-            throw new IllegalStateException("Auction item must not be null.");
-        }
-        if (source instanceof Electronics electronics) {
-            return new Electronics(
-                    electronics.getId(),
-                    electronics.getTitle(),
-                    electronics.getDescription(),
-                    electronics.getBasePrice(),
-                    electronics.getBrand(),
-                    electronics.getModel(),
-                    electronics.getWarrantyMonths(),
-                    electronics.getImageUrl()
-            );
-        }
-        if (source instanceof Vehicle vehicle) {
-            return new Vehicle(
-                    vehicle.getId(),
-                    vehicle.getTitle(),
-                    vehicle.getDescription(),
-                    vehicle.getBasePrice(),
-                    vehicle.getBrand(),
-                    vehicle.getModel(),
-                    vehicle.getYearCreated(),
-                    vehicle.getImageUrl()
-            );
-        }
-        if (source instanceof Art art) {
-            return new Art(
-                    art.getId(),
-                    art.getTitle(),
-                    art.getDescription(),
-                    art.getBasePrice(),
-                    art.getAuthor(),
-                    art.getYearCreated(),
-                    art.getImageUrl()
-            );
-        }
-        throw new IllegalStateException("Unsupported item type: " + source.getClass().getName());
-    }
 }

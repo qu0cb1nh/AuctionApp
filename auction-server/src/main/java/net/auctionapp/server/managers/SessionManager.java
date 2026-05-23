@@ -76,10 +76,6 @@ public final class SessionManager {
         return !getClientsByUserId(userId).isEmpty();
     }
 
-    public int getAuthenticatedClientCount() {
-        return sessionsByClient.size();
-    }
-
     public void clear() {
         sessionsByClient.clear();
         clientsByUserId.clear();

@@ -102,29 +102,11 @@ public final class WalletService {
         }
     }
 
-    public boolean lockBidFunds(String bidderId, BigDecimal amount) {
+    public void applyLockedBidFunds(String bidderId, BigDecimal amount) {
         MoneyUtil.requirePositiveMoney(amount, "Bid amount");
         String normalizedBidderId = StringUtil.normalizeString(bidderId);
         User bidder = authService.requireUserById(normalizedBidderId);
-        if (!requireUserDao().lockFunds(normalizedBidderId, amount)) {
-            return false;
-        }
         updateCachedWallet(bidder, amount.negate(), amount);
-        return true;
-    }
-
-    public void releaseBidFunds(String bidderId, BigDecimal amount) {
-        if (amount == null || amount.signum() <= 0) {
-            return;
-        }
-        String normalizedBidderId = StringUtil.normalizeString(bidderId);
-        if (normalizedBidderId.isEmpty()) {
-            return;
-        }
-        if (requireUserDao().releaseFunds(normalizedBidderId, amount)) {
-            User bidder = authService.requireUserById(normalizedBidderId);
-            updateCachedWallet(bidder, amount, amount.negate());
-        }
     }
 
     public BigDecimal getBidderCommitment(Auction auction, String bidderId) {
