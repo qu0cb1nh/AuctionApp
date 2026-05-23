@@ -217,16 +217,6 @@ public class JdbcAuctionDao implements AuctionDao {
     }
 
     @Override
-    public boolean updateAuctionState(Auction auction) {
-        try (Connection connection = databaseService.getConnection();
-             PreparedStatement statement = connection.prepareStatement(UPDATE_AUCTION_STATE_QUERY)) {
-            return bindAuctionState(statement, auction).executeUpdate() == 1;
-        } catch (SQLException e) {
-            throw new DatabaseException("Failed to update auction state.", e);
-        }
-    }
-
-    @Override
     public boolean recordBid(Auction auction, BidTransaction bid, BigDecimal amountToLock) {
         try (Connection connection = databaseService.getConnection()) {
             boolean previousAutoCommit = connection.getAutoCommit();
