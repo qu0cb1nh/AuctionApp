@@ -102,6 +102,7 @@ public class ClientHandler implements Runnable {
         } finally {
             out = null;
             in = null;
+            auctionService.removeSubscriber(this);
             sessionManager.unbindSession(this);
             ServerApp.unregisterClient(this);
         }

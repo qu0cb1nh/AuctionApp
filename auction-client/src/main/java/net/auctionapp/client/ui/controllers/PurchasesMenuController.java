@@ -9,7 +9,6 @@ import javafx.scene.control.Label;
 import javafx.scene.control.TextField;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.VBox;
-import net.auctionapp.client.ClientApp;
 import net.auctionapp.client.ClientSession;
 import net.auctionapp.client.services.AuctionService;
 import net.auctionapp.client.ui.controllers.components.AuctionCardController;
@@ -248,8 +247,7 @@ public class PurchasesMenuController implements Initializable {
                 "View auction",
                 () -> {
             statusLabel.setText("Opening listing: " + listing.title());
-            ClientApp.getInstance().setSelectedAuctionId(listing.auctionId());
-            SceneManager.switchScene("AuctionItemMenu.fxml");
+            SceneManager.switchToAuctionDetails(listing.auctionId());
         },
                 canManageAuction ? "Manage auction" : null,
                 canManageAuction ? () -> handleManageAuction(listing.auctionId()) : null
@@ -258,8 +256,7 @@ public class PurchasesMenuController implements Initializable {
     }
 
     private void handleManageAuction(String auctionId) {
-        ClientApp.getInstance().setSelectedAuctionId(auctionId);
-        SceneManager.switchScene("ManageAuctionMenu.fxml");
+        SceneManager.switchToManageAuction(auctionId);
     }
 
     private HBox loadAuctionCardComponent(AuctionCardController.CardData cardData) {

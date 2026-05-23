@@ -28,6 +28,11 @@ public enum MessageType {
     GET_AUCTION_DETAILS_REQUEST,
 
     /**
+     * Starts or stops receiving live updates for one auction detail view.
+     */
+    OBSERVE_AUCTION_REQUEST,
+
+    /**
      * Request for the current user's notifications inbox.
      */
     GET_NOTIFICATIONS_REQUEST,
@@ -156,12 +161,12 @@ public enum MessageType {
     BID_REJECTED,
 
     /**
-     * (Broadcast) Notifies all clients of the new price and the leading bidder.
+     * (Push) Notifies subscribed clients of the new price and the leading bidder.
      */
     PRICE_UPDATE,
 
     /**
-     * (Broadcast) Announces that an auction has ended, includes the winner.
+     * (Push) Announces to subscribed clients that an auction has ended, includes the winner.
      */
     AUCTION_ENDED,
 

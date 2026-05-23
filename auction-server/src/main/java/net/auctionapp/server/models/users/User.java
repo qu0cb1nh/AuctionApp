@@ -49,16 +49,8 @@ public class User extends Entity {
         return balance;
     }
 
-    public synchronized void setBalance(BigDecimal balance) {
-        this.balance = Objects.requireNonNullElse(balance, BigDecimal.ZERO);
-    }
-
     public synchronized BigDecimal getPendingBalance() {
         return pendingBalance;
-    }
-
-    public synchronized void setPendingBalance(BigDecimal pendingBalance) {
-        this.pendingBalance = Objects.requireNonNullElse(pendingBalance, BigDecimal.ZERO);
     }
 
     public synchronized void addBalance(BigDecimal amount) {

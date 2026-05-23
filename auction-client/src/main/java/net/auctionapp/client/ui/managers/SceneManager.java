@@ -8,6 +8,7 @@ import javafx.stage.Stage;
 import net.auctionapp.client.ClientApp;
 import net.auctionapp.client.services.MessageListener;
 import net.auctionapp.client.services.NetworkService;
+import net.auctionapp.client.ui.controllers.AuctionContextController;
 import net.auctionapp.client.utils.ResourcesUtil;
 import net.auctionapp.common.messages.Message;
 import net.auctionapp.common.messages.MessageType;
@@ -24,28 +25,33 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 
 public final class SceneManager {
-    private static final Deque<String> BACK_STACK = new ArrayDeque<>();
+    private static final Deque<SceneRoute> BACK_STACK = new ArrayDeque<>();
     private static final List<Runnable> SCENE_LISTENER_CLEANUPS = new ArrayList<>();
     private static final ScheduledExecutorService SCHEDULER = Executors.newSingleThreadScheduledExecutor(r -> {
         Thread t = new Thread(r, "SceneManager-Scheduler");
         t.setDaemon(true);
         return t;
     });
-    private static String currentFxmlFile;
+    private static SceneRoute currentRoute;
 
     private SceneManager() {
     }
 
     public static void switchScene(String fxmlFile) {
-        if (currentFxmlFile != null && !currentFxmlFile.equals(fxmlFile)) {
-            BACK_STACK.push(currentFxmlFile);
-        }
-        loadScene(fxmlFile);
+        switchScene(new SceneRoute(fxmlFile, null));
+    }
+
+    public static void switchToAuctionDetails(String auctionId) {
+        switchScene(new SceneRoute("AuctionItemMenu.fxml", auctionId));
+    }
+
+    public static void switchToManageAuction(String auctionId) {
+        switchScene(new SceneRoute("ManageAuctionMenu.fxml", auctionId));
     }
 
     public static void resetAndSwitchScene(String fxmlFile) {
         BACK_STACK.clear();
-        loadScene(fxmlFile);
+        loadScene(new SceneRoute(fxmlFile, null));
     }
 
     public static void goBack() {
@@ -72,21 +78,33 @@ public final class SceneManager {
         SCENE_LISTENER_CLEANUPS.add(() -> networkService.removeMessageListener(type, listener));
     }
 
-    private static void loadScene(String fxmlFile) {
-        Objects.requireNonNull(fxmlFile, "fxmlFile");
+    public static void registerSceneCleanup(Runnable cleanup) {
+        Objects.requireNonNull(cleanup, "cleanup");
+        SCENE_LISTENER_CLEANUPS.add(cleanup);
+    }
+
+    private static void switchScene(SceneRoute route) {
+        if (currentRoute != null && !currentRoute.equals(route)) {
+            BACK_STACK.push(currentRoute);
+        }
+        loadScene(route);
+    }
+
+    private static void loadScene(SceneRoute route) {
+        Objects.requireNonNull(route, "route");
 
         Stage stage = ClientApp.getPrimaryStage();
         if (stage == null) {
             throw new IllegalStateException("Primary stage is not initialized.");
         }
 
-        requireFxmlFilename(fxmlFile);
-        URL resource = ResourcesUtil.fxml(fxmlFile);
+        requireFxmlFilename(route.fxmlFile());
+        URL resource = ResourcesUtil.fxml(route.fxmlFile());
 
         cleanupSceneMessageListeners();
-        currentFxmlFile = fxmlFile;
+        currentRoute = route;
 
-        Parent root = loadRoot(resource, fxmlFile);
+        Parent root = loadRoot(resource, route);
         Parent wrappedRoot = NotificationToastManager.wrapWithNotificationHost(root);
         Scene scene = stage.getScene();
         if (scene != null) {
@@ -122,11 +140,17 @@ public final class SceneManager {
         );
     }
 
-    private static Parent loadRoot(URL resource, String fxmlPath) {
+    private static Parent loadRoot(URL resource, SceneRoute route) {
         try {
-            return FXMLLoader.load(resource);
+            FXMLLoader loader = new FXMLLoader(resource);
+            Parent root = loader.load();
+            Object controller = loader.getController();
+            if (route.auctionId() != null && controller instanceof AuctionContextController auctionController) {
+                auctionController.setAuctionId(route.auctionId());
+            }
+            return root;
         } catch (IOException e) {
-            throw new IllegalStateException("Unable to load FXML: " + fxmlPath, e);
+            throw new IllegalStateException("Unable to load FXML: " + route.fxmlFile(), e);
         }
     }
 
@@ -134,5 +158,8 @@ public final class SceneManager {
         if (!fxmlFile.endsWith(".fxml")) {
             throw new IllegalArgumentException("FXML file name must include .fxml: " + fxmlFile);
         }
+    }
+
+    private record SceneRoute(String fxmlFile, String auctionId) {
     }
 }

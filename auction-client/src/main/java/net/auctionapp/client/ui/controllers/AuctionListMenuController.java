@@ -13,7 +13,6 @@ import javafx.scene.control.Label;
 import javafx.scene.control.TextField;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.VBox;
-import net.auctionapp.client.ClientApp;
 import net.auctionapp.client.ui.managers.SceneManager;
 import net.auctionapp.client.utils.ResourcesUtil;
 import net.auctionapp.client.services.AuctionService;
@@ -303,13 +302,11 @@ public class AuctionListMenuController implements Initializable {
     }
 
     private void handleViewItem(String auctionId) {
-        ClientApp.getInstance().setSelectedAuctionId(auctionId);
-        SceneManager.switchScene("AuctionItemMenu.fxml");
+        SceneManager.switchToAuctionDetails(auctionId);
     }
 
     private void handleManageAuction(String auctionId) {
-        ClientApp.getInstance().setSelectedAuctionId(auctionId);
-        SceneManager.switchScene("ManageAuctionMenu.fxml");
+        SceneManager.switchToManageAuction(auctionId);
     }
 
     private void hideListStatus() {
