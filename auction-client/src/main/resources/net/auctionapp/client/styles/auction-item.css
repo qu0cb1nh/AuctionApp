@@ -1,0 +1,84 @@
+.chart-card {
+    -fx-background-color: white;
+    -fx-background-radius: 16px;
+    -fx-border-color: #dce7ee;
+    -fx-border-radius: 16px;
+    -fx-border-width: 1px;
+    -fx-effect: dropshadow(gaussian, rgba(25, 45, 61, 0.08), 14, 0.12, 0, 3);
+    -fx-padding: 15px 16px 10px 16px;
+}
+
+.chart-title {
+    -fx-font-size: 17px;
+    -fx-font-weight: 800;
+    -fx-text-fill: #253b4c;
+}
+
+.live-pill {
+    -fx-background-color: #e4f7f3;
+    -fx-background-radius: 12px;
+    -fx-padding: 3px 9px;
+    -fx-font-size: 10px;
+    -fx-font-weight: 800;
+    -fx-text-fill: #09865f;
+}
+
+.chart-count {
+    -fx-font-size: 12px;
+    -fx-font-weight: 700;
+    -fx-text-fill: #526b7d;
+}
+
+.chart-status {
+    -fx-font-size: 12px;
+    -fx-text-fill: #667d8e;
+}
+
+.price-chart {
+    -fx-padding: 0;
+}
+
+.price-chart .chart-content {
+    -fx-padding: 6px 4px 0 0;
+}
+
+.price-chart .chart-plot-background {
+    -fx-background-color: #fbfdfe;
+    -fx-background-radius: 10px;
+}
+
+.price-chart .chart-horizontal-grid-lines {
+    -fx-stroke: #edf2f5;
+    -fx-stroke-dash-array: 3 4;
+}
+
+.price-chart .axis {
+    -fx-tick-label-fill: #718696;
+    -fx-font-size: 11px;
+}
+
+.price-chart .axis-label {
+    -fx-text-fill: #506779;
+    -fx-font-size: 11px;
+    -fx-font-weight: 700;
+}
+
+.price-chart .axis-tick-mark,
+.price-chart .axis-minor-tick-mark {
+    -fx-stroke: #ccd9e2;
+}
+
+.price-chart .default-color0.chart-series-line {
+    -fx-stroke: #21a7b7;
+    -fx-stroke-width: 2.5px;
+}
+
+.price-chart .default-color0.chart-line-symbol {
+    -fx-background-color: #21a7b7, white;
+    -fx-background-radius: 7px;
+    -fx-padding: 5px;
+}
+
+.price-chart .default-color0.chart-line-symbol:hover {
+    -fx-background-color: #167d8d, white;
+}
