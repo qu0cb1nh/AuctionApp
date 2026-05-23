@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.geometry.Insets?>
+<?import javafx.scene.control.Button?>
+<?import javafx.scene.control.Label?>
+<?import javafx.scene.layout.StackPane?>
+<?import javafx.scene.layout.VBox?>
+<?import javafx.scene.text.Font?>
+
+<StackPane prefHeight="634.0" prefWidth="967.0" style="-fx-background-color: white;" xmlns="http://javafx.com/javafx/25" xmlns:fx="http://javafx.com/fxml/1" fx:controller="net.auctionapp.client.ui.controllers.DisconnectedMenuController">
+   <children>
+      <VBox alignment="CENTER" maxWidth="420.0" spacing="20.0">
+         <children>
+            <Label text="Disconnected">
+               <font>
+                  <Font name="System Bold" size="30.0" />
+               </font>
+            </Label>
+            <Label alignment="CENTER" style="-fx-text-fill: #555555;" text="The server is unavailable. Reconnect to log in again." textAlignment="CENTER" wrapText="true">
+               <font>
+                  <Font size="15.0" />
+               </font>
+               <VBox.margin>
+                  <Insets bottom="12.0" />
+               </VBox.margin>
+            </Label>
+            <Button mnemonicParsing="false" onAction="#handleRetryConnection" prefHeight="42.0" prefWidth="160.0" style="-fx-background-color: #2193b0; -fx-text-fill: white; -fx-font-size: 15px; -fx-font-weight: bold; -fx-background-radius: 8; -fx-cursor: hand;" text="Retry Connection" />
+         </children>
+      </VBox>
+   </children>
+</StackPane>

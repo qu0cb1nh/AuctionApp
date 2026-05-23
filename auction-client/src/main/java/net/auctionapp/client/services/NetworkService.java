@@ -27,7 +27,6 @@ public final class NetworkService {
     private static final NetworkService INSTANCE = new NetworkService();
     private static final Duration DEFAULT_REQUEST_TIMEOUT = Duration.ofSeconds(10);
     private static final Duration CONNECT_TIMEOUT = Duration.ofSeconds(2);
-    private static final Duration RECONNECT_DELAY = Duration.ofSeconds(5);
     private static final Duration HEARTBEAT_TIMEOUT = Duration.ofSeconds(3);
     private static final String CLIENT_NOT_CONNECTED_MESSAGE = "Client is not connected.";
     private static final Logger LOGGER = LoggerFactory.getLogger(NetworkService.class);
@@ -38,12 +37,8 @@ public final class NetworkService {
     private PrintWriter out;
     private Socket socket;
     private BufferedReader in;
-    private String configuredHost;
-    private int configuredPort;
 
     private ScheduledExecutorService heartbeatScheduler;
-    private ScheduledExecutorService reconnectScheduler;
-    private volatile boolean shuttingDown;
 
     private NetworkService() {
     }
@@ -53,8 +48,6 @@ public final class NetworkService {
     }
 
     public synchronized void connect(String host, int port) {
-        configuredHost = host;
-        configuredPort = port;
         if (isConnected()) {
             return;
         }
@@ -70,7 +63,6 @@ public final class NetworkService {
             out = connectedOut;
             in = connectedIn;
 
-            stopReconnect();
             Thread listenerThread = new Thread(() -> listenForServerMessages(connectedSocket, connectedIn));
             listenerThread.setName("auction-client-listener");
             listenerThread.setDaemon(true);
@@ -80,7 +72,6 @@ public final class NetworkService {
         } catch (IOException e) {
             LOGGER.warn("Could not connect to the server at {}:{}.", host, port);
             closeResourcesQuietly();
-            scheduleReconnect();
         }
     }
 
@@ -119,52 +110,17 @@ public final class NetworkService {
         }
     }
 
-    private synchronized void scheduleReconnect() {
-        if (shuttingDown || isConnected()) {
-            return;
-        }
-        if (configuredHost == null || configuredHost.isBlank() || configuredPort <= 0) {
-            return;
-        }
-        if (reconnectScheduler != null && !reconnectScheduler.isShutdown()) {
-            return;
-        }
-        ThreadFactory daemonThreadFactory = r -> {
-            Thread thread = new Thread(r);
-            thread.setDaemon(true);
-            thread.setName("auction-client-reconnect");
-            return thread;
-        };
-        reconnectScheduler = Executors.newSingleThreadScheduledExecutor(daemonThreadFactory);
-        reconnectScheduler.scheduleWithFixedDelay(() -> {
-            if (shuttingDown || isConnected()) {
-                stopReconnect();
-                return;
-            }
-            connect(configuredHost, configuredPort);
-        }, 0, RECONNECT_DELAY.toSeconds(), TimeUnit.SECONDS);
-    }
-
-    private synchronized void stopReconnect() {
-        if (reconnectScheduler != null && !reconnectScheduler.isShutdown()) {
-            reconnectScheduler.shutdownNow();
-        }
-        reconnectScheduler = null;
-    }
-
     public void sendMessage(Message message) {
         if (message == null) {
             LOGGER.error("Cannot send a null message.");
             return;
         }
         if (!isConnected()) {
-            scheduleReconnect();
             return;
         }
 
         if (!sendJson(JsonUtil.toJson(message))) {
             closeResourcesQuietly();
-            scheduleReconnect();
         }
     }
 
@@ -211,7 +167,6 @@ public final class NetworkService {
             return CompletableFuture.failedFuture(new IllegalArgumentException("Timeout must be greater than zero."));
         }
         if (!isConnected()) {
-            scheduleReconnect();
             return CompletableFuture.failedFuture(new IllegalStateException(CLIENT_NOT_CONNECTED_MESSAGE));
         }
 
@@ -235,7 +190,6 @@ public final class NetworkService {
         if (!sendJson(JsonUtil.toJson(request))) {
             pendingRequests.remove(requestId);
             closeResourcesQuietly();
-            scheduleReconnect();
             future.completeExceptionally(new IllegalStateException(CLIENT_NOT_CONNECTED_MESSAGE));
         }
 
@@ -264,9 +218,7 @@ public final class NetworkService {
     }
 
     public synchronized void shutdown() {
-        shuttingDown = true;
         stopHeartbeat();
-        stopReconnect();
         failPendingRequests("Network service is shutting down.");
 
         closeResourcesQuietly();
@@ -293,7 +245,6 @@ public final class NetworkService {
                 stopHeartbeat();
                 failPendingRequests("Disconnected from server.");
                 closeResourcesQuietly(listenedSocket);
-                scheduleReconnect();
             }
         }
     }
@@ -344,7 +295,6 @@ public final class NetworkService {
         stopHeartbeat();
         failPendingRequests(reason);
         closeResourcesQuietly();
-        scheduleReconnect();
     }
 
     private synchronized boolean sendJson(String jsonPayload) {

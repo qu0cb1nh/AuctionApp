@@ -448,22 +448,15 @@ public final class AuctionService {
             if (preCloseValidation != null) {
                 preCloseValidation.run();
             }
-            String previousWinnerBidderId = auction.getWinnerBidderId();
-            AuctionStatus previousStatus = auction.getStatus();
 
             String leadingBidderId = StringUtil.normalizeString(auction.getLeadingBidderId());
             boolean hasWinner = !forceCancel && !leadingBidderId.isEmpty();
-            auction.setWinnerBidderId(hasWinner ? leadingBidderId : null);
-            auction.setStatus(hasWinner ? AuctionStatus.PAID : AuctionStatus.CANCELED);
+            Auction candidate = auction.snapshotCopy();
+            candidate.setWinnerBidderId(hasWinner ? leadingBidderId : null);
+            candidate.setStatus(hasWinner ? AuctionStatus.PAID : AuctionStatus.CANCELED);
 
-            try {
-                walletService.closeAuctionWallets(auction);
-            } catch (RuntimeException e) {
-                auction.setWinnerBidderId(previousWinnerBidderId);
-                auction.setStatus(previousStatus);
-                throw e;
-            }
-            persistAuctionState(auction);
+            persistAuctionState(candidate);
+            auction.applySnapshot(candidate);
         }
         if (shouldBroadcastAuctionEnded) {
             broadcastAuctionStatusChanged(auction);
@@ -519,17 +512,7 @@ public final class AuctionService {
     }
 
     private void persistAuctionState(Auction auction) {
-        if (auctionDao == null) {
-            return;
-        }
-        try {
-            if (auctionDao.updateAuctionState(auction)) {
-                return;
-            }
-        } catch (DatabaseException e) {
-            throw new AuctionAppException("Failed to persist auction state.");
-        }
-        throw new AuctionAppException("Auction state could not be persisted.");
+        walletService.closeAuctionWallets(auction);
     }
 
     private void persistAcceptedBid(Auction auction, BidTransaction bid, BigDecimal amountToLock) {

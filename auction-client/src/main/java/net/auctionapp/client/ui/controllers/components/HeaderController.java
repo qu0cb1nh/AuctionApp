@@ -73,7 +73,7 @@ public class HeaderController {
 
     @FXML
     public void handleLogout() {
-        AuthService.getInstance().clearSessionAndCredentials();
+        AuthService.getInstance().logout();
         SceneManager.resetAndSwitchScene("LoginMenu.fxml");
     }
 

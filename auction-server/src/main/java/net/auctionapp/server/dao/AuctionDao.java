@@ -12,8 +12,6 @@ public interface AuctionDao {
 
     boolean createAuction(Auction auction);
 
-    boolean updateAuctionState(Auction auction);
-
     boolean recordBid(Auction auction, BidTransaction bid, BigDecimal amountToLock);
 
     boolean updateAuction(Auction auction);

@@ -7,21 +7,17 @@ import net.auctionapp.client.services.NetworkService;
 import net.auctionapp.client.config.ClientConfig;
 import net.auctionapp.client.ui.managers.SceneManager;
 import net.auctionapp.client.ui.managers.NotificationToastManager;
-import net.auctionapp.common.messages.Message;
 import net.auctionapp.common.messages.MessageType;
 import net.auctionapp.common.messages.types.ErrorMessage;
-import net.auctionapp.common.messages.types.LoginResultMessage;
 import net.auctionapp.common.messages.types.NotificationMessage;
 import net.auctionapp.common.notifications.Notification;
 import net.auctionapp.common.notifications.NotificationType;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicBoolean;
 
 public final class AppLifecycleManager {
     private static final AppLifecycleManager INSTANCE = new AppLifecycleManager();
@@ -31,7 +27,6 @@ public final class AppLifecycleManager {
     private final NetworkService networkService = NetworkService.getInstance();
     private MessageListener<NotificationMessage> notificationPushListener;
     private MessageListener<ErrorMessage> errorListener;
-    private final AtomicBoolean autoLoginInProgress = new AtomicBoolean(false);
     private ScheduledExecutorService connectionMonitor;
     private boolean connectionInitialized;
     private boolean lastConnected;
@@ -73,6 +68,14 @@ public final class AppLifecycleManager {
         networkService.connect(host, port);
     }
 
+    public void retryConnection() {
+        connectToServer();
+        handleConnectionStatus(networkService.isConnected());
+        if (!networkService.isConnected()) {
+            NotificationToastManager.showWarning("Unable to connect to the server.", false);
+        }
+    }
+
     private void registerGlobalMessageListeners() {
         if (notificationPushListener != null) {
             return;
@@ -104,7 +107,7 @@ public final class AppLifecycleManager {
             NotificationToastManager.showError(errorMessage.getErrorMessage());
             return;
         }
-        AuthService.getInstance().clearSessionAndCredentials();
+        AuthService.getInstance().logout();
         Platform.runLater(() -> SceneManager.resetAndSwitchScene("LoginMenu.fxml"));
     }
 
@@ -145,56 +148,25 @@ public final class AppLifecycleManager {
             connectionInitialized = true;
             lastConnected = connected;
             if (!connected) {
-                NotificationToastManager.showWarning("Client is not connected.", true);
+                handleDisconnected("Client is not connected.");
             }
             return;
         }
-        if (connected != lastConnected) {
-            if (connected) {
-                NotificationToastManager.showInfo("Reconnected to the server.");
-                attemptAutoLogin();
-            } else {
-                autoLoginInProgress.set(false);
-                NotificationToastManager.showWarning("Disconnected from the server.", true);
-            }
-            lastConnected = connected;
+        if (connected == lastConnected) {
+            return;
+        }
+        lastConnected = connected;
+        if (connected) {
+            SceneManager.resetAndSwitchScene("LoginMenu.fxml");
+            NotificationToastManager.showInfo("Connected to the server. Please log in.");
+        } else {
+            handleDisconnected("Disconnected from the server.");
         }
     }
 
-    private void attemptAutoLogin() {
-        AuthService authService = AuthService.getInstance();
-        if (!ClientSession.getInstance().isAuthenticated() || !authService.hasCachedCredentials()) {
-            return;
-        }
-        if (!autoLoginInProgress.compareAndSet(false, true)) {
-            return;
-        }
-        CompletableFuture<Message> loginFuture = authService.autoLogin();
-        loginFuture.thenAccept(message -> Platform.runLater(() -> handleAutoLoginResponse(message)))
-                .exceptionally(throwable -> {
-                    autoLoginInProgress.set(false);
-                    NotificationToastManager.showWarning("Reconnected, but automatic login failed.");
-                    Platform.runLater(() -> SceneManager.resetAndSwitchScene("LoginMenu.fxml"));
-                    return null;
-                });
-    }
-
-    private void handleAutoLoginResponse(Message message) {
-        autoLoginInProgress.set(false);
-        if (message instanceof LoginResultMessage result) {
-            if (message.getType() == MessageType.LOGIN_SUCCESS) {
-                ClientSession.getInstance().login(result.getUserId(), result.getUsername(), result.getRole());
-                return;
-            }
-            if (message.getType() == MessageType.LOGIN_FAILURE) {
-                AuthService.getInstance().clearSessionAndCredentials();
-                NotificationToastManager.showWarning("Reconnected, but automatic login failed.");
-                Platform.runLater(() -> SceneManager.resetAndSwitchScene("LoginMenu.fxml"));
-                return;
-            }
-        }
-        AuthService.getInstance().clearSessionAndCredentials();
-        NotificationToastManager.showWarning("Reconnected, but automatic login failed.");
-        Platform.runLater(() -> SceneManager.resetAndSwitchScene("LoginMenu.fxml"));
+    private void handleDisconnected(String notificationText) {
+        AuthService.getInstance().logout();
+        SceneManager.resetAndSwitchScene("DisconnectedMenu.fxml");
+        NotificationToastManager.showWarning(notificationText, true);
     }
 }
