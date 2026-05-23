@@ -13,9 +13,10 @@
 <?import javafx.scene.image.ImageView?>
 <?import javafx.scene.layout.BorderPane?>
 <?import javafx.scene.layout.HBox?>
+<?import javafx.scene.layout.Region?>
 <?import javafx.scene.layout.VBox?>
 
-<BorderPane fx:id="rootPane" prefHeight="634.0" prefWidth="967.0" style="-fx-background-color: #f4f4f4;" xmlns="http://javafx.com/javafx/25" xmlns:fx="http://javafx.com/fxml/1" fx:controller="net.auctionapp.client.ui.controllers.AuctionItemMenuController">
+<BorderPane fx:id="rootPane" prefHeight="634.0" prefWidth="967.0" style="-fx-background-color: #f4f4f4;" stylesheets="@../styles/auction-item.css" xmlns="http://javafx.com/javafx/25" xmlns:fx="http://javafx.com/fxml/1" fx:controller="net.auctionapp.client.ui.controllers.AuctionItemMenuController">
 
     <top>
         <fx:include fx:id="appHeader" source="components/Header.fxml" />
@@ -96,17 +97,26 @@
                             </children>
                         </VBox>
 
-                        <VBox prefHeight="250.0" VBox.vgrow="ALWAYS">
+                        <VBox prefHeight="300.0" spacing="9.0" styleClass="chart-card" VBox.vgrow="ALWAYS">
                             <VBox.margin>
                                 <Insets top="20.0" />
                             </VBox.margin>
                             <children>
-                                <LineChart fx:id="priceHistoryChart" title="Realtime Price Curve">
+                                <HBox alignment="CENTER_LEFT" spacing="8.0">
+                                    <children>
+                                        <Label styleClass="chart-title" text="Price trend" />
+                                        <Label styleClass="live-pill" text="LIVE" />
+                                        <Region HBox.hgrow="ALWAYS" />
+                                        <Label fx:id="chartBidCountLabel" styleClass="chart-count" text="0 bids" />
+                                    </children>
+                                </HBox>
+                                <Label fx:id="chartStatusLabel" styleClass="chart-status" text="Waiting for bids..." />
+                                <LineChart fx:id="priceHistoryChart" animated="false" createSymbols="true" horizontalGridLinesVisible="true" legendVisible="false" styleClass="price-chart" verticalGridLinesVisible="false" VBox.vgrow="ALWAYS">
                                     <xAxis>
-                                        <CategoryAxis label="Time" side="BOTTOM" />
+                                        <CategoryAxis label="Time" side="BOTTOM" tickLabelGap="8.0" />
                                     </xAxis>
                                     <yAxis>
-                                        <NumberAxis label="Price ($)" side="LEFT" />
+                                        <NumberAxis fx:id="priceAxis" forceZeroInRange="false" label="Price ($)" minorTickVisible="false" side="LEFT" />
                                     </yAxis>
                                 </LineChart>
                             </children>

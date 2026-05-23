@@ -8,15 +8,18 @@ import javafx.event.ActionEvent;
 import javafx.fxml.FXML;
 import javafx.fxml.Initializable;
 import javafx.scene.chart.LineChart;
+import javafx.scene.chart.NumberAxis;
 import javafx.scene.chart.XYChart;
 import javafx.scene.control.Button;
 import javafx.scene.control.Label;
 import javafx.scene.control.TextField;
+import javafx.scene.control.Tooltip;
 import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.VBox;
 import javafx.util.Duration;
+import javafx.util.StringConverter;
 import net.auctionapp.client.services.AuctionService;
 import net.auctionapp.client.ClientSession;
 import net.auctionapp.client.ui.managers.SceneManager;
@@ -36,11 +39,18 @@ import net.auctionapp.common.utils.MoneyUtil;
 import java.math.BigDecimal;
 import java.net.URL;
 import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.ResourceBundle;
 
 public class AuctionItemMenuController implements Initializable, AuctionContextController {
+    private static final int MAX_VISIBLE_BIDS = 16;
+    private static final DateTimeFormatter CHART_TIME_FORMAT = DateTimeFormatter.ofPattern("HH:mm:ss");
+    private static final DateTimeFormatter TOOLTIP_TIME_FORMAT = DateTimeFormatter.ofPattern("MMM d, HH:mm:ss");
+
     @FXML
     private HeaderController appHeaderController;
     @FXML
@@ -71,6 +81,12 @@ public class AuctionItemMenuController implements Initializable, AuctionContextC
     private Label messageLabel;
     @FXML
     private LineChart<String, Number> priceHistoryChart;
+    @FXML
+    private NumberAxis priceAxis;
+    @FXML
+    private Label chartBidCountLabel;
+    @FXML
+    private Label chartStatusLabel;
 
     private String currentAuctionId;
     private BigDecimal currentHighestBid = BigDecimal.ZERO;
@@ -90,6 +106,17 @@ public class AuctionItemMenuController implements Initializable, AuctionContextC
         priceHistoryChart.getData().clear();
         priceSeries.setName("Bid price");
         priceHistoryChart.getData().add(priceSeries);
+        priceAxis.setTickLabelFormatter(new StringConverter<>() {
+            @Override
+            public String toString(Number value) {
+                return formatAxisPrice(value);
+            }
+
+            @Override
+            public Number fromString(String string) {
+                return 0;
+            }
+        });
 
         rootPane.sceneProperty().addListener((observable, oldScene, newScene) -> {
             if (oldScene != null) {
@@ -234,15 +261,72 @@ public class AuctionItemMenuController implements Initializable, AuctionContextC
 
     private void renderBidHistory(List<BidView> bidHistory) {
         priceSeries.getData().clear();
-        if (bidHistory == null) {
+        int totalBids = countValidBids(bidHistory);
+        chartBidCountLabel.setText(totalBids + (totalBids == 1 ? " bid" : " bids"));
+        if (totalBids == 0) {
+            chartStatusLabel.setText("No bids yet. The live price trend will appear here.");
             return;
         }
+
+        int skipCount = Math.max(0, totalBids - MAX_VISIBLE_BIDS);
+        int validIndex = 0;
+        Map<String, Integer> timeOccurrences = new HashMap<>();
         for (BidView bid : bidHistory) {
             if (bid == null || bid.getAmount() == null || bid.getTimestamp() == null) {
                 continue;
             }
-            priceSeries.getData().add(new XYChart.Data<>(bid.getTimestamp().toLocalTime().toString(), bid.getAmount()));
+            if (validIndex++ < skipCount) {
+                continue;
+            }
+            String baseTime = bid.getTimestamp().format(CHART_TIME_FORMAT);
+            int occurrence = timeOccurrences.merge(baseTime, 1, Integer::sum);
+            String displayedTime = occurrence == 1 ? baseTime : baseTime + " +" + (occurrence - 1);
+            XYChart.Data<String, Number> point = new XYChart.Data<>(displayedTime, bid.getAmount());
+            priceSeries.getData().add(point);
+            installPriceTooltip(point, bid);
         }
+        chartStatusLabel.setText(skipCount == 0
+                ? "Updating live as new bids arrive"
+                : "Showing the latest " + MAX_VISIBLE_BIDS + " bids");
+    }
+
+    private int countValidBids(List<BidView> bidHistory) {
+        if (bidHistory == null) {
+            return 0;
+        }
+        int count = 0;
+        for (BidView bid : bidHistory) {
+            if (bid != null && bid.getAmount() != null && bid.getTimestamp() != null) {
+                count++;
+            }
+        }
+        return count;
+    }
+
+    private void installPriceTooltip(XYChart.Data<String, Number> point, BidView bid) {
+        Tooltip tooltip = new Tooltip(
+                "$" + bid.getAmount().stripTrailingZeros().toPlainString()
+                        + "\n" + bid.getTimestamp().format(TOOLTIP_TIME_FORMAT)
+        );
+        point.nodeProperty().addListener((observable, oldNode, newNode) -> {
+            if (newNode != null) {
+                Tooltip.install(newNode, tooltip);
+            }
+        });
+        if (point.getNode() != null) {
+            Tooltip.install(point.getNode(), tooltip);
+        }
+    }
+
+    private String formatAxisPrice(Number value) {
+        double amount = value.doubleValue();
+        if (Math.abs(amount) >= 1_000_000) {
+            return String.format(Locale.US, "$%.1fM", amount / 1_000_000);
+        }
+        if (Math.abs(amount) >= 1_000) {
+            return String.format(Locale.US, "$%.1fk", amount / 1_000);
+        }
+        return String.format(Locale.US, "$%.0f", amount);
     }
 
     private void updateProductImage(String imageUrl, ItemType itemType) {
