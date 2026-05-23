@@ -22,7 +22,7 @@ class AuctionTest {
         );
 
         assertTrue(accepted);
-        assertEquals(endTime.plusSeconds(10), auction.getEndTime());
+        assertEquals(endTime.plusSeconds(100), auction.getEndTime());
     }
 
     @Test
@@ -32,8 +32,8 @@ class AuctionTest {
         Auction auction = newAuction(startTime, endTime);
 
         boolean accepted = auction.placeBid(
-                new BidTransaction("bid-1", new BigDecimal("110.00"), endTime.minusSeconds(11), "bidder-1", "auction-1"),
-                endTime.minusSeconds(11)
+                new BidTransaction("bid-1", new BigDecimal("110.00"), endTime.minusSeconds(31), "bidder-1", "auction-1"),
+                endTime.minusSeconds(31)
         );
 
         assertTrue(accepted);
