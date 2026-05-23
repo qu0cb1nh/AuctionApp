@@ -8,10 +8,9 @@ import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
 import javafx.scene.layout.VBox;
 import net.auctionapp.client.utils.ResourcesUtil;
+import net.auctionapp.common.items.ItemType;
 
 public final class AuctionCardController {
-    private static final String FALLBACK_IMAGE = "iphone.jpg";
-
     @FXML
     private ImageView thumbnailImageView;
     @FXML
@@ -54,7 +53,7 @@ public final class AuctionCardController {
         if (data == null) {
             return;
         }
-        setImage(data.imageUrl());
+        setImage(data.imageUrl(), data.itemType());
         titleLabel.setText(textOrFallback(data.title(), "Untitled auction"));
         statusLabel.setText(textOrFallback(data.statusText(), ""));
         statusLabel.setStyle("-fx-font-weight: bold; -fx-font-size: 12px; -fx-text-fill: "
@@ -83,12 +82,12 @@ public final class AuctionCardController {
         }
     }
 
-    private void setImage(String imageUrl) {
+    private void setImage(String imageUrl, ItemType itemType) {
         if (imageUrl != null && !imageUrl.isBlank()) {
             thumbnailImageView.setImage(new Image(imageUrl, true));
             return;
         }
-        Image fallback = new Image(ResourcesUtil.image(FALLBACK_IMAGE).toExternalForm(), true);
+        Image fallback = new Image(ResourcesUtil.itemPlaceholder(itemType).toExternalForm(), true);
         thumbnailImageView.setImage(fallback);
     }
 
@@ -133,6 +132,7 @@ public final class AuctionCardController {
 
     public record CardData(
             String imageUrl,
+            ItemType itemType,
             String title,
             String statusText,
             String statusColor,

@@ -3,6 +3,7 @@ package net.auctionapp.common.messages.types;
 import net.auctionapp.common.messages.Message;
 import net.auctionapp.common.messages.MessageType;
 import net.auctionapp.common.auction.AuctionStatus;
+import net.auctionapp.common.items.ItemType;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
@@ -22,6 +23,7 @@ public class AuctionDetailsResponseMessage extends Message {
     private LocalDateTime startTime;
     private LocalDateTime endTime;
     private String imageUrl;
+    private ItemType itemType;
     private List<BidView> bidHistory;
 
     public AuctionDetailsResponseMessage() {
@@ -57,6 +59,7 @@ public class AuctionDetailsResponseMessage extends Message {
                 startTime,
                 endTime,
                 null,
+                null,
                 bidHistory
         );
     }
@@ -77,6 +80,42 @@ public class AuctionDetailsResponseMessage extends Message {
             String imageUrl,
             List<BidView> bidHistory
     ) {
+        this(
+                auctionId,
+                sellerId,
+                title,
+                description,
+                startingPrice,
+                currentPrice,
+                minimumNextBid,
+                status,
+                leadingBidderId,
+                winnerBidderId,
+                startTime,
+                endTime,
+                imageUrl,
+                null,
+                bidHistory
+        );
+    }
+
+    public AuctionDetailsResponseMessage(
+            String auctionId,
+            String sellerId,
+            String title,
+            String description,
+            BigDecimal startingPrice,
+            BigDecimal currentPrice,
+            BigDecimal minimumNextBid,
+            AuctionStatus status,
+            String leadingBidderId,
+            String winnerBidderId,
+            LocalDateTime startTime,
+            LocalDateTime endTime,
+            String imageUrl,
+            ItemType itemType,
+            List<BidView> bidHistory
+    ) {
         super(MessageType.AUCTION_DETAILS_RESPONSE);
         this.auctionId = auctionId;
         this.sellerId = sellerId;
@@ -91,6 +130,7 @@ public class AuctionDetailsResponseMessage extends Message {
         this.startTime = startTime;
         this.endTime = endTime;
         this.imageUrl = imageUrl;
+        this.itemType = itemType;
         this.bidHistory = bidHistory == null ? List.of() : List.copyOf(bidHistory);
     }
 
@@ -107,5 +147,6 @@ public class AuctionDetailsResponseMessage extends Message {
     public LocalDateTime getStartTime() { return startTime; }
     public LocalDateTime getEndTime() { return endTime; }
     public String getImageUrl() { return imageUrl; }
+    public ItemType getItemType() { return itemType; }
     public List<BidView> getBidHistory() { return bidHistory == null ? List.of() : List.copyOf(bidHistory); }
 }
