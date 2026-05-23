@@ -49,6 +49,7 @@ public final class JsonUtil {
                 case REGISTER_REQUEST -> GSON.fromJson(json, RegisterRequestMessage.class);
                 case GET_AUCTION_LIST_REQUEST -> GSON.fromJson(json, GetAuctionListRequestMessage.class);
                 case GET_AUCTION_DETAILS_REQUEST -> GSON.fromJson(json, GetAuctionDetailsRequestMessage.class);
+                case OBSERVE_AUCTION_REQUEST -> GSON.fromJson(json, ObserverAuctionMessage.class);
                 case GET_NOTIFICATIONS_REQUEST -> GSON.fromJson(json, GetNotificationsRequestMessage.class);
                 case GET_WALLET_REQUEST -> GSON.fromJson(json, GetWalletRequestMessage.class);
                 case CREATE_ITEM_REQUEST -> GSON.fromJson(json, CreateItemRequestMessage.class);

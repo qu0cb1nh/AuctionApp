@@ -3,11 +3,12 @@ package net.auctionapp.common.messages.types;
 import net.auctionapp.common.messages.Message;
 import net.auctionapp.common.messages.MessageType;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 public class PriceUpdateMessage extends Message {
     private String itemId;
-    private double newPrice;
+    private BigDecimal newPrice;
     private String leadingUserName;
     private LocalDateTime endTime;
 
@@ -15,11 +16,7 @@ public class PriceUpdateMessage extends Message {
         super(MessageType.PRICE_UPDATE);
     }
 
-    public PriceUpdateMessage(String auctionId, double newPrice, String leadingUserName) {
-        this(auctionId, newPrice, leadingUserName, null);
-    }
-
-    public PriceUpdateMessage(String auctionId, double newPrice, String leadingUserName, LocalDateTime endTime) {
+    public PriceUpdateMessage(String auctionId, BigDecimal newPrice, String leadingUserName, LocalDateTime endTime) {
         super(MessageType.PRICE_UPDATE);
         this.itemId = auctionId;
         this.newPrice = newPrice;
@@ -35,19 +32,11 @@ public class PriceUpdateMessage extends Message {
         this.itemId = auctionId;
     }
 
-    public String getItemId() {
-        return itemId;
-    }
-
-    public void setItemId(String itemId) {
-        this.itemId = itemId;
-    }
-
-    public double getNewPrice() {
+    public BigDecimal getNewPrice() {
         return newPrice;
     }
 
-    public void setNewPrice(double newPrice) {
+    public void setNewPrice(BigDecimal newPrice) {
         this.newPrice = newPrice;
     }
 

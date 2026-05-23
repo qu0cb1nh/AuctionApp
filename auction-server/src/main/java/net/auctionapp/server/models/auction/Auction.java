@@ -3,15 +3,13 @@ package net.auctionapp.server.models.auction;
 import net.auctionapp.common.auction.AuctionStatus;
 
 import net.auctionapp.server.models.Entity;
-import net.auctionapp.server.models.items.Art;
-import net.auctionapp.server.models.items.Electronics;
 import net.auctionapp.server.models.items.Item;
-import net.auctionapp.server.models.items.Vehicle;
 
 import java.math.BigDecimal;
 import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
 
 /**
@@ -87,7 +85,7 @@ public class Auction extends Entity {
     }
 
     public synchronized Item getItem() {
-        return copyItem(item);
+        return item.copy();
     }
 
     public synchronized BigDecimal getStartingPrice() {
@@ -116,6 +114,22 @@ public class Auction extends Entity {
 
     public synchronized List<BidTransaction> getBidHistory() {
         return new ArrayList<>(bidHistory);
+    }
+
+    public synchronized void restoreBidHistory(List<BidTransaction> persistedBids) {
+        bidHistory.clear();
+        if (persistedBids == null || persistedBids.isEmpty()) {
+            restoreLeadingBidFromAuctionState();
+            return;
+        }
+        persistedBids.stream()
+                .filter(bid -> bid != null && getId().equals(bid.getAuctionId()))
+                .filter(bid -> bid.getAmount() != null && bid.getBidderId() != null && !bid.getBidderId().isBlank())
+                .sorted(Comparator.comparing(BidTransaction::getTimestamp, Comparator.nullsLast(LocalDateTime::compareTo)))
+                .forEach(bidHistory::add);
+        if (bidHistory.isEmpty()) {
+            restoreLeadingBidFromAuctionState();
+        }
     }
 
     public synchronized boolean placeBid(BidTransaction bid, LocalDateTime now) {
@@ -213,7 +227,7 @@ public class Auction extends Entity {
                 sellerId,
                 startTime,
                 endTime,
-                copyItem(item),
+                item.copy(),
                 startingPrice,
                 minimumBidIncrement,
                 currentPrice,
@@ -225,45 +239,39 @@ public class Auction extends Entity {
         return copy;
     }
 
-    private Item copyItem(Item source) {
-        if (source == null) {
-            throw new IllegalStateException("Auction item must not be null.");
+    public synchronized void applySnapshot(Auction snapshot) {
+        if (snapshot == null || !getId().equals(snapshot.getId())) {
+            throw new IllegalArgumentException("Snapshot must belong to this auction.");
         }
-        if (source instanceof Electronics electronics) {
-            return new Electronics(
-                    electronics.getId(),
-                    electronics.getTitle(),
-                    electronics.getDescription(),
-                    electronics.getBasePrice(),
-                    electronics.getBrand(),
-                    electronics.getModel(),
-                    electronics.getWarrantyMonths(),
-                    electronics.getImageUrl()
-            );
-        }
-        if (source instanceof Vehicle vehicle) {
-            return new Vehicle(
-                    vehicle.getId(),
-                    vehicle.getTitle(),
-                    vehicle.getDescription(),
-                    vehicle.getBasePrice(),
-                    vehicle.getBrand(),
-                    vehicle.getModel(),
-                    vehicle.getYearCreated(),
-                    vehicle.getImageUrl()
-            );
-        }
-        if (source instanceof Art art) {
-            return new Art(
-                    art.getId(),
-                    art.getTitle(),
-                    art.getDescription(),
-                    art.getBasePrice(),
-                    art.getAuthor(),
-                    art.getYearCreated(),
-                    art.getImageUrl()
-            );
-        }
-        throw new IllegalStateException("Unsupported item type: " + source.getClass().getName());
+        Item snapshotItem = snapshot.getItem();
+        item.updateDetails(snapshotItem.getTitle(), snapshotItem.getDescription(), snapshotItem.getBasePrice());
+        item.setImageUrl(snapshotItem.getImageUrl());
+        startTime = snapshot.getStartTime();
+        endTime = snapshot.getEndTime();
+        startingPrice = snapshot.getStartingPrice();
+        minimumBidIncrement = snapshot.getMinimumBidIncrement();
+        currentPrice = snapshot.getCurrentPrice();
+        leadingBidderId = snapshot.getLeadingBidderId();
+        winnerBidderId = snapshot.getWinnerBidderId();
+        status = snapshot.getStatus();
+        bidHistory.clear();
+        bidHistory.addAll(snapshot.getBidHistory());
     }
+
+    private void restoreLeadingBidFromAuctionState() {
+        if (leadingBidderId == null || leadingBidderId.isBlank() || currentPrice == null) {
+            return;
+        }
+        if (startingPrice != null && currentPrice.compareTo(startingPrice) <= 0) {
+            return;
+        }
+        bidHistory.add(new BidTransaction(
+                "restored-" + getId(),
+                currentPrice,
+                startTime,
+                leadingBidderId,
+                getId()
+        ));
+    }
+
 }

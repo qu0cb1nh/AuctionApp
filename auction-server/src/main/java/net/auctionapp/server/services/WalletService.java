@@ -102,29 +102,11 @@ public final class WalletService {
         }
     }
 
-    public boolean lockBidFunds(String bidderId, BigDecimal amount) {
+    public void applyLockedBidFunds(String bidderId, BigDecimal amount) {
         MoneyUtil.requirePositiveMoney(amount, "Bid amount");
         String normalizedBidderId = StringUtil.normalizeString(bidderId);
         User bidder = authService.requireUserById(normalizedBidderId);
-        if (!requireUserDao().lockFunds(normalizedBidderId, amount)) {
-            return false;
-        }
         updateCachedWallet(bidder, amount.negate(), amount);
-        return true;
-    }
-
-    public void releaseBidFunds(String bidderId, BigDecimal amount) {
-        if (amount == null || amount.signum() <= 0) {
-            return;
-        }
-        String normalizedBidderId = StringUtil.normalizeString(bidderId);
-        if (normalizedBidderId.isEmpty()) {
-            return;
-        }
-        if (requireUserDao().releaseFunds(normalizedBidderId, amount)) {
-            User bidder = authService.requireUserById(normalizedBidderId);
-            updateCachedWallet(bidder, amount, amount.negate());
-        }
     }
 
     public BigDecimal getBidderCommitment(Auction auction, String bidderId) {
@@ -139,28 +121,33 @@ public final class WalletService {
             return;
         }
         Map<String, BigDecimal> committedAmountsByBidder = getCommittedAmountsByBidder(auction);
-        persistAuctionClose(auction, committedAmountsByBidder);
-
         String winnerId = StringUtil.normalizeString(auction.getWinnerBidderId());
         BigDecimal winningAmount = auction.getCurrentPrice();
-        if (!winnerId.isEmpty() && auction.getStatus() == AuctionStatus.PAID) {
-            User winner = authService.requireUserById(winnerId);
-            updateCachedWallet(winner, BigDecimal.ZERO, winningAmount.negate());
+        boolean hasWinner = !winnerId.isEmpty() && auction.getStatus() == AuctionStatus.PAID;
+        User winner = hasWinner ? authService.requireUserById(winnerId) : null;
+        User seller = hasWinner ? authService.requireUserById(StringUtil.normalizeString(auction.getSellerId())) : null;
+        Map<String, User> biddersToRelease = new HashMap<>();
+        for (Map.Entry<String, BigDecimal> entry : committedAmountsByBidder.entrySet()) {
+            String bidderId = entry.getKey();
+            if (hasWinner && bidderId.equalsIgnoreCase(winnerId)) {
+                continue;
+            }
+            biddersToRelease.put(bidderId, authService.requireUserById(bidderId));
+        }
 
-            User seller = authService.requireUserById(StringUtil.normalizeString(auction.getSellerId()));
+        persistAuctionState(auction, committedAmountsByBidder);
+
+        if (hasWinner) {
+            updateCachedWallet(winner, BigDecimal.ZERO, winningAmount.negate());
             updateCachedWallet(seller, winningAmount, BigDecimal.ZERO);
             LOGGER.info("Winner {} paid {}. Seller {} received funds for auction {}",
                     winnerId, winningAmount, auction.getSellerId(), auction.getId());
         }
 
-        for (Map.Entry<String, BigDecimal> entry : committedAmountsByBidder.entrySet()) {
+        for (Map.Entry<String, User> entry : biddersToRelease.entrySet()) {
             String bidderId = entry.getKey();
-            BigDecimal committedAmount = entry.getValue();
-            if (bidderId.equalsIgnoreCase(winnerId) && auction.getStatus() == AuctionStatus.PAID) {
-                continue;
-            }
-            User user = authService.requireUserById(bidderId);
-            updateCachedWallet(user, committedAmount, committedAmount.negate());
+            BigDecimal committedAmount = committedAmountsByBidder.get(bidderId);
+            updateCachedWallet(entry.getValue(), committedAmount, committedAmount.negate());
         }
     }
 
@@ -184,7 +171,7 @@ public final class WalletService {
         throw new ValidationException("Insufficient liquid balance for withdrawal.");
     }
 
-    private void persistAuctionClose(Auction auction, Map<String, BigDecimal> committedAmountsByBidder) {
+    private void persistAuctionState(Auction auction, Map<String, BigDecimal> committedAmountsByBidder) {
         AuctionDao dao = auctionDao;
         if (dao == null) {
             return;
@@ -194,9 +181,9 @@ public final class WalletService {
                 return;
             }
         } catch (DatabaseException e) {
-            throw new AuctionAppException("Failed to close auction wallet state.");
+            throw new AuctionAppException("Failed to persist auction state.");
         }
-        throw new AuctionAppException("Auction wallet state could not be closed.");
+        throw new AuctionAppException("Auction state could not be persisted.");
     }
 
     private Map<String, BigDecimal> getCommittedAmountsByBidder(Auction auction) {

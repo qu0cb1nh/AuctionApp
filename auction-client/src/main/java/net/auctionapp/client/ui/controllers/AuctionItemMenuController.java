@@ -17,7 +17,6 @@ import javafx.scene.image.ImageView;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.VBox;
 import javafx.util.Duration;
-import net.auctionapp.client.ClientApp;
 import net.auctionapp.client.services.AuctionService;
 import net.auctionapp.client.ClientSession;
 import net.auctionapp.client.ui.managers.SceneManager;
@@ -38,7 +37,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.ResourceBundle;
 
-public class AuctionItemMenuController implements Initializable {
+public class AuctionItemMenuController implements Initializable, AuctionContextController {
     @FXML
     private HeaderController appHeaderController;
     @FXML
@@ -93,7 +92,11 @@ public class AuctionItemMenuController implements Initializable {
                 stopCountdownTimer();
             }
         });
-        currentAuctionId = ClientApp.getInstance().getSelectedAuctionId();
+    }
+
+    @Override
+    public void setAuctionId(String auctionId) {
+        currentAuctionId = auctionId;
         if (currentAuctionId == null || currentAuctionId.isBlank()) {
             setErrorMessage("No auction selected.");
             placeBidButton.setDisable(true);
@@ -101,6 +104,9 @@ public class AuctionItemMenuController implements Initializable {
         }
 
         registerEventListeners();
+        AuctionService.getInstance().observeAuction(currentAuctionId, true);
+        String subscribedAuctionId = currentAuctionId;
+        SceneManager.registerSceneCleanup(() -> AuctionService.getInstance().observeAuction(subscribedAuctionId, false));
         startCountdownTimer();
         requestAuctionDetails();
     }
@@ -195,7 +201,10 @@ public class AuctionItemMenuController implements Initializable {
         if (!currentAuctionId.equals(update.getAuctionId())) {
             return;
         }
-        currentHighestBid = BigDecimal.valueOf(update.getNewPrice());
+        if (update.getNewPrice() == null) {
+            return;
+        }
+        currentHighestBid = update.getNewPrice();
         currentBidLabel.setText("$" + currentHighestBid.toPlainString());
         leadingBidderLabel.setText(formatTopBidder(update.getLeadingUserName()));
         setAuctionEndTime(update.getEndTime());

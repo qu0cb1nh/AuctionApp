@@ -223,7 +223,6 @@ public class CreateAuctionMenuController implements Initializable {
                 throw new IllegalArgumentException("Selected file must be an image.");
             }
             byte[] imageBytes = Files.readAllBytes(selectedImageFile.toPath());
-            request.setImageFileName(selectedImageFile.getName());
             request.setImageContentType(contentType);
             request.setImageBase64(Base64.getEncoder().encodeToString(imageBytes));
         } catch (IOException e) {

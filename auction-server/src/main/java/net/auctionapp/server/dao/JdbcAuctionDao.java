@@ -1,22 +1,17 @@
 package net.auctionapp.server.dao;
 
 import net.auctionapp.server.models.auction.Auction;
+import net.auctionapp.server.models.auction.BidTransaction;
 import net.auctionapp.common.auction.AuctionStatus;
-import net.auctionapp.server.models.items.Art;
-import net.auctionapp.server.models.items.Electronics;
 import net.auctionapp.server.models.items.Item;
 import net.auctionapp.common.items.ItemType;
-import net.auctionapp.server.models.items.Vehicle;
 import net.auctionapp.server.exceptions.DatabaseException;
-import net.auctionapp.server.factories.ArtFactory;
-import net.auctionapp.server.factories.ElectronicsFactory;
+import net.auctionapp.server.factories.ItemFactories;
 import net.auctionapp.server.factories.ItemFactory;
-import net.auctionapp.server.factories.VehicleFactory;
 import net.auctionapp.server.services.DatabaseService;
 
 import java.math.BigDecimal;
 import java.sql.Connection;
-import java.sql.DatabaseMetaData;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
@@ -24,6 +19,7 @@ import java.sql.Statement;
 import java.sql.Timestamp;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -52,6 +48,17 @@ public class JdbcAuctionDao implements AuctionDao {
                 year_created INT
             )
             """;
+    private static final String CREATE_BID_TRANSACTIONS_TABLE_QUERY = """
+            CREATE TABLE IF NOT EXISTS bid_transactions (
+                id VARCHAR(64) PRIMARY KEY,
+                auction_id VARCHAR(64) NOT NULL,
+                bidder_id VARCHAR(255) NOT NULL,
+                amount DECIMAL(19, 2) NOT NULL,
+                bid_time DATETIME NOT NULL,
+                INDEX idx_bid_transactions_auction_id (auction_id),
+                INDEX idx_bid_transactions_bidder_id (bidder_id)
+            )
+            """;
     private static final String FIND_ALL_AUCTIONS_QUERY = """
             SELECT
                 id,
@@ -76,6 +83,11 @@ public class JdbcAuctionDao implements AuctionDao {
                 year_created
             FROM auctions
             """;
+    private static final String FIND_ALL_BID_TRANSACTIONS_QUERY = """
+            SELECT id, auction_id, bidder_id, amount, bid_time
+            FROM bid_transactions
+            ORDER BY auction_id ASC, bid_time ASC, id ASC
+            """;
     private static final String CREATE_AUCTION_QUERY = """
             INSERT INTO auctions (
                 id,
@@ -99,6 +111,10 @@ public class JdbcAuctionDao implements AuctionDao {
                 author,
                 year_created
             ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """;
+    private static final String INSERT_BID_TRANSACTION_QUERY = """
+            INSERT INTO bid_transactions (id, auction_id, bidder_id, amount, bid_time)
+            VALUES (?, ?, ?, ?, ?)
             """;
     private static final String UPDATE_AUCTION_STATE_QUERY = """
             UPDATE auctions
@@ -133,6 +149,9 @@ public class JdbcAuctionDao implements AuctionDao {
             """;
     private static final String INCREASE_BALANCE_QUERY =
             "UPDATE users SET balance = balance + ? WHERE lower(username) = ?";
+    private static final String LOCK_FUNDS_QUERY =
+            "UPDATE users SET balance = balance - ?, pending_balance = pending_balance + ? "
+                    + "WHERE lower(username) = ? AND balance >= ?";
     private static final String RELEASE_FUNDS_QUERY =
             "UPDATE users SET balance = balance + ?, pending_balance = pending_balance - ? WHERE lower(username) = ? AND pending_balance >= ?";
     private static final String TRANSFER_PENDING_QUERY =
@@ -146,17 +165,22 @@ public class JdbcAuctionDao implements AuctionDao {
 
     public JdbcAuctionDao(DatabaseService databaseService) {
         this.databaseService = databaseService;
-        ensureAuctionsTable();
+        ensureAuctionsSchema();
     }
 
     @Override
     public List<Auction> findAllAuctions() {
         List<Auction> auctions = new ArrayList<>();
         try (Connection connection = databaseService.getConnection();
-             PreparedStatement statement = connection.prepareStatement(FIND_ALL_AUCTIONS_QUERY);
-             ResultSet resultSet = statement.executeQuery()) {
-            while (resultSet.next()) {
-                auctions.add(mapAuction(resultSet));
+             PreparedStatement statement = connection.prepareStatement(FIND_ALL_AUCTIONS_QUERY)) {
+            try (ResultSet resultSet = statement.executeQuery()) {
+                while (resultSet.next()) {
+                    auctions.add(mapAuction(resultSet));
+                }
+            }
+            Map<String, List<BidTransaction>> bidsByAuctionId = findAllBidTransactions(connection);
+            for (Auction auction : auctions) {
+                auction.restoreBidHistory(bidsByAuctionId.get(auction.getId()));
             }
         } catch (SQLException e) {
             throw new DatabaseException("Failed to load auctions.", e);
@@ -184,7 +208,7 @@ public class JdbcAuctionDao implements AuctionDao {
             setNullableString(statement, 13, auction.getWinnerBidderId());
             statement.setTimestamp(14, Timestamp.valueOf(auction.getStartTime()));
             statement.setTimestamp(15, Timestamp.valueOf(auction.getEndTime()));
-            bindItemAttributes(statement, 16, item);
+            ItemFactories.forType(item.getType()).bindAttributes(statement, 16, item);
 
             return statement.executeUpdate() == 1;
         } catch (SQLException e) {
@@ -193,12 +217,27 @@ public class JdbcAuctionDao implements AuctionDao {
     }
 
     @Override
-    public boolean updateAuctionState(Auction auction) {
-        try (Connection connection = databaseService.getConnection();
-             PreparedStatement statement = connection.prepareStatement(UPDATE_AUCTION_STATE_QUERY)) {
-            return bindAuctionState(statement, auction).executeUpdate() == 1;
+    public boolean recordBid(Auction auction, BidTransaction bid, BigDecimal amountToLock) {
+        try (Connection connection = databaseService.getConnection()) {
+            boolean previousAutoCommit = connection.getAutoCommit();
+            connection.setAutoCommit(false);
+            try {
+                if (!lockFunds(connection, bid.getBidderId(), amountToLock)
+                        || !updateAuctionState(connection, auction)
+                        || !insertBidTransaction(connection, bid)) {
+                    connection.rollback();
+                    return false;
+                }
+                connection.commit();
+                return true;
+            } catch (SQLException | RuntimeException e) {
+                connection.rollback();
+                throw e;
+            } finally {
+                connection.setAutoCommit(previousAutoCommit);
+            }
         } catch (SQLException e) {
-            throw new DatabaseException("Failed to update auction state.", e);
+            throw new DatabaseException("Failed to record bid.", e);
         }
     }
 
@@ -218,7 +257,7 @@ public class JdbcAuctionDao implements AuctionDao {
             setNullableString(statement, 9, auction.getWinnerBidderId());
             statement.setTimestamp(10, Timestamp.valueOf(auction.getStartTime()));
             statement.setTimestamp(11, Timestamp.valueOf(auction.getEndTime()));
-            bindItemAttributes(statement, 12, item);
+            ItemFactories.forType(item.getType()).bindAttributes(statement, 12, item);
             statement.setString(17, auction.getId());
             return statement.executeUpdate() == 1;
         } catch (SQLException e) {
@@ -256,6 +295,27 @@ public class JdbcAuctionDao implements AuctionDao {
     private boolean updateAuctionState(Connection connection, Auction auction) throws SQLException {
         try (PreparedStatement statement = connection.prepareStatement(UPDATE_AUCTION_STATE_QUERY)) {
             return bindAuctionState(statement, auction).executeUpdate() == 1;
+        }
+    }
+
+    private boolean insertBidTransaction(Connection connection, BidTransaction bid) throws SQLException {
+        try (PreparedStatement statement = connection.prepareStatement(INSERT_BID_TRANSACTION_QUERY)) {
+            statement.setString(1, bid.getId());
+            statement.setString(2, bid.getAuctionId());
+            statement.setString(3, bid.getBidderId());
+            statement.setBigDecimal(4, bid.getAmount());
+            statement.setTimestamp(5, Timestamp.valueOf(bid.getTimestamp()));
+            return statement.executeUpdate() == 1;
+        }
+    }
+
+    private boolean lockFunds(Connection connection, String normalizedUsername, BigDecimal amount) throws SQLException {
+        try (PreparedStatement statement = connection.prepareStatement(LOCK_FUNDS_QUERY)) {
+            statement.setBigDecimal(1, amount);
+            statement.setBigDecimal(2, amount);
+            statement.setString(3, normalize(normalizedUsername));
+            statement.setBigDecimal(4, amount);
+            return statement.executeUpdate() == 1;
         }
     }
 
@@ -341,6 +401,11 @@ public class JdbcAuctionDao implements AuctionDao {
         return value == null ? "" : value.trim().toLowerCase();
     }
 
+    private void ensureAuctionsSchema() {
+        ensureAuctionsTable();
+        ensureBidTransactionsTable();
+    }
+
     private void ensureAuctionsTable() {
         try (Connection connection = databaseService.getConnection();
              Statement statement = connection.createStatement()) {
@@ -350,13 +415,30 @@ public class JdbcAuctionDao implements AuctionDao {
         }
     }
 
+    private void ensureBidTransactionsTable() {
+        try (Connection connection = databaseService.getConnection();
+             Statement statement = connection.createStatement()) {
+            statement.executeUpdate(CREATE_BID_TRANSACTIONS_TABLE_QUERY);
+        } catch (SQLException e) {
+            throw new DatabaseException("Failed to create bid transactions table.", e);
+        }
+    }
+
+    private Map<String, List<BidTransaction>> findAllBidTransactions(Connection connection) throws SQLException {
+        Map<String, List<BidTransaction>> bidsByAuctionId = new HashMap<>();
+        try (PreparedStatement statement = connection.prepareStatement(FIND_ALL_BID_TRANSACTIONS_QUERY);
+             ResultSet resultSet = statement.executeQuery()) {
+            while (resultSet.next()) {
+                BidTransaction bid = mapBidTransaction(resultSet);
+                bidsByAuctionId.computeIfAbsent(bid.getAuctionId(), ignored -> new ArrayList<>()).add(bid);
+            }
+        }
+        return bidsByAuctionId;
+    }
+
     private Auction mapAuction(ResultSet resultSet) throws SQLException {
         ItemType itemType = ItemType.valueOf(resultSet.getString("item_type"));
-        ItemFactory itemFactory = switch (itemType) {
-            case ART -> new ArtFactory();
-            case ELECTRONICS -> new ElectronicsFactory();
-            case VEHICLE -> new VehicleFactory();
-        };
+        ItemFactory itemFactory = ItemFactories.forType(itemType);
         Item item = itemFactory.createItem(resultSet);
 
         String winnerBidderId = resultSet.getString("winner_bidder_id");
@@ -375,54 +457,25 @@ public class JdbcAuctionDao implements AuctionDao {
         );
     }
 
+    private BidTransaction mapBidTransaction(ResultSet resultSet) throws SQLException {
+        Timestamp bidTimestamp = resultSet.getTimestamp("bid_time");
+        if (bidTimestamp == null) {
+            throw new DatabaseException("Bid timestamp cannot be null.", new IllegalStateException());
+        }
+        return new BidTransaction(
+                resultSet.getString("id"),
+                resultSet.getBigDecimal("amount"),
+                bidTimestamp.toLocalDateTime(),
+                resultSet.getString("bidder_id"),
+                resultSet.getString("auction_id")
+        );
+    }
+
     private LocalDateTime toLocalDateTime(Timestamp timestamp) {
         if (timestamp == null) {
             throw new DatabaseException("Auction timestamp cannot be null.", new IllegalStateException());
         }
         return timestamp.toLocalDateTime();
-    }
-
-    private int getNullableIntOrDefault(ResultSet resultSet, String columnName, int fallback) throws SQLException {
-        int value = resultSet.getInt(columnName);
-        if (resultSet.wasNull()) {
-            return fallback;
-        }
-        return value;
-    }
-
-    private DatabaseException unsupportedItemTypeError(String itemTypeName) {
-        return new DatabaseException(
-                "Unsupported item class: " + itemTypeName,
-                new IllegalArgumentException(itemTypeName)
-        );
-    }
-
-    private void bindItemAttributes(PreparedStatement statement, int startIndex, Item item) throws SQLException {
-        if (item instanceof Electronics electronics) {
-            statement.setString(startIndex, electronics.getBrand());
-            statement.setString(startIndex + 1, electronics.getModel());
-            statement.setInt(startIndex + 2, electronics.getWarrantyMonths());
-            statement.setNull(startIndex + 3, java.sql.Types.VARCHAR);
-            statement.setNull(startIndex + 4, java.sql.Types.INTEGER);
-            return;
-        }
-        if (item instanceof Vehicle vehicle) {
-            statement.setString(startIndex, vehicle.getBrand());
-            statement.setString(startIndex + 1, vehicle.getModel());
-            statement.setNull(startIndex + 2, java.sql.Types.INTEGER);
-            statement.setNull(startIndex + 3, java.sql.Types.VARCHAR);
-            statement.setInt(startIndex + 4, vehicle.getYearCreated());
-            return;
-        }
-        if (item instanceof Art art) {
-            statement.setNull(startIndex, java.sql.Types.VARCHAR);
-            statement.setNull(startIndex + 1, java.sql.Types.VARCHAR);
-            statement.setNull(startIndex + 2, java.sql.Types.INTEGER);
-            statement.setString(startIndex + 3, art.getAuthor());
-            statement.setInt(startIndex + 4, art.getYearCreated());
-            return;
-        }
-        throw unsupportedItemTypeError(item.getClass().getName());
     }
 
     private AuctionStatus parseAuctionStatus(String rawStatus, String winnerBidderId) {

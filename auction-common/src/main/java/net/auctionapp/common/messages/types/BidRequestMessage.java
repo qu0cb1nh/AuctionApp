@@ -8,21 +8,15 @@ import java.math.BigDecimal;
 public class BidRequestMessage extends Message {
     private String itemId;
     private BigDecimal price;
-    private String userName;
 
     public BidRequestMessage() {
         super(MessageType.BID_REQUEST);
     }
 
     public BidRequestMessage(String auctionId, BigDecimal price) {
-        this(auctionId, price, null);
-    }
-
-    public BidRequestMessage(String auctionId, BigDecimal price, String userName) {
         super(MessageType.BID_REQUEST);
         this.itemId = auctionId;
         this.price = price;
-        this.userName = userName;
     }
 
     public String getAuctionId() {
@@ -33,14 +27,6 @@ public class BidRequestMessage extends Message {
         this.itemId = auctionId;
     }
 
-    public String getItemId() {
-        return itemId;
-    }
-
-    public void setItemId(String itemId) {
-        this.itemId = itemId;
-    }
-
     public BigDecimal getPrice() {
         return price;
     }
@@ -49,13 +35,4 @@ public class BidRequestMessage extends Message {
         this.price = price;
     }
 
-    @Deprecated(forRemoval = false)
-    public String getUserName() {
-        return userName;
-    }
-
-    @Deprecated(forRemoval = false)
-    public void setUserName(String userName) {
-        this.userName = userName;
-    }
 }

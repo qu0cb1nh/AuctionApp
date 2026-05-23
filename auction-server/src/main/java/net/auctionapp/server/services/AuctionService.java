@@ -1,5 +1,6 @@
 package net.auctionapp.server.services;
 
+import net.auctionapp.common.messages.Message;
 import net.auctionapp.common.messages.MessageType;
 import net.auctionapp.common.messages.types.AuctionDetailsResponseMessage;
 import net.auctionapp.common.messages.types.AuctionEndedMessage;
@@ -16,24 +17,20 @@ import net.auctionapp.common.messages.types.CreateItemResultMessage;
 import net.auctionapp.common.messages.types.ErrorMessage;
 import net.auctionapp.common.messages.types.GetAuctionDetailsRequestMessage;
 import net.auctionapp.common.messages.types.GetAuctionListRequestMessage;
+import net.auctionapp.common.messages.types.ObserverAuctionMessage;
 import net.auctionapp.common.messages.types.PriceUpdateMessage;
 import net.auctionapp.common.messages.types.UpdateAuctionRequestMessage;
 import net.auctionapp.server.models.auction.Auction;
 import net.auctionapp.common.auction.AuctionStatus;
 import net.auctionapp.server.models.auction.BidTransaction;
-import net.auctionapp.server.factories.ArtFactory;
-import net.auctionapp.server.factories.ElectronicsFactory;
+import net.auctionapp.server.factories.ItemFactories;
 import net.auctionapp.server.models.items.Item;
 import net.auctionapp.server.factories.ItemFactory;
-import net.auctionapp.common.items.ItemType;
-import net.auctionapp.server.factories.VehicleFactory;
 import net.auctionapp.server.models.users.User;
 import net.auctionapp.common.users.UserRole;
-import net.auctionapp.common.utils.JsonUtil;
 import net.auctionapp.common.utils.MoneyUtil;
 import net.auctionapp.common.utils.StringUtil;
 import net.auctionapp.server.ClientHandler;
-import net.auctionapp.server.ServerApp;
 import net.auctionapp.server.dao.AuctionDao;
 import net.auctionapp.server.exceptions.AuctionAppException;
 import net.auctionapp.server.exceptions.AuthorizationException;
@@ -50,6 +47,7 @@ import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
+import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
@@ -67,6 +65,7 @@ public final class AuctionService {
     private static AuctionService instance;
 
     private final ConcurrentMap<String, Auction> auctions = new ConcurrentHashMap<>();
+    private final ConcurrentMap<String, Set<ClientHandler>> auctionSubscribers = new ConcurrentHashMap<>();
     private final AuthService authService;
     private final NotificationService notificationService;
     private final CloudinaryImageService cloudinaryImageService;
@@ -105,11 +104,43 @@ public final class AuctionService {
         }
     }
 
+    public void handleObserveAuction(ObserverAuctionMessage message, ClientHandler handler) {
+        if (!message.isObserving()) {
+            removeSubscriber(message.getAuctionId(), handler);
+            return;
+        }
+        try {
+            handler.ensureAuthenticated();
+            Auction auction = requireAuction(message.getAuctionId());
+            auctionSubscribers.computeIfAbsent(auction.getId(), ignored -> ConcurrentHashMap.newKeySet()).add(handler);
+        } catch (AuctionAppException e) {
+            handler.sendResponse(new ErrorMessage(e.getMessage()), message);
+        }
+    }
+
+    public void removeSubscriber(ClientHandler handler) {
+        if (handler == null) {
+            return;
+        }
+        for (String auctionId : auctionSubscribers.keySet()) {
+            removeSubscriber(auctionId, handler);
+        }
+    }
+
     public void handleCreateItem(CreateItemRequestMessage message, ClientHandler handler) {
+        CloudinaryImageService.UploadedImage uploadedImage = null;
         try {
             handler.ensureAuthenticated();
             Item item = createItemFromRequest(message);
-            item.setImageUrl(cloudinaryImageService.uploadAuctionItemImage(message));
+            validateAuctionDraft(
+                    item,
+                    message.getStartingPrice(),
+                    message.getMinimumBidIncrement(),
+                    message.getStartTime(),
+                    message.getEndTime()
+            );
+            uploadedImage = cloudinaryImageService.uploadAuctionItemImage(message);
+            item.setImageUrl(uploadedImage == null ? null : uploadedImage.url());
             String sellerId = StringUtil.normalizeString(handler.getAuthenticatedId());
             Auction auction = openAuction(
                     sellerId,
@@ -126,9 +157,14 @@ public final class AuctionService {
                     "Auction created successfully."
             ), message);
         } catch (DatabaseException e) {
+            cloudinaryImageService.deleteAuctionItemImage(uploadedImage);
             handler.sendResponse(new ErrorMessage("Failed to save auction to database: " + e.getMessage()), message);
         } catch (AuctionAppException e) {
+            cloudinaryImageService.deleteAuctionItemImage(uploadedImage);
             handler.sendResponse(new ErrorMessage(e.getMessage()), message);
+        } catch (RuntimeException e) {
+            cloudinaryImageService.deleteAuctionItemImage(uploadedImage);
+            handler.sendResponse(new ErrorMessage("Failed to create auction."), message);
         }
     }
 
@@ -291,7 +327,8 @@ public final class AuctionService {
             if (auction.getStatus() != AuctionStatus.RUNNING) {
                 throw new InvalidAuctionStateException("Only active auctions can be edited.");
             }
-            boolean updated = auction.updateListingDetails(
+            Auction candidate = auction.snapshotCopy();
+            boolean updated = candidate.updateListingDetails(
                     title,
                     description,
                     startingPrice,
@@ -303,7 +340,8 @@ public final class AuctionService {
             if (!updated) {
                 throw new InvalidAuctionStateException("Auction draft update data is invalid.");
             }
-            persistAuctionDetails(auction);
+            persistAuctionDetails(candidate);
+            auction.applySnapshot(candidate);
         }
         return auction;
     }
@@ -349,17 +387,15 @@ public final class AuctionService {
                 throw new InvalidBidException("Your new bid must be higher than your existing commitment.");
             }
 
-            if (!walletService.lockBidFunds(normalizedBidderId, incrementalAmount)) {
-                throw new InvalidBidException("Insufficient balance. Please check your wallet.");
-            }
-
-            if (!auction.placeBid(bid, now)) {
-                walletService.releaseBidFunds(normalizedBidderId, incrementalAmount);
+            Auction candidate = auction.snapshotCopy();
+            if (!candidate.placeBid(bid, now)) {
                 throw new InvalidBidException("Bid was rejected by auction rules.");
             }
+            persistAcceptedBid(candidate, bid, incrementalAmount);
+            auction.applySnapshot(candidate);
+            walletService.applyLockedBidFunds(normalizedBidderId, incrementalAmount);
         }
 
-        persistAuctionState(auction);
         return previousLeadingBidderId;
     }
 
@@ -412,22 +448,15 @@ public final class AuctionService {
             if (preCloseValidation != null) {
                 preCloseValidation.run();
             }
-            String previousWinnerBidderId = auction.getWinnerBidderId();
-            AuctionStatus previousStatus = auction.getStatus();
 
             String leadingBidderId = StringUtil.normalizeString(auction.getLeadingBidderId());
             boolean hasWinner = !forceCancel && !leadingBidderId.isEmpty();
-            auction.setWinnerBidderId(hasWinner ? leadingBidderId : null);
-            auction.setStatus(hasWinner ? AuctionStatus.PAID : AuctionStatus.CANCELED);
+            Auction candidate = auction.snapshotCopy();
+            candidate.setWinnerBidderId(hasWinner ? leadingBidderId : null);
+            candidate.setStatus(hasWinner ? AuctionStatus.PAID : AuctionStatus.CANCELED);
 
-            try {
-                walletService.closeAuctionWallets(auction);
-            } catch (RuntimeException e) {
-                auction.setWinnerBidderId(previousWinnerBidderId);
-                auction.setStatus(previousStatus);
-                throw e;
-            }
-            persistAuctionState(auction);
+            persistAuctionState(candidate);
+            auction.applySnapshot(candidate);
         }
         if (shouldBroadcastAuctionEnded) {
             broadcastAuctionStatusChanged(auction);
@@ -459,15 +488,10 @@ public final class AuctionService {
     }
 
     private Item createItemFromRequest(CreateItemRequestMessage message) {
-        ItemType type = message.getItemType();
-        if (type == null) {
+        if (message.getItemType() == null) {
             throw new AuctionAppException("Item type is required.");
         }
-        ItemFactory factory = switch (type) {
-            case ART -> new ArtFactory();
-            case ELECTRONICS -> new ElectronicsFactory();
-            case VEHICLE -> new VehicleFactory();
-        };
+        ItemFactory factory = ItemFactories.forType(message.getItemType());
         return factory.createItem(message);
     }
 
@@ -488,17 +512,21 @@ public final class AuctionService {
     }
 
     private void persistAuctionState(Auction auction) {
+        walletService.closeAuctionWallets(auction);
+    }
+
+    private void persistAcceptedBid(Auction auction, BidTransaction bid, BigDecimal amountToLock) {
         if (auctionDao == null) {
-            return;
+            throw new AuctionAppException("Auction persistence is not configured.");
         }
         try {
-            if (auctionDao.updateAuctionState(auction)) {
+            if (auctionDao.recordBid(auction, bid, amountToLock)) {
                 return;
             }
         } catch (DatabaseException e) {
-            throw new AuctionAppException("Failed to persist auction state.");
+            throw new AuctionAppException("Failed to persist bid.");
         }
-        throw new AuctionAppException("Auction state could not be persisted.");
+        throw new InvalidBidException("Insufficient balance. Please check your wallet.");
     }
 
     private void persistAuctionDetails(Auction auction) {
@@ -565,11 +593,11 @@ public final class AuctionService {
             return;
         }
         trySendAuctionEndedNotifications(auction);
-        ServerApp.broadcast(JsonUtil.toJson(new AuctionEndedMessage(
+        sendToSubscribers(auction.getId(), new AuctionEndedMessage(
                 auction.getId(),
                 auction.getWinnerBidderId(),
                 auction.getCurrentPrice()
-        )));
+        ));
     }
 
     private void sendBidAccepted(ClientHandler handler, BidRequestMessage request, Auction auction) {
@@ -602,12 +630,38 @@ public final class AuctionService {
 
     private void broadcastPriceUpdate(Auction auction) {
         synchronized (auction) {
-            ServerApp.broadcast(JsonUtil.toJson(new PriceUpdateMessage(
+            sendToSubscribers(auction.getId(), new PriceUpdateMessage(
                     auction.getId(),
-                    auction.getCurrentPrice().doubleValue(),
+                    auction.getCurrentPrice(),
                     auction.getLeadingBidderId(),
                     auction.getEndTime()
-            )));
+            ));
+        }
+    }
+
+    private void sendToSubscribers(String auctionId, Message message) {
+        Set<ClientHandler> subscribers = auctionSubscribers.get(auctionId);
+        if (subscribers == null || subscribers.isEmpty()) {
+            return;
+        }
+        for (ClientHandler subscriber : subscribers) {
+            if (!subscriber.sendMessage(message)) {
+                removeSubscriber(auctionId, subscriber);
+            }
+        }
+    }
+
+    private void removeSubscriber(String auctionId, ClientHandler handler) {
+        if (auctionId == null || auctionId.isBlank() || handler == null) {
+            return;
+        }
+        Set<ClientHandler> subscribers = auctionSubscribers.get(auctionId);
+        if (subscribers == null) {
+            return;
+        }
+        subscribers.remove(handler);
+        if (subscribers.isEmpty()) {
+            auctionSubscribers.remove(auctionId, subscribers);
         }
     }
 

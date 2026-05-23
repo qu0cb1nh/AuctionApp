@@ -24,8 +24,6 @@ import java.util.ResourceBundle;
 
 public class LoginMenuController implements Initializable {
     private final AuthService authService = AuthService.getInstance();
-    private String lastLoginUsername;
-    private String lastLoginPassword;
 
     @FXML
     private Button loginButton;
@@ -53,8 +51,6 @@ public class LoginMenuController implements Initializable {
             return;
         }
 
-        lastLoginUsername = username;
-        lastLoginPassword = password;
         authService.login(username, password, this::handleServerResponse);
     }
 
@@ -71,7 +67,7 @@ public class LoginMenuController implements Initializable {
         if (message.getType() == MessageType.LOGIN_SUCCESS) {
             assistantPanelController.speak(result.getMessage(), "#27ae60");
 
-            authService.cacheLoginCredentials(lastLoginUsername, lastLoginPassword);
+            passwordField.clear();
             ClientSession.getInstance().login(result.getUserId(), result.getUsername(), result.getRole());
             SceneManager.resetAndSwitchSceneWithDelay("DashboardMenu.fxml", 1500);
 

@@ -134,17 +134,6 @@ public class ServerApp {
         LOGGER.info("Server shutdown complete.");
     }
 
-    // Broadcast a message to ALL clients
-    public static void broadcast(String message) {
-        LOGGER.debug("Broadcasting message to {} clients: {}", CLIENTS.size(), message);
-        for (ClientHandler client : CLIENTS) {
-            if (!client.sendMessage(message)) {
-                // sendMessage already closes and unregisters this client.
-                LOGGER.warn("Skipped a disconnected client during broadcast.");
-            }
-        }
-    }
-
     private static void rejectClient(Socket clientSocket, String reason) {
         try {
             LOGGER.warn("Rejected client {}: {}", clientSocket.getInetAddress(), reason);

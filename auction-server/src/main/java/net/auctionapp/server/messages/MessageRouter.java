@@ -18,6 +18,7 @@ import net.auctionapp.common.messages.types.GetWalletRequestMessage;
 import net.auctionapp.common.messages.types.LoginRequestMessage;
 import net.auctionapp.common.messages.types.PongMessage;
 import net.auctionapp.common.messages.types.RegisterRequestMessage;
+import net.auctionapp.common.messages.types.ObserverAuctionMessage;
 import net.auctionapp.common.messages.types.UpdateAuctionRequestMessage;
 import net.auctionapp.common.messages.types.WithdrawRequestMessage;
 import net.auctionapp.server.ClientHandler;
@@ -53,6 +54,8 @@ public final class MessageRouter {
                 auctionService::handleGetAuctionList);
         register(MessageType.GET_AUCTION_DETAILS_REQUEST, GetAuctionDetailsRequestMessage.class,
                 auctionService::handleGetAuctionDetails);
+        register(MessageType.OBSERVE_AUCTION_REQUEST, ObserverAuctionMessage.class,
+                auctionService::handleObserveAuction);
         register(MessageType.GET_NOTIFICATIONS_REQUEST, GetNotificationsRequestMessage.class,
                 notificationService::handleGetNotifications);
         register(MessageType.CREATE_ITEM_REQUEST, CreateItemRequestMessage.class, auctionService::handleCreateItem);

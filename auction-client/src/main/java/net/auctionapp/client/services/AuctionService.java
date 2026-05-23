@@ -7,6 +7,7 @@ import net.auctionapp.common.messages.types.CloseAuctionRequestMessage;
 import net.auctionapp.common.messages.types.CreateItemRequestMessage;
 import net.auctionapp.common.messages.types.GetAuctionDetailsRequestMessage;
 import net.auctionapp.common.messages.types.GetAuctionListRequestMessage;
+import net.auctionapp.common.messages.types.ObserverAuctionMessage;
 import net.auctionapp.common.messages.types.UpdateAuctionRequestMessage;
 
 import java.math.BigDecimal;
@@ -47,5 +48,9 @@ public final class AuctionService {
 
     public void placeBid(String auctionId, BigDecimal amount, MessageListener<Message> callback) {
         NetworkService.getInstance().sendRequest(new BidRequestMessage(auctionId, amount), callback);
+    }
+
+    public void observeAuction(String auctionId, boolean observing) {
+        NetworkService.getInstance().sendMessage(new ObserverAuctionMessage(auctionId, observing));
     }
 }

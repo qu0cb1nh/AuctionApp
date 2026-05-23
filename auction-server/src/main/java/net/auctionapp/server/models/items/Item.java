@@ -55,4 +55,6 @@ public abstract class Item extends Entity {
         this.description = description;
         this.basePrice = basePrice;
     }
+
+    public abstract Item copy();
 }

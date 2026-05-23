@@ -41,12 +41,6 @@ public class JdbcUserDao implements UserDao {
             "UPDATE users SET balance = balance + ? WHERE lower(username) = ?";
     private static final String TRY_DECREASE_BALANCE_QUERY =
             "UPDATE users SET balance = balance - ? WHERE lower(username) = ? AND balance >= ?";
-    private static final String LOCK_FUNDS_QUERY =
-            "UPDATE users SET balance = balance - ?, pending_balance = pending_balance + ? WHERE lower(username) = ? AND balance >= ?";
-    private static final String RELEASE_FUNDS_QUERY =
-            "UPDATE users SET balance = balance + ?, pending_balance = pending_balance - ? WHERE lower(username) = ? AND pending_balance >= ?";
-    private static final String TRANSFER_PENDING_QUERY =
-            "UPDATE users SET pending_balance = pending_balance - ? WHERE lower(username) = ? AND pending_balance >= ?";
 
     private final DatabaseService databaseService;
 
@@ -236,47 +230,6 @@ public class JdbcUserDao implements UserDao {
             return statement.executeUpdate() == 1;
         } catch (SQLException e) {
             throw new DatabaseException("Failed to decrease balance.", e);
-        }
-    }
-
-    public boolean lockFunds(String normalizedUsername, BigDecimal amount) {
-        requirePositiveMoney(amount);
-        try (Connection connection = databaseService.getConnection();
-             PreparedStatement statement = connection.prepareStatement(LOCK_FUNDS_QUERY)) {
-            statement.setBigDecimal(1, amount);
-            statement.setBigDecimal(2, amount);
-            statement.setString(3, normalizedUsername);
-            statement.setBigDecimal(4, amount);
-            return statement.executeUpdate() == 1;
-        } catch (SQLException e) {
-            throw new DatabaseException("Failed to lock funds.", e);
-        }
-    }
-
-    public boolean releaseFunds(String normalizedUsername, BigDecimal amount) {
-        requirePositiveMoney(amount);
-        try (Connection connection = databaseService.getConnection();
-             PreparedStatement statement = connection.prepareStatement(RELEASE_FUNDS_QUERY)) {
-            statement.setBigDecimal(1, amount);
-            statement.setBigDecimal(2, amount);
-            statement.setString(3, normalizedUsername);
-            statement.setBigDecimal(4, amount);
-            return statement.executeUpdate() == 1;
-        } catch (SQLException e) {
-            throw new DatabaseException("Failed to release funds.", e);
-        }
-    }
-
-    public boolean transferPendingFunds(String normalizedUsername, BigDecimal amount) {
-        requirePositiveMoney(amount);
-        try (Connection connection = databaseService.getConnection();
-             PreparedStatement statement = connection.prepareStatement(TRANSFER_PENDING_QUERY)) {
-            statement.setBigDecimal(1, amount);
-            statement.setString(2, normalizedUsername);
-            statement.setBigDecimal(3, amount);
-            return statement.executeUpdate() == 1;
-        } catch (SQLException e) {
-            throw new DatabaseException("Failed to transfer pending funds.", e);
         }
     }
 

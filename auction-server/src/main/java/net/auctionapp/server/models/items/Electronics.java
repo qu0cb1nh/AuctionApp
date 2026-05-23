@@ -40,4 +40,18 @@ public class Electronics extends Item {
     public int getWarrantyMonths() {
         return warrantyMonths;
     }
+
+    @Override
+    public Item copy() {
+        return new Electronics(
+                getId(),
+                getTitle(),
+                getDescription(),
+                getBasePrice(),
+                brand,
+                model,
+                warrantyMonths,
+                getImageUrl()
+        );
+    }
 }

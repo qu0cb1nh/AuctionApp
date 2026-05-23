@@ -19,9 +19,4 @@ public interface UserDao {
 
     boolean tryDecreaseBalance(String normalizedUsername, BigDecimal amount);
 
-    boolean lockFunds(String normalizedUsername, BigDecimal amount);
-
-    boolean releaseFunds(String normalizedUsername, BigDecimal amount);
-
-    boolean transferPendingFunds(String normalizedUsername, BigDecimal amount);
 }

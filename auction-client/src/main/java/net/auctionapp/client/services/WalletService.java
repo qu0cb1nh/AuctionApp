@@ -18,27 +18,13 @@ public final class WalletService {
     private WalletService() {
     }
 
-    public void requestWallet(MessageListener<Message> callback) {
-        NetworkService.getInstance().sendRequest(new GetWalletRequestMessage(), callback);
-    }
-
     public void requestWallet(MessageListener<Message> callback, Consumer<Throwable> onError) {
         NetworkService.getInstance().sendRequest(new GetWalletRequestMessage(), callback, onError);
-    }
-
-    public void deposit(BigDecimal amount, MessageListener<Message> callback) {
-        DepositRequestMessage request = new DepositRequestMessage(amount);
-        NetworkService.getInstance().sendRequest(request, callback);
     }
 
     public void deposit(BigDecimal amount, MessageListener<Message> callback, Consumer<Throwable> onError) {
         DepositRequestMessage request = new DepositRequestMessage(amount);
         NetworkService.getInstance().sendRequest(request, callback, onError);
-    }
-
-    public void withdraw(BigDecimal amount, MessageListener<Message> callback) {
-        WithdrawRequestMessage request = new WithdrawRequestMessage(amount);
-        NetworkService.getInstance().sendRequest(request, callback);
     }
 
     public void withdraw(BigDecimal amount, MessageListener<Message> callback, Consumer<Throwable> onError) {
