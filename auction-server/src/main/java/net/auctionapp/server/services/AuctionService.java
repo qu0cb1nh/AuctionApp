@@ -74,6 +74,7 @@ public final class AuctionService {
     private final NotificationService notificationService;
     private final CloudinaryImageService cloudinaryImageService;
     private final WalletService walletService;
+    private final WatchListService watchListService;
     private volatile AuctionDao auctionDao;
     private volatile ScheduledExecutorService statusScheduler;
 
@@ -82,6 +83,7 @@ public final class AuctionService {
         this.notificationService = NotificationService.getInstance();
         this.cloudinaryImageService = CloudinaryImageService.getInstance();
         this.walletService = WalletService.getInstance();
+        this.watchListService = WatchListService.getInstance();
     }
 
     public static synchronized AuctionService getInstance() {
@@ -583,6 +585,7 @@ public final class AuctionService {
         LocalDateTime now = LocalDateTime.now();
         for (Auction auction : auctions.values()) {
             try {
+                watchListService.sendEndingSoonReminders(buildAuctionSummary(auction), now);
                 closeAuctionIfEnded(auction, now);
             } catch (RuntimeException e) {
                 LOGGER.warn("Failed to refresh auction {}: {}", auction.getId(), e.getMessage(), e);
