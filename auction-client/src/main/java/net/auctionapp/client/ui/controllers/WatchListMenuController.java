@@ -7,12 +7,12 @@ import javafx.fxml.Initializable;
 import javafx.scene.control.Label;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.VBox;
+import net.auctionapp.client.ClientSession;
 import net.auctionapp.client.services.WatchListService;
 import net.auctionapp.client.ui.controllers.components.AuctionCardController;
 import net.auctionapp.client.ui.controllers.components.HeaderController;
 import net.auctionapp.client.ui.managers.SceneManager;
 import net.auctionapp.client.utils.ResourcesUtil;
-import net.auctionapp.common.auction.AuctionStatus;
 import net.auctionapp.common.messages.Message;
 import net.auctionapp.common.messages.MessageType;
 import net.auctionapp.common.messages.types.AuctionSummary;
@@ -43,7 +43,7 @@ public class WatchListMenuController implements Initializable {
 
     @Override
     public void initialize(URL location, ResourceBundle resources) {
-        appHeaderController.setupHeader("Saved Auctions");
+        appHeaderController.setupHeader("My Watchlist");
         SceneManager.registerSceneMessageListener(MessageType.WATCH_LIST_CHANGED, this::handleWatchListChanged);
         requestWatchList();
     }
@@ -54,7 +54,7 @@ public class WatchListMenuController implements Initializable {
     }
 
     private void requestWatchList() {
-        showListStatus("Loading saved auctions...", "-fx-text-fill: #666666;");
+        showListStatus("Loading watchlist...", "-fx-text-fill: #666666;");
         WatchListService.getInstance().requestWatchList(this::handleWatchListResponse);
     }
 
@@ -87,7 +87,7 @@ public class WatchListMenuController implements Initializable {
     private void renderAuctionCards() {
         auctionFlowPane.getChildren().clear();
         if (watchedAuctions.isEmpty()) {
-            showListStatus("You have not saved any auctions yet.", "-fx-text-fill: #666666;");
+            showListStatus("Your watchlist is empty.", "-fx-text-fill: #666666;");
             return;
         }
         hideListStatus();
@@ -97,30 +97,30 @@ public class WatchListMenuController implements Initializable {
     }
 
     private HBox loadAuctionCard(AuctionSummary auction) {
-        String displayStatus = deriveDisplayStatus(auction);
+        boolean canManageAuction = ClientSession.getInstance().canManageAuction(auction.getSellerId());
         AuctionCardController.CardData cardData = new AuctionCardController.CardData(
                 auction.getImageUrl(),
                 auction.getItemType(),
                 auction.getTitle(),
-                "Status: " + displayStatus,
-                statusColor(displayStatus),
+                "Owner: " + formatOwner(auction.getSellerUsername()),
+                "#4a5f73",
                 "Minimum Next Bid: " + formatPrice(auction.getMinimumNextBid()),
                 "Start: " + formatDateTime(auction.getStartTime()),
                 "End: " + formatDateTime(auction.getEndTime()),
                 "Current Bid",
                 formatPrice(auction.getCurrentPrice()),
                 "#0057ff",
-                "Ends",
+                "Ends At",
                 formatDateTime(auction.getEndTime()),
                 "#e03621",
                 "Top Bidder",
-                formatTopBidder(auction.getLeadingBidderId()),
+                formatTopBidder(auction.getLeadingBidderUsername()),
                 "#1f2933",
-                "View details",
+                "View auction",
                 () -> SceneManager.switchToAuctionDetails(auction.getAuctionId()),
-                null,
-                null,
-                "Saved",
+                canManageAuction ? "Manage auction" : null,
+                canManageAuction ? () -> SceneManager.switchToManageAuction(auction.getAuctionId()) : null,
+                "Watching",
                 () -> handleRemoveFromWatchList(auction.getAuctionId())
         );
         try {
@@ -130,7 +130,7 @@ public class WatchListMenuController implements Initializable {
             controller.bindCard(cardData);
             return card;
         } catch (IOException | RuntimeException e) {
-            Label fallback = new Label("Failed to load saved auction.");
+            Label fallback = new Label("Failed to load watchlist auction.");
             fallback.setStyle("-fx-text-fill: #d9534f;");
             return new HBox(fallback);
         }
@@ -152,32 +152,6 @@ public class WatchListMenuController implements Initializable {
         showListStatus("Unexpected response from server.", "-fx-text-fill: #d9534f;");
     }
 
-    private String deriveDisplayStatus(AuctionSummary auction) {
-        if (auction == null || auction.getStatus() == null) {
-            return "N/A";
-        }
-        if (auction.getStatus() == AuctionStatus.CANCELED) {
-            return "CANCELED";
-        }
-        if (auction.getStatus() == AuctionStatus.PAID) {
-            return "PAID";
-        }
-        if (auction.getEndTime() != null && !LocalDateTime.now().isBefore(auction.getEndTime())) {
-            return auction.getLeadingBidderId() == null || auction.getLeadingBidderId().isBlank()
-                    ? "CANCELED"
-                    : "PAID";
-        }
-        return "RUNNING";
-    }
-
-    private String statusColor(String status) {
-        return switch (status) {
-            case "RUNNING" -> "#1f8f4c";
-            case "PAID" -> "#2e7d32";
-            default -> "#6b7280";
-        };
-    }
-
     private String formatPrice(BigDecimal value) {
         return value == null ? "N/A" : "$" + value.stripTrailingZeros().toPlainString();
     }
@@ -188,6 +162,10 @@ public class WatchListMenuController implements Initializable {
 
     private String formatTopBidder(String bidderId) {
         return bidderId == null || bidderId.isBlank() ? "No bids yet" : bidderId;
+    }
+
+    private String formatOwner(String sellerUsername) {
+        return sellerUsername == null || sellerUsername.isBlank() ? "Unknown" : sellerUsername;
     }
 
     private void hideListStatus() {

@@ -47,7 +47,7 @@ public final class NotificationToastManager {
         VBox host = new VBox(8.0);
         host.setFillWidth(false);
         host.setPickOnBounds(false);
-        host.setMouseTransparent(true);
+        host.setMouseTransparent(false);
         AnchorPane.setRightAnchor(host, NOTIFICATION_PADDING);
         AnchorPane.setBottomAnchor(host, NOTIFICATION_PADDING);
         wrapper.getChildren().add(host);
@@ -62,14 +62,19 @@ public final class NotificationToastManager {
     }
 
     public static void show(String title, String message, boolean playSound) {
+        show(title, message, playSound, null);
+    }
+
+    public static void show(String title, String message, boolean playSound, String auctionId) {
         if (!Platform.isFxApplicationThread()) {
-            Platform.runLater(() -> show(title, message, playSound));
+            Platform.runLater(() -> show(title, message, playSound, auctionId));
             return;
         }
         ToastData toastData = new ToastData(
                 title == null || title.isBlank() ? "Notification" : title,
                 message == null ? "" : message,
-                playSound
+                playSound,
+                auctionId
         );
         if (!canShowToast()) {
             enqueueToast(toastData);
@@ -97,6 +102,10 @@ public final class NotificationToastManager {
         }
         if (toastData.playSound()) {
             playNotificationSound();
+        }
+        if (toastData.auctionId() != null && !toastData.auctionId().isBlank()) {
+            notificationNode.setStyle(notificationNode.getStyle() + " -fx-cursor: hand;");
+            notificationNode.setOnMouseClicked(event -> SceneManager.switchToAuctionDetails(toastData.auctionId()));
         }
         host.getChildren().addFirst(notificationNode);
 
@@ -208,6 +217,6 @@ public final class NotificationToastManager {
         }
     }
 
-    private record ToastData(String title, String message, boolean playSound) {
+    private record ToastData(String title, String message, boolean playSound, String auctionId) {
     }
 }

@@ -12,6 +12,7 @@ import java.util.List;
 public class AuctionDetailsResponseMessage extends Message {
     private String auctionId;
     private String sellerId;
+    private String sellerUsername;
     private String title;
     private String description;
     private BigDecimal startingPrice;
@@ -20,6 +21,8 @@ public class AuctionDetailsResponseMessage extends Message {
     private AuctionStatus status;
     private String leadingBidderId;
     private String winnerBidderId;
+    private String leadingBidderUsername;
+    private String winnerBidderUsername;
     private LocalDateTime startTime;
     private LocalDateTime endTime;
     private String imageUrl;
@@ -116,9 +119,92 @@ public class AuctionDetailsResponseMessage extends Message {
             ItemType itemType,
             List<BidView> bidHistory
     ) {
+        this(
+                auctionId,
+                sellerId,
+                title,
+                description,
+                startingPrice,
+                currentPrice,
+                minimumNextBid,
+                status,
+                leadingBidderId,
+                winnerBidderId,
+                startTime,
+                endTime,
+                imageUrl,
+                itemType,
+                bidHistory,
+                leadingBidderId,
+                winnerBidderId
+        );
+    }
+
+    public AuctionDetailsResponseMessage(
+            String auctionId,
+            String sellerId,
+            String title,
+            String description,
+            BigDecimal startingPrice,
+            BigDecimal currentPrice,
+            BigDecimal minimumNextBid,
+            AuctionStatus status,
+            String leadingBidderId,
+            String winnerBidderId,
+            LocalDateTime startTime,
+            LocalDateTime endTime,
+            String imageUrl,
+            ItemType itemType,
+            List<BidView> bidHistory,
+            String leadingBidderUsername,
+            String winnerBidderUsername
+    ) {
+        this(
+                auctionId,
+                sellerId,
+                title,
+                description,
+                startingPrice,
+                currentPrice,
+                minimumNextBid,
+                status,
+                leadingBidderId,
+                winnerBidderId,
+                startTime,
+                endTime,
+                imageUrl,
+                itemType,
+                bidHistory,
+                leadingBidderUsername,
+                winnerBidderUsername,
+                sellerId
+        );
+    }
+
+    public AuctionDetailsResponseMessage(
+            String auctionId,
+            String sellerId,
+            String title,
+            String description,
+            BigDecimal startingPrice,
+            BigDecimal currentPrice,
+            BigDecimal minimumNextBid,
+            AuctionStatus status,
+            String leadingBidderId,
+            String winnerBidderId,
+            LocalDateTime startTime,
+            LocalDateTime endTime,
+            String imageUrl,
+            ItemType itemType,
+            List<BidView> bidHistory,
+            String leadingBidderUsername,
+            String winnerBidderUsername,
+            String sellerUsername
+    ) {
         super(MessageType.AUCTION_DETAILS_RESPONSE);
         this.auctionId = auctionId;
         this.sellerId = sellerId;
+        this.sellerUsername = sellerUsername;
         this.title = title;
         this.description = description;
         this.startingPrice = startingPrice;
@@ -127,6 +213,8 @@ public class AuctionDetailsResponseMessage extends Message {
         this.status = status;
         this.leadingBidderId = leadingBidderId;
         this.winnerBidderId = winnerBidderId;
+        this.leadingBidderUsername = leadingBidderUsername;
+        this.winnerBidderUsername = winnerBidderUsername;
         this.startTime = startTime;
         this.endTime = endTime;
         this.imageUrl = imageUrl;
@@ -136,6 +224,9 @@ public class AuctionDetailsResponseMessage extends Message {
 
     public String getAuctionId() { return auctionId; }
     public String getSellerId() { return sellerId; }
+    public String getSellerUsername() {
+        return sellerUsername == null || sellerUsername.isBlank() ? sellerId : sellerUsername;
+    }
     public String getTitle() { return title; }
     public String getDescription() { return description; }
     public BigDecimal getStartingPrice() { return startingPrice; }
@@ -144,6 +235,16 @@ public class AuctionDetailsResponseMessage extends Message {
     public AuctionStatus getStatus() { return status; }
     public String getLeadingBidderId() { return leadingBidderId; }
     public String getWinnerBidderId() { return winnerBidderId; }
+    public String getLeadingBidderUsername() {
+        return leadingBidderUsername == null || leadingBidderUsername.isBlank()
+                ? leadingBidderId
+                : leadingBidderUsername;
+    }
+    public String getWinnerBidderUsername() {
+        return winnerBidderUsername == null || winnerBidderUsername.isBlank()
+                ? winnerBidderId
+                : winnerBidderUsername;
+    }
     public LocalDateTime getStartTime() { return startTime; }
     public LocalDateTime getEndTime() { return endTime; }
     public String getImageUrl() { return imageUrl; }

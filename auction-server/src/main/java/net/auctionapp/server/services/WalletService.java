@@ -15,6 +15,7 @@ import net.auctionapp.server.dao.UserDao;
 import net.auctionapp.server.exceptions.AuctionAppException;
 import net.auctionapp.server.exceptions.DatabaseException;
 import net.auctionapp.server.exceptions.ValidationException;
+import net.auctionapp.server.managers.SessionManager;
 import net.auctionapp.server.models.auction.Auction;
 import net.auctionapp.server.models.auction.BidTransaction;
 import net.auctionapp.server.models.users.User;
@@ -30,6 +31,7 @@ public final class WalletService {
     private static final WalletService INSTANCE = new WalletService();
 
     private final AuthService authService = AuthService.getInstance();
+    private final SessionManager sessionManager = SessionManager.getInstance();
     private volatile UserDao userDao;
     private volatile AuctionDao auctionDao;
 
@@ -107,6 +109,7 @@ public final class WalletService {
         String normalizedBidderId = StringUtil.normalizeString(bidderId);
         User bidder = authService.requireUserById(normalizedBidderId);
         updateCachedWallet(bidder, amount.negate(), amount);
+        pushWalletUpdate(bidder);
     }
 
     public BigDecimal getBidderCommitment(Auction auction, String bidderId) {
@@ -127,6 +130,7 @@ public final class WalletService {
             }
             User bidder = authService.requireUserById(StringUtil.normalizeString(entry.getKey()));
             updateCachedWallet(bidder, amount, amount.negate());
+            pushWalletUpdate(bidder);
         }
     }
 
@@ -154,6 +158,8 @@ public final class WalletService {
         if (hasWinner) {
             updateCachedWallet(winner, BigDecimal.ZERO, winningAmount.negate());
             updateCachedWallet(seller, winningAmount, BigDecimal.ZERO);
+            pushWalletUpdate(winner);
+            pushWalletUpdate(seller);
             LOGGER.info("Winner {} paid {}. Seller {} received funds for auction {}",
                     winnerId, winningAmount, auction.getSellerId(), auction.getId());
         }
@@ -162,6 +168,7 @@ public final class WalletService {
             String bidderId = entry.getKey();
             BigDecimal committedAmount = committedAmountsByBidder.get(bidderId);
             updateCachedWallet(entry.getValue(), committedAmount, committedAmount.negate());
+            pushWalletUpdate(entry.getValue());
         }
     }
 
@@ -170,6 +177,7 @@ public final class WalletService {
         User user = authService.requireUserById(normalizedUserId);
         if (requireUserDao().increaseBalance(normalizedUserId, amount)) {
             updateCachedWallet(user, amount, BigDecimal.ZERO);
+            pushWalletUpdate(user);
             return user;
         }
         throw new DatabaseException("Failed to process deposit.");
@@ -180,6 +188,7 @@ public final class WalletService {
         User user = authService.requireUserById(normalizedUserId);
         if (requireUserDao().tryDecreaseBalance(normalizedUserId, amount)) {
             updateCachedWallet(user, amount.negate(), BigDecimal.ZERO);
+            pushWalletUpdate(user);
             return user;
         }
         throw new ValidationException("Insufficient liquid balance for withdrawal.");
@@ -233,6 +242,21 @@ public final class WalletService {
                 user.getPendingBalance(),
                 message
         );
+    }
+
+    private void pushWalletUpdate(User user) {
+        if (user == null) {
+            return;
+        }
+        WalletResponseMessage update = new WalletResponseMessage(
+                MessageType.BALANCE_UPDATE,
+                user.getBalance(),
+                user.getPendingBalance(),
+                null
+        );
+        for (ClientHandler clientHandler : sessionManager.getClientsByUserId(user.getId())) {
+            clientHandler.sendMessage(update);
+        }
     }
 
     private UserDao requireUserDao() {

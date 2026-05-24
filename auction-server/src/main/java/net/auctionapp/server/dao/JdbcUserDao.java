@@ -20,7 +20,8 @@ import java.util.Optional;
 public class JdbcUserDao implements UserDao {
     private static final String CREATE_USERS_TABLE_QUERY = """
             CREATE TABLE IF NOT EXISTS users (
-                username VARCHAR(255) PRIMARY KEY,
+                id VARCHAR(64) PRIMARY KEY,
+                username VARCHAR(255) NOT NULL UNIQUE,
                 password_hash VARCHAR(255) NOT NULL,
                 role VARCHAR(64) NOT NULL,
                 balance DECIMAL(19, 2) NOT NULL DEFAULT 0,
@@ -30,17 +31,19 @@ public class JdbcUserDao implements UserDao {
             """;
 
     private static final String FIND_BY_USERNAME_QUERY =
-            "SELECT username, password_hash, role, balance, pending_balance, is_banned FROM users WHERE lower(username) = ? LIMIT 1";
+            "SELECT id, username, password_hash, role, balance, pending_balance, is_banned FROM users WHERE lower(username) = ? LIMIT 1";
+    private static final String FIND_BY_ID_QUERY =
+            "SELECT id, username, password_hash, role, balance, pending_balance, is_banned FROM users WHERE id = ? LIMIT 1";
     private static final String FIND_ALL_USERS_QUERY =
-            "SELECT username, password_hash, role, balance, pending_balance, is_banned FROM users ORDER BY username ASC";
+            "SELECT id, username, password_hash, role, balance, pending_balance, is_banned FROM users ORDER BY username ASC";
     private static final String CREATE_USER_QUERY =
-            "INSERT INTO users (username, password_hash, role, balance, pending_balance) VALUES (?, ?, ?, ?, ?)";
+            "INSERT INTO users (id, username, password_hash, role, balance, pending_balance) VALUES (?, ?, ?, ?, ?, ?)";
     private static final String UPDATE_BAN_STATUS_QUERY =
-            "UPDATE users SET is_banned = ? WHERE lower(username) = ?";
+            "UPDATE users SET is_banned = ? WHERE id = ?";
     private static final String INCREASE_BALANCE_QUERY =
-            "UPDATE users SET balance = balance + ? WHERE lower(username) = ?";
+            "UPDATE users SET balance = balance + ? WHERE id = ?";
     private static final String TRY_DECREASE_BALANCE_QUERY =
-            "UPDATE users SET balance = balance - ? WHERE lower(username) = ? AND balance >= ?";
+            "UPDATE users SET balance = balance - ? WHERE id = ? AND balance >= ?";
 
     private final DatabaseService databaseService;
 
@@ -50,13 +53,7 @@ public class JdbcUserDao implements UserDao {
 
     public JdbcUserDao(DatabaseService databaseService) {
         this.databaseService = databaseService;
-        ensureUsersSchema();
-    }
-
-    private void ensureUsersSchema() {
         ensureUsersTable();
-        ensureBalanceColumn();
-        ensurePendingBalanceColumn();
     }
 
     private void ensureUsersTable() {
@@ -65,42 +62,6 @@ public class JdbcUserDao implements UserDao {
             statement.executeUpdate(CREATE_USERS_TABLE_QUERY);
         } catch (SQLException e) {
             throw new DatabaseException("Failed to create users table.", e);
-        }
-    }
-
-    private void ensureBalanceColumn() {
-        try (Connection connection = databaseService.getConnection()) {
-            if (columnExists(connection, "users", "balance")) {
-                return;
-            }
-            try (Statement statement = connection.createStatement()) {
-                statement.executeUpdate(
-                        "ALTER TABLE users ADD COLUMN balance DECIMAL(19, 2) NOT NULL DEFAULT 0");
-            }
-        } catch (SQLException e) {
-            throw new DatabaseException("Failed to add balance column to users table.", e);
-        }
-    }
-
-    private void ensurePendingBalanceColumn() {
-        try (Connection connection = databaseService.getConnection()) {
-            if (columnExists(connection, "users", "pending_balance")) {
-                return;
-            }
-            try (Statement statement = connection.createStatement()) {
-                statement.executeUpdate(
-                        "ALTER TABLE users ADD COLUMN pending_balance DECIMAL(19, 2) NOT NULL DEFAULT 0");
-            }
-        } catch (SQLException e) {
-            throw new DatabaseException("Failed to add pending_balance column to users table.", e);
-        }
-    }
-
-    private static boolean columnExists(Connection connection, String tableName, String columnName)
-            throws SQLException {
-        String catalog = connection.getCatalog();
-        try (ResultSet columns = connection.getMetaData().getColumns(catalog, null, tableName, columnName)) {
-            return columns.next();
         }
     }
 
@@ -114,30 +75,26 @@ public class JdbcUserDao implements UserDao {
                     return Optional.empty();
                 }
 
-                String username = resultSet.getString("username");
-                String passwordHash = resultSet.getString("password_hash");
-                String databaseRole = resultSet.getString("role");
-                BigDecimal balance = resultSet.getBigDecimal("balance");
-                if (balance == null) {
-                    balance = BigDecimal.ZERO;
-                }
-                BigDecimal pendingBalance = resultSet.getBigDecimal("pending_balance");
-                if (pendingBalance == null) {
-                    pendingBalance = BigDecimal.ZERO;
-                }
-                boolean banned = resultSet.getBoolean("is_banned");
-                return Optional.of(new User(
-                        normalizedUsername,
-                        username,
-                        passwordHash,
-                        UserRoleUtil.fromDatabaseRole(databaseRole),
-                        balance,
-                        pendingBalance,
-                        banned
-                ));
+                return Optional.of(mapUser(resultSet));
             }
         } catch (SQLException e) {
             throw new DatabaseException("Failed to query user by username.", e);
+        }
+    }
+
+    @Override
+    public Optional<User> findById(String userId) {
+        try (Connection connection = databaseService.getConnection();
+             PreparedStatement statement = connection.prepareStatement(FIND_BY_ID_QUERY)) {
+            statement.setString(1, userId);
+            try (ResultSet resultSet = statement.executeQuery()) {
+                if (!resultSet.next()) {
+                    return Optional.empty();
+                }
+                return Optional.of(mapUser(resultSet));
+            }
+        } catch (SQLException e) {
+            throw new DatabaseException("Failed to query user by id.", e);
         }
     }
 
@@ -148,27 +105,7 @@ public class JdbcUserDao implements UserDao {
              PreparedStatement statement = connection.prepareStatement(FIND_ALL_USERS_QUERY);
              ResultSet resultSet = statement.executeQuery()) {
             while (resultSet.next()) {
-                String username = resultSet.getString("username");
-                String passwordHash = resultSet.getString("password_hash");
-                String databaseRole = resultSet.getString("role");
-                BigDecimal balance = resultSet.getBigDecimal("balance");
-                if (balance == null) {
-                    balance = BigDecimal.ZERO;
-                }
-                BigDecimal pendingBalance = resultSet.getBigDecimal("pending_balance");
-                if (pendingBalance == null) {
-                    pendingBalance = BigDecimal.ZERO;
-                }
-                boolean banned = resultSet.getBoolean("is_banned");
-                users.add(new User(
-                        StringUtil.normalizeString(username),
-                        username,
-                        passwordHash,
-                        UserRoleUtil.fromDatabaseRole(databaseRole),
-                        balance,
-                        pendingBalance,
-                        banned
-                ));
+                users.add(mapUser(resultSet));
             }
             return users;
         } catch (SQLException e) {
@@ -177,11 +114,11 @@ public class JdbcUserDao implements UserDao {
     }
 
     @Override
-    public boolean updateBanStatus(String normalizedUsername, boolean banned) {
+    public boolean updateBanStatus(String userId, boolean banned) {
         try (Connection connection = databaseService.getConnection();
              PreparedStatement statement = connection.prepareStatement(UPDATE_BAN_STATUS_QUERY)) {
             statement.setBoolean(1, banned);
-            statement.setString(2, normalizedUsername);
+            statement.setString(2, userId);
             return statement.executeUpdate() == 1;
         } catch (SQLException e) {
             throw new DatabaseException("Failed to update user ban status.", e);
@@ -193,13 +130,14 @@ public class JdbcUserDao implements UserDao {
         Objects.requireNonNull(user, "user");
         try (Connection connection = databaseService.getConnection();
              PreparedStatement statement = connection.prepareStatement(CREATE_USER_QUERY)) {
-            statement.setString(1, user.getUsername());
-            statement.setString(2, user.getPasswordHash());
-            statement.setString(3, UserRoleUtil.toDatabaseRole(user));
+            statement.setString(1, user.getId());
+            statement.setString(2, user.getUsername());
+            statement.setString(3, user.getPasswordHash());
+            statement.setString(4, UserRoleUtil.toDatabaseRole(user));
             BigDecimal balance = Objects.requireNonNullElse(user.getBalance(), BigDecimal.ZERO);
-            statement.setBigDecimal(4, balance);
+            statement.setBigDecimal(5, balance);
             BigDecimal pendingBalance = Objects.requireNonNullElse(user.getPendingBalance(), BigDecimal.ZERO);
-            statement.setBigDecimal(5, pendingBalance);
+            statement.setBigDecimal(6, pendingBalance);
             return statement.executeUpdate() == 1;
         } catch (SQLException e) {
             throw new DatabaseException("Failed to create user.", e);
@@ -207,12 +145,12 @@ public class JdbcUserDao implements UserDao {
     }
 
     @Override
-    public boolean increaseBalance(String normalizedUsername, BigDecimal amount) {
+    public boolean increaseBalance(String userId, BigDecimal amount) {
         requirePositiveMoney(amount);
         try (Connection connection = databaseService.getConnection();
              PreparedStatement statement = connection.prepareStatement(INCREASE_BALANCE_QUERY)) {
             statement.setBigDecimal(1, amount);
-            statement.setString(2, normalizedUsername);
+            statement.setString(2, userId);
             return statement.executeUpdate() == 1;
         } catch (SQLException e) {
             throw new DatabaseException("Failed to increase balance.", e);
@@ -220,17 +158,34 @@ public class JdbcUserDao implements UserDao {
     }
 
     @Override
-    public boolean tryDecreaseBalance(String normalizedUsername, BigDecimal amount) {
+    public boolean tryDecreaseBalance(String userId, BigDecimal amount) {
         requirePositiveMoney(amount);
         try (Connection connection = databaseService.getConnection();
              PreparedStatement statement = connection.prepareStatement(TRY_DECREASE_BALANCE_QUERY)) {
             statement.setBigDecimal(1, amount);
-            statement.setString(2, normalizedUsername);
+            statement.setString(2, userId);
             statement.setBigDecimal(3, amount);
             return statement.executeUpdate() == 1;
         } catch (SQLException e) {
             throw new DatabaseException("Failed to decrease balance.", e);
         }
+    }
+
+    private User mapUser(ResultSet resultSet) throws SQLException {
+        BigDecimal balance = Objects.requireNonNullElse(resultSet.getBigDecimal("balance"), BigDecimal.ZERO);
+        BigDecimal pendingBalance = Objects.requireNonNullElse(
+                resultSet.getBigDecimal("pending_balance"),
+                BigDecimal.ZERO
+        );
+        return new User(
+                StringUtil.normalizeString(resultSet.getString("id")),
+                resultSet.getString("username"),
+                resultSet.getString("password_hash"),
+                UserRoleUtil.fromDatabaseRole(resultSet.getString("role")),
+                balance,
+                pendingBalance,
+                resultSet.getBoolean("is_banned")
+        );
     }
 
     private static void requirePositiveMoney(BigDecimal amount) {

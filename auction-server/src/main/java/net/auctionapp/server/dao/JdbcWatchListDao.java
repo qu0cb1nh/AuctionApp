@@ -16,7 +16,7 @@ import java.util.List;
 public class JdbcWatchListDao implements WatchListDao {
     private static final String CREATE_WATCH_LIST_TABLE_QUERY = """
             CREATE TABLE IF NOT EXISTS watch_list (
-                user_id VARCHAR(255) NOT NULL,
+                user_id VARCHAR(64) NOT NULL,
                 auction_id VARCHAR(64) NOT NULL,
                 created_at DATETIME NOT NULL,
                 PRIMARY KEY (user_id, auction_id),

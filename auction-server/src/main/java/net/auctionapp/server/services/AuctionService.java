@@ -300,7 +300,10 @@ public final class AuctionService {
                     auction.getStartTime(),
                     auction.getEndTime(),
                     item.getImageUrl(),
-                    item.getType()
+                    item.getType(),
+                    displayUsername(auction.getLeadingBidderId()),
+                    auction.getSellerId(),
+                    displayUsername(auction.getSellerId())
             );
         }
     }
@@ -794,7 +797,7 @@ public final class AuctionService {
             sendToSubscribers(auction.getId(), new PriceUpdateMessage(
                     auction.getId(),
                     auction.getCurrentPrice(),
-                    auction.getLeadingBidderId(),
+                    displayUsername(auction.getLeadingBidderId()),
                     auction.getEndTime()
             ));
         }
@@ -872,6 +875,7 @@ public final class AuctionService {
         try {
             notificationService.sendBidRemovalNotifications(
                     auction.getId(),
+                    auction.getItem() == null ? null : auction.getItem().getTitle(),
                     auction.getSellerId(),
                     auction.getLeadingBidderId()
             );
@@ -902,8 +906,23 @@ public final class AuctionService {
                     auction.getEndTime(),
                     item.getImageUrl(),
                     item.getType(),
-                    bidViews
+                    bidViews,
+                    displayUsername(auction.getLeadingBidderId()),
+                    displayUsername(auction.getWinnerBidderId()),
+                    displayUsername(auction.getSellerId())
             );
+        }
+    }
+
+    private String displayUsername(String userId) {
+        String normalizedUserId = StringUtil.normalizeString(userId);
+        if (normalizedUserId.isEmpty()) {
+            return null;
+        }
+        try {
+            return authService.requireUserById(normalizedUserId).getUsername();
+        } catch (NotFoundException | DatabaseException e) {
+            return normalizedUserId;
         }
     }
 

@@ -26,10 +26,12 @@ public final class NotificationService {
     private static final DateTimeFormatter END_TIME_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm");
 
     private final SessionManager sessionManager;
+    private final AuthService authService;
     private volatile NotificationDao notificationDao;
 
     private NotificationService() {
         this.sessionManager = SessionManager.getInstance();
+        this.authService = AuthService.getInstance();
     }
 
     public static NotificationService getInstance() {
@@ -121,7 +123,8 @@ public final class NotificationService {
 
         String sellerBody = normalizedWinnerId.isEmpty()
                 ? "Your auction " + safeTitle + " ended with no bids."
-                : "Your auction " + safeTitle + " ended. Winner: " + normalizedWinnerId + ". Final price: " + priceText + ".";
+                : "Your auction " + safeTitle + " ended. Winner: " + displayUsername(normalizedWinnerId)
+                + ". Final price: " + priceText + ".";
         Notification sellerNotification = requireNotificationDao().createNotification(
                 normalizedSellerId,
                 NotificationType.AUCTION_SELLER_RESULT,
@@ -133,14 +136,20 @@ public final class NotificationService {
         pushToOnlineClients(normalizedSellerId, sellerNotification);
     }
 
-    public void sendBidRemovalNotifications(String auctionId, String sellerId, String leadingBidderId) {
+    public void sendBidRemovalNotifications(
+            String auctionId,
+            String auctionTitle,
+            String sellerId,
+            String leadingBidderId
+    ) {
+        String safeTitle = auctionTitle == null || auctionTitle.isBlank() ? "an auction" : "\"" + auctionTitle + "\"";
         String normalizedLeaderId = StringUtil.normalizeString(leadingBidderId);
         if (!normalizedLeaderId.isEmpty()) {
             Notification leaderNotification = requireNotificationDao().createNotification(
                     normalizedLeaderId,
                     NotificationType.OUTBID,
                     "You are now the leading bidder",
-                    "A higher bid was removed, so you are now the leading bidder.",
+                    "A higher bid was removed from " + safeTitle + ", so you are now the leading bidder.",
                     auctionId,
                     LocalDateTime.now()
             );
@@ -155,7 +164,7 @@ public final class NotificationService {
                 normalizedSellerId,
                 NotificationType.AUCTION_SELLER_RESULT,
                 "The leading bid changed",
-                "The leading bid on your auction has changed because a bid was removed.",
+                "The leading bid on " + safeTitle + " changed because a bid was removed.",
                 auctionId,
                 LocalDateTime.now()
         );
@@ -234,5 +243,13 @@ public final class NotificationService {
             throw new AuctionAppException("Notification persistence is not configured.");
         }
         return notificationDao;
+    }
+
+    private String displayUsername(String userId) {
+        try {
+            return authService.requireUserById(userId).getUsername();
+        } catch (RuntimeException e) {
+            return userId;
+        }
     }
 }

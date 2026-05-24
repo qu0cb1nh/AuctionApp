@@ -222,7 +222,11 @@ public class NotificationsMenuController implements Initializable {
                     ""
             );
             String notificationId = notification == null ? null : notification.getId();
+            String auctionId = notification == null ? null : notification.getAuctionId();
             controller.setClearAction(() -> clearNotification(notificationId));
+            controller.setOpenAuctionAction(auctionId == null || auctionId.isBlank()
+                    ? null
+                    : () -> SceneManager.switchToAuctionDetails(auctionId));
             return card;
         } catch (IOException | RuntimeException e) {
             LOGGER.warn("Failed to render notification card.", e);
