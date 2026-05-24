@@ -11,6 +11,7 @@ import net.auctionapp.server.services.AuctionService;
 import net.auctionapp.server.services.NotificationService;
 import net.auctionapp.server.services.UserService;
 import net.auctionapp.server.services.WalletService;
+import net.auctionapp.server.services.WatchListService;
 import net.auctionapp.server.managers.SessionManager;
 import net.auctionapp.server.messages.MessageRouter;
 import org.slf4j.Logger;
@@ -47,7 +48,8 @@ public class ClientHandler implements Runnable {
                 auctionService,
                 UserService.getInstance(),
                 NotificationService.getInstance(),
-                WalletService.getInstance()
+                WalletService.getInstance(),
+                WatchListService.getInstance()
         );
     }
 

@@ -92,6 +92,16 @@ public enum MessageType {
      */
     GET_WALLET_REQUEST,
 
+    /**
+     * Request for the current user's saved auctions.
+     */
+    GET_WATCH_LIST_REQUEST,
+
+    /**
+     * Adds or removes one auction from the current user's saved auctions.
+     */
+    UPDATE_WATCH_LIST_REQUEST,
+
 
     // === Server -> Client Messages ===
 
@@ -184,6 +194,16 @@ public enum MessageType {
      * Response containing wallet balance info.
      */
     WALLET_RESPONSE,
+
+    /**
+     * Response containing the current user's saved auctions.
+     */
+    WATCH_LIST_RESPONSE,
+
+    /**
+     * Response or push event announcing one saved-auction state change.
+     */
+    WATCH_LIST_CHANGED,
 
     /**
      * (Push) Notifies client of real-time balance change.

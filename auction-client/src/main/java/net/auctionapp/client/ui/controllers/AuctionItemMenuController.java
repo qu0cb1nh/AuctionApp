@@ -21,6 +21,7 @@ import javafx.scene.layout.VBox;
 import javafx.util.Duration;
 import javafx.util.StringConverter;
 import net.auctionapp.client.services.AuctionService;
+import net.auctionapp.client.services.WatchListService;
 import net.auctionapp.client.ClientSession;
 import net.auctionapp.client.ui.managers.SceneManager;
 import net.auctionapp.client.utils.ResourcesUtil;
@@ -32,6 +33,8 @@ import net.auctionapp.common.messages.types.BidResultMessage;
 import net.auctionapp.common.messages.types.BidView;
 import net.auctionapp.common.messages.types.ErrorMessage;
 import net.auctionapp.common.messages.types.PriceUpdateMessage;
+import net.auctionapp.common.messages.types.WatchListChangedMessage;
+import net.auctionapp.common.messages.types.WatchListResponseMessage;
 import net.auctionapp.common.auction.AuctionStatus;
 import net.auctionapp.common.items.ItemType;
 import net.auctionapp.common.utils.MoneyUtil;
@@ -76,6 +79,8 @@ public class AuctionItemMenuController implements Initializable, AuctionContextC
     @FXML
     private Button placeBidButton;
     @FXML
+    private Button watchButton;
+    @FXML
     private VBox bidSection;
     @FXML
     private Label messageLabel;
@@ -95,12 +100,15 @@ public class AuctionItemMenuController implements Initializable, AuctionContextC
     private LocalDateTime auctionEndTime;
     private Timeline countdownTimeline;
     private boolean closeRefreshRequested;
+    private boolean watched;
+    private boolean watchStateLoaded;
 
     @Override
     public void initialize(URL location, ResourceBundle resources) {
         appHeaderController.setupHeader("Auction Details");
         messageLabel.setText("");
         placeBidButton.setDisable(true);
+        updateWatchButton();
         auctionStatusLabel.setText("N/A");
         minimumNextBidLabel.setText("N/A");
         priceHistoryChart.getData().clear();
@@ -129,6 +137,8 @@ public class AuctionItemMenuController implements Initializable, AuctionContextC
     public void setAuctionId(String auctionId) {
         currentAuctionId = auctionId;
         closeRefreshRequested = false;
+        watchStateLoaded = false;
+        updateWatchButton();
         if (currentAuctionId == null || currentAuctionId.isBlank()) {
             setErrorMessage("No auction selected.");
             placeBidButton.setDisable(true);
@@ -141,6 +151,7 @@ public class AuctionItemMenuController implements Initializable, AuctionContextC
         SceneManager.registerSceneCleanup(() -> AuctionService.getInstance().observeAuction(subscribedAuctionId, false));
         startCountdownTimer();
         requestAuctionDetails();
+        requestWatchState();
     }
 
     @FXML
@@ -163,13 +174,26 @@ public class AuctionItemMenuController implements Initializable, AuctionContextC
         setInfoMessage("Minimum next bid has been filled in.");
     }
 
+    @FXML
+    public void handleToggleWatchList(ActionEvent event) {
+        if (currentAuctionId == null || currentAuctionId.isBlank()) {
+            return;
+        }
+        WatchListService.getInstance().updateWatched(currentAuctionId, !watched, this::handleWatchListUpdateResponse);
+    }
+
     private void registerEventListeners() {
         SceneManager.registerSceneMessageListener(MessageType.PRICE_UPDATE, this::handlePriceUpdate);
         SceneManager.registerSceneMessageListener(MessageType.AUCTION_ENDED, this::handleAuctionEnded);
+        SceneManager.registerSceneMessageListener(MessageType.WATCH_LIST_CHANGED, this::handleWatchListChanged);
     }
 
     private void requestAuctionDetails() {
         AuctionService.getInstance().requestAuctionDetails(currentAuctionId, this::handleAuctionDetailsResponse);
+    }
+
+    private void requestWatchState() {
+        WatchListService.getInstance().requestWatchList(this::handleWatchListResponse);
     }
 
     private void handleAuctionDetailsResponse(Message message) {
@@ -198,6 +222,53 @@ public class AuctionItemMenuController implements Initializable, AuctionContextC
         updateAuctionStatusLabel(response);
         renderBidHistory(response.getBidHistory());
         updateBidControls(response);
+    }
+
+    private void handleWatchListResponse(Message message) {
+        if (message instanceof ErrorMessage errorMessage) {
+            setErrorMessage(errorMessage.getErrorMessage());
+            return;
+        }
+        if (!(message instanceof WatchListResponseMessage response)) {
+            setErrorMessage("Unexpected watch list response from server.");
+            return;
+        }
+        watched = response.getAuctions().stream()
+                .anyMatch(auction -> auction != null && currentAuctionId.equals(auction.getAuctionId()));
+        watchStateLoaded = true;
+        updateWatchButton();
+    }
+
+    private void handleWatchListUpdateResponse(Message message) {
+        if (message instanceof ErrorMessage errorMessage) {
+            setErrorMessage(errorMessage.getErrorMessage());
+            return;
+        }
+        if (!(message instanceof WatchListChangedMessage changed)) {
+            setErrorMessage("Unexpected watch list response from server.");
+            return;
+        }
+        handleWatchListChanged(changed);
+    }
+
+    private void handleWatchListChanged(WatchListChangedMessage changed) {
+        if (changed == null || !currentAuctionId.equals(changed.getAuctionId())) {
+            return;
+        }
+        watched = changed.isWatched();
+        watchStateLoaded = true;
+        updateWatchButton();
+    }
+
+    private void updateWatchButton() {
+        if (watchButton == null) {
+            return;
+        }
+        watchButton.setDisable(currentAuctionId == null || currentAuctionId.isBlank() || !watchStateLoaded);
+        watchButton.setText(watched ? "Saved" : "Save");
+        watchButton.setStyle(watched
+                ? "-fx-background-color: #fee2e2; -fx-text-fill: #c62828; -fx-background-radius: 20px; -fx-padding: 10px 24px; -fx-font-weight: bold; -fx-cursor: hand;"
+                : "-fx-background-color: #e7f8fb; -fx-text-fill: #217b93; -fx-background-radius: 20px; -fx-padding: 10px 24px; -fx-font-weight: bold; -fx-cursor: hand;");
     }
 
     private void handleBidResult(Message message) {

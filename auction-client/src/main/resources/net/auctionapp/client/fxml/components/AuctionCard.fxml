@@ -45,6 +45,7 @@
         <VBox prefWidth="130.0" spacing="8.0">
             <children>
                 <Region VBox.vgrow="ALWAYS" />
+                <Button fx:id="saveButton" maxWidth="Infinity" mnemonicParsing="false" onAction="#handleSaveAction" style="-fx-background-color: #e7f8fb; -fx-text-fill: #217b93; -fx-background-radius: 6; -fx-font-weight: bold; -fx-cursor: hand;" text="Save" />
                 <Button fx:id="primaryButton" maxWidth="Infinity" mnemonicParsing="false" onAction="#handlePrimaryAction" style="-fx-background-color: #0057ff; -fx-text-fill: white; -fx-background-radius: 6; -fx-font-weight: bold; -fx-cursor: hand;" text="View" />
                 <Button fx:id="secondaryButton" maxWidth="Infinity" mnemonicParsing="false" onAction="#handleSecondaryAction" style="-fx-background-color: #153e5c; -fx-text-fill: white; -fx-background-radius: 6; -fx-font-weight: bold; -fx-cursor: hand;" text="Manage" />
                 <Region VBox.vgrow="ALWAYS" />
