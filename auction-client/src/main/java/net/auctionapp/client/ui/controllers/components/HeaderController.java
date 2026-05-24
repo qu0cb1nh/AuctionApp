@@ -67,6 +67,11 @@ public class HeaderController {
     }
 
     @FXML
+    public void handleOpenWatchList() {
+        SceneManager.switchScene("WatchListMenu.fxml");
+    }
+
+    @FXML
     public void handleOpenAdminPanel() {
         SceneManager.switchScene("AdminPanelMenu.fxml");
     }
