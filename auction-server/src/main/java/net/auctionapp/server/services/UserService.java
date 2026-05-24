@@ -20,10 +20,12 @@ public final class UserService {
     private static final UserService INSTANCE = new UserService();
 
     private final AuthService authService;
+    private final AuctionService auctionService;
     private final SessionManager sessionManager;
 
     private UserService() {
         this.authService = AuthService.getInstance();
+        this.auctionService = AuctionService.getInstance();
         this.sessionManager = SessionManager.getInstance();
     }
 
@@ -56,7 +58,14 @@ public final class UserService {
         try {
             handler.ensureAuthenticated();
             String actorId = StringUtil.normalizeString(handler.getAuthenticatedId());
-            User updatedUser = authService.updateUserBanStatus(actorId, request.getUserId(), request.isBanned());
+            User updatedUser;
+            if (request.isBanned()) {
+                User targetUser = authService.validateUserBanStatusUpdate(actorId, request.getUserId(), true);
+                auctionService.applyUserBanEffects(targetUser.getId());
+                updatedUser = targetUser;
+            } else {
+                updatedUser = authService.updateUserBanStatus(actorId, request.getUserId(), false);
+            }
             String action = updatedUser.isBanned() ? "banned" : "unbanned";
             handler.sendResponse(
                     new AdminActionResultMessage("User \"" + updatedUser.getUsername() + "\" was " + action + "."),

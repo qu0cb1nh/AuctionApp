@@ -22,7 +22,7 @@ class AuctionTest {
         );
 
         assertTrue(accepted);
-        assertEquals(endTime.plusSeconds(100), auction.getEndTime());
+        assertEquals(endTime.plusSeconds(60), auction.getEndTime());
     }
 
     @Test

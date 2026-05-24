@@ -2,6 +2,7 @@ package net.auctionapp.server.dao;
 
 import net.auctionapp.server.models.auction.Auction;
 import net.auctionapp.server.models.auction.BidTransaction;
+import net.auctionapp.server.models.auction.BidStatus;
 import net.auctionapp.common.auction.AuctionStatus;
 import net.auctionapp.server.models.items.Item;
 import net.auctionapp.common.items.ItemType;
@@ -55,6 +56,7 @@ public class JdbcAuctionDao implements AuctionDao {
                 bidder_id VARCHAR(255) NOT NULL,
                 amount DECIMAL(19, 2) NOT NULL,
                 bid_time DATETIME NOT NULL,
+                status VARCHAR(32) NOT NULL DEFAULT 'ACTIVE',
                 INDEX idx_bid_transactions_auction_id (auction_id),
                 INDEX idx_bid_transactions_bidder_id (bidder_id)
             )
@@ -84,7 +86,7 @@ public class JdbcAuctionDao implements AuctionDao {
             FROM auctions
             """;
     private static final String FIND_ALL_BID_TRANSACTIONS_QUERY = """
-            SELECT id, auction_id, bidder_id, amount, bid_time
+            SELECT id, auction_id, bidder_id, amount, bid_time, status
             FROM bid_transactions
             ORDER BY auction_id ASC, bid_time ASC, id ASC
             """;
@@ -113,8 +115,8 @@ public class JdbcAuctionDao implements AuctionDao {
             ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """;
     private static final String INSERT_BID_TRANSACTION_QUERY = """
-            INSERT INTO bid_transactions (id, auction_id, bidder_id, amount, bid_time)
-            VALUES (?, ?, ?, ?, ?)
+            INSERT INTO bid_transactions (id, auction_id, bidder_id, amount, bid_time, status)
+            VALUES (?, ?, ?, ?, ?, ?)
             """;
     private static final String UPDATE_AUCTION_STATE_QUERY = """
             UPDATE auctions
@@ -156,6 +158,10 @@ public class JdbcAuctionDao implements AuctionDao {
             "UPDATE users SET balance = balance + ?, pending_balance = pending_balance - ? WHERE lower(username) = ? AND pending_balance >= ?";
     private static final String TRANSFER_PENDING_QUERY =
             "UPDATE users SET pending_balance = pending_balance - ? WHERE lower(username) = ? AND pending_balance >= ?";
+    private static final String UPDATE_BAN_STATUS_QUERY =
+            "UPDATE users SET is_banned = TRUE WHERE lower(username) = ?";
+    private static final String INVALIDATE_BID_QUERY =
+            "UPDATE bid_transactions SET status = ? WHERE id = ? AND status = ?";
 
     private final DatabaseService databaseService;
 
@@ -292,6 +298,37 @@ public class JdbcAuctionDao implements AuctionDao {
         }
     }
 
+    @Override
+    public boolean applyUserBanEffects(
+            String bannedUserId,
+            List<Auction> updatedAuctions,
+            List<BidTransaction> invalidatedBids,
+            Map<String, BigDecimal> fundsToRelease
+    ) {
+        try (Connection connection = databaseService.getConnection()) {
+            boolean previousAutoCommit = connection.getAutoCommit();
+            connection.setAutoCommit(false);
+            try {
+                if (!banUser(connection, bannedUserId)
+                        || !updateAffectedAuctions(connection, updatedAuctions)
+                        || !invalidateBids(connection, invalidatedBids)
+                        || !releaseCommittedFunds(connection, fundsToRelease)) {
+                    connection.rollback();
+                    return false;
+                }
+                connection.commit();
+                return true;
+            } catch (SQLException | RuntimeException e) {
+                connection.rollback();
+                throw e;
+            } finally {
+                connection.setAutoCommit(previousAutoCommit);
+            }
+        } catch (SQLException e) {
+            throw new DatabaseException("Failed to apply user ban effects.", e);
+        }
+    }
+
     private boolean updateAuctionState(Connection connection, Auction auction) throws SQLException {
         try (PreparedStatement statement = connection.prepareStatement(UPDATE_AUCTION_STATE_QUERY)) {
             return bindAuctionState(statement, auction).executeUpdate() == 1;
@@ -305,8 +342,62 @@ public class JdbcAuctionDao implements AuctionDao {
             statement.setString(3, bid.getBidderId());
             statement.setBigDecimal(4, bid.getAmount());
             statement.setTimestamp(5, Timestamp.valueOf(bid.getTimestamp()));
+            statement.setString(6, bid.getStatus().name());
             return statement.executeUpdate() == 1;
         }
+    }
+
+    private boolean banUser(Connection connection, String bannedUserId) throws SQLException {
+        try (PreparedStatement statement = connection.prepareStatement(UPDATE_BAN_STATUS_QUERY)) {
+            statement.setString(1, normalize(bannedUserId));
+            return statement.executeUpdate() == 1;
+        }
+    }
+
+    private boolean updateAffectedAuctions(Connection connection, List<Auction> updatedAuctions) throws SQLException {
+        if (updatedAuctions == null) {
+            return true;
+        }
+        for (Auction auction : updatedAuctions) {
+            if (auction != null && !updateAuctionState(connection, auction)) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    private boolean invalidateBids(Connection connection, List<BidTransaction> invalidatedBids) throws SQLException {
+        if (invalidatedBids == null) {
+            return true;
+        }
+        for (BidTransaction bid : invalidatedBids) {
+            if (bid == null) {
+                continue;
+            }
+            try (PreparedStatement statement = connection.prepareStatement(INVALIDATE_BID_QUERY)) {
+                statement.setString(1, BidStatus.INVALIDATED.name());
+                statement.setString(2, bid.getId());
+                statement.setString(3, BidStatus.ACTIVE.name());
+                if (statement.executeUpdate() != 1) {
+                    return false;
+                }
+            }
+        }
+        return true;
+    }
+
+    private boolean releaseCommittedFunds(Connection connection, Map<String, BigDecimal> fundsToRelease)
+            throws SQLException {
+        if (fundsToRelease == null) {
+            return true;
+        }
+        for (Map.Entry<String, BigDecimal> entry : fundsToRelease.entrySet()) {
+            BigDecimal amount = entry.getValue();
+            if (amount != null && amount.signum() > 0 && !releaseFunds(connection, entry.getKey(), amount)) {
+                return false;
+            }
+        }
+        return true;
     }
 
     private boolean lockFunds(Connection connection, String normalizedUsername, BigDecimal amount) throws SQLException {
@@ -404,6 +495,7 @@ public class JdbcAuctionDao implements AuctionDao {
     private void ensureAuctionsSchema() {
         ensureAuctionsTable();
         ensureBidTransactionsTable();
+        ensureBidStatusColumn();
     }
 
     private void ensureAuctionsTable() {
@@ -421,6 +513,27 @@ public class JdbcAuctionDao implements AuctionDao {
             statement.executeUpdate(CREATE_BID_TRANSACTIONS_TABLE_QUERY);
         } catch (SQLException e) {
             throw new DatabaseException("Failed to create bid transactions table.", e);
+        }
+    }
+
+    private void ensureBidStatusColumn() {
+        try (Connection connection = databaseService.getConnection()) {
+            if (columnExists(connection, "bid_transactions", "status")) {
+                return;
+            }
+            try (Statement statement = connection.createStatement()) {
+                statement.executeUpdate(
+                        "ALTER TABLE bid_transactions ADD COLUMN status VARCHAR(32) NOT NULL DEFAULT 'ACTIVE'");
+            }
+        } catch (SQLException e) {
+            throw new DatabaseException("Failed to add status column to bid transactions table.", e);
+        }
+    }
+
+    private boolean columnExists(Connection connection, String tableName, String columnName) throws SQLException {
+        String catalog = connection.getCatalog();
+        try (ResultSet columns = connection.getMetaData().getColumns(catalog, null, tableName, columnName)) {
+            return columns.next();
         }
     }
 
@@ -467,7 +580,8 @@ public class JdbcAuctionDao implements AuctionDao {
                 resultSet.getBigDecimal("amount"),
                 bidTimestamp.toLocalDateTime(),
                 resultSet.getString("bidder_id"),
-                resultSet.getString("auction_id")
+                resultSet.getString("auction_id"),
+                parseBidStatus(resultSet.getString("status"))
         );
     }
 
@@ -489,6 +603,13 @@ public class JdbcAuctionDao implements AuctionDao {
                     : AuctionStatus.PAID;
             default -> AuctionStatus.valueOf(rawStatus.trim().toUpperCase());
         };
+    }
+
+    private BidStatus parseBidStatus(String rawStatus) {
+        if (rawStatus == null || rawStatus.isBlank()) {
+            return BidStatus.ACTIVE;
+        }
+        return BidStatus.valueOf(rawStatus.trim().toUpperCase());
     }
 
     private void setNullableString(PreparedStatement statement, int parameterIndex, String value) throws SQLException {

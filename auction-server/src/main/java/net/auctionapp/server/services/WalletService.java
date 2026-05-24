@@ -116,6 +116,20 @@ public final class WalletService {
         return getCommittedAmountsByBidder(auction).getOrDefault(StringUtil.normalizeString(bidderId), BigDecimal.ZERO);
     }
 
+    public void applyReleasedFunds(Map<String, BigDecimal> releasedFundsByBidder) {
+        if (releasedFundsByBidder == null) {
+            return;
+        }
+        for (Map.Entry<String, BigDecimal> entry : releasedFundsByBidder.entrySet()) {
+            BigDecimal amount = entry.getValue();
+            if (amount == null || amount.signum() <= 0) {
+                continue;
+            }
+            User bidder = authService.requireUserById(StringUtil.normalizeString(entry.getKey()));
+            updateCachedWallet(bidder, amount, amount.negate());
+        }
+    }
+
     public void closeAuctionWallets(Auction auction) {
         if (auction == null || auction.getId() == null || auction.getId().isBlank()) {
             return;
@@ -186,13 +200,13 @@ public final class WalletService {
         throw new AuctionAppException("Auction state could not be persisted.");
     }
 
-    private Map<String, BigDecimal> getCommittedAmountsByBidder(Auction auction) {
+    public Map<String, BigDecimal> getCommittedAmountsByBidder(Auction auction) {
         Map<String, BigDecimal> committedAmounts = new HashMap<>();
         if (auction == null) {
             return committedAmounts;
         }
         for (BidTransaction bid : auction.getBidHistory()) {
-            if (bid == null || bid.getBidderId() == null || bid.getAmount() == null) {
+            if (bid == null || !bid.isActive() || bid.getBidderId() == null || bid.getAmount() == null) {
                 continue;
             }
             String bidderId = StringUtil.normalizeString(bid.getBidderId());

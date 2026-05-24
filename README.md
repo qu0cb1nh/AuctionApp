@@ -38,9 +38,10 @@ Create a `.env` file in the repository root (do not commit it) and copy values f
 
 Example:
 ```
-DB_URL=jdbc:mysql://host:port/db?ssl-mode=REQUIRED
-DB_USER=your_user
+DB_URL=jdbc:mysql://host:port/db?sslMode=REQUIRED
+DB_USER=your_username
 DB_PASSWORD=your_password
+CLOUDINARY_URL=cloudinary://API_KEY:API_SECRET@CLOUD_NAME
 ```
 
 Notes:
