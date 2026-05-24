@@ -258,23 +258,45 @@ public final class AuctionService {
     private List<AuctionSummary> getAuctionSummaries() {
         List<AuctionSummary> result = new ArrayList<>();
         for (Auction auction : auctions.values()) {
-            synchronized (auction) {
-                Item item = auction.getItem();
-                result.add(new AuctionSummary(
-                        auction.getId(),
-                        item.getTitle(),
-                        auction.getCurrentPrice(),
-                        auction.getMinimumNextBid(),
-                        auction.getStatus(),
-                        auction.getLeadingBidderId(),
-                        auction.getStartTime(),
-                        auction.getEndTime(),
-                        item.getImageUrl(),
-                        item.getType()
-                ));
+            result.add(buildAuctionSummary(auction));
+        }
+        return result;
+    }
+
+    List<AuctionSummary> getAuctionSummaries(Iterable<String> auctionIds) {
+        List<AuctionSummary> result = new ArrayList<>();
+        if (auctionIds == null) {
+            return result;
+        }
+        for (String auctionId : auctionIds) {
+            Auction auction = auctions.get(auctionId);
+            if (auction != null) {
+                result.add(buildAuctionSummary(auction));
             }
         }
         return result;
+    }
+
+    boolean hasAuction(String auctionId) {
+        return auctionId != null && auctions.containsKey(auctionId);
+    }
+
+    private AuctionSummary buildAuctionSummary(Auction auction) {
+        synchronized (auction) {
+            Item item = auction.getItem();
+            return new AuctionSummary(
+                    auction.getId(),
+                    item.getTitle(),
+                    auction.getCurrentPrice(),
+                    auction.getMinimumNextBid(),
+                    auction.getStatus(),
+                    auction.getLeadingBidderId(),
+                    auction.getStartTime(),
+                    auction.getEndTime(),
+                    item.getImageUrl(),
+                    item.getType()
+            );
+        }
     }
 
     private Auction openAuction(

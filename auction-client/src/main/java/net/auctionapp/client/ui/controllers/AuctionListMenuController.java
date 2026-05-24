@@ -16,12 +16,16 @@ import javafx.scene.layout.VBox;
 import net.auctionapp.client.ui.managers.SceneManager;
 import net.auctionapp.client.utils.ResourcesUtil;
 import net.auctionapp.client.services.AuctionService;
+import net.auctionapp.client.services.WatchListService;
 import net.auctionapp.client.ClientSession;
 import net.auctionapp.client.utils.DurationFormatUtil;
 import net.auctionapp.common.messages.Message;
 import net.auctionapp.common.messages.types.AuctionListResponseMessage;
 import net.auctionapp.common.messages.types.AuctionSummary;
 import net.auctionapp.common.messages.types.ErrorMessage;
+import net.auctionapp.common.messages.types.WatchListChangedMessage;
+import net.auctionapp.common.messages.types.WatchListResponseMessage;
+import net.auctionapp.common.messages.MessageType;
 import net.auctionapp.common.auction.AuctionStatus;
 
 import java.io.IOException;
@@ -32,9 +36,11 @@ import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.ResourceBundle;
+import java.util.Set;
 
 public class AuctionListMenuController implements Initializable {
     private static final DateTimeFormatter CARD_TIME_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm");
@@ -57,13 +63,17 @@ public class AuctionListMenuController implements Initializable {
     private ComboBox<String> sortComboBox;
 
     private final List<AuctionSummary> allAuctions = new ArrayList<>();
+    private final Set<String> watchedAuctionIds = new HashSet<>();
     private boolean adminUser;
+    private boolean authenticatedUser;
+    private boolean watchListLoaded;
 
     @FXML
     @Override
     public void initialize(URL location, ResourceBundle resources) {
         appHeaderController.setupHeader("Explore Auctions");
         adminUser = ClientSession.getInstance().isAdmin();
+        authenticatedUser = ClientSession.getInstance().isAuthenticated();
         statusFilterComboBox.getItems().setAll(
                 STATUS_ALL,
                 "RUNNING",
@@ -74,6 +84,10 @@ public class AuctionListMenuController implements Initializable {
         sortComboBox.getItems().setAll(SORT_ENDING_SOON, SORT_HIGHEST_BID, SORT_NEWEST_START);
         sortComboBox.getSelectionModel().select(SORT_ENDING_SOON);
 
+        if (authenticatedUser) {
+            SceneManager.registerSceneMessageListener(MessageType.WATCH_LIST_CHANGED, this::handleWatchListChanged);
+            requestWatchList();
+        }
         requestAuctionList();
     }
 
@@ -103,6 +117,29 @@ public class AuctionListMenuController implements Initializable {
 
     private void handleErrorResponse(ErrorMessage errorMessage) {
         showListStatus(errorMessage.getErrorMessage(), "-fx-text-fill: #d9534f;");
+    }
+
+    private void requestWatchList() {
+        WatchListService.getInstance().requestWatchList(this::handleWatchListResponse);
+    }
+
+    private void handleWatchListResponse(Message message) {
+        if (message instanceof ErrorMessage errorMessage) {
+            handleErrorResponse(errorMessage);
+            return;
+        }
+        if (!(message instanceof WatchListResponseMessage response)) {
+            showListStatus("Unexpected watch list response from server.", "-fx-text-fill: #d9534f;");
+            return;
+        }
+        watchedAuctionIds.clear();
+        for (AuctionSummary auction : response.getAuctions()) {
+            if (auction != null && auction.getAuctionId() != null) {
+                watchedAuctionIds.add(auction.getAuctionId());
+            }
+        }
+        watchListLoaded = true;
+        applyFilters();
     }
 
     @FXML
@@ -178,7 +215,9 @@ public class AuctionListMenuController implements Initializable {
                 resolveButtonLabel(displayStatus),
                 () -> handleViewItem(auction.getAuctionId()),
                 adminUser ? "Manage auction" : null,
-                adminUser ? () -> handleManageAuction(auction.getAuctionId()) : null
+                adminUser ? () -> handleManageAuction(auction.getAuctionId()) : null,
+                authenticatedUser && watchListLoaded ? formatWatchButtonText(auction.getAuctionId()) : null,
+                authenticatedUser && watchListLoaded ? () -> handleToggleWatchList(auction.getAuctionId()) : null
         );
         return loadAuctionCardComponent(cardData);
     }
@@ -308,6 +347,43 @@ public class AuctionListMenuController implements Initializable {
 
     private void handleManageAuction(String auctionId) {
         SceneManager.switchToManageAuction(auctionId);
+    }
+
+    private void handleToggleWatchList(String auctionId) {
+        boolean targetState = !watchedAuctionIds.contains(auctionId);
+        WatchListService.getInstance().updateWatched(auctionId, targetState, this::handleWatchListUpdateResponse);
+    }
+
+    private void handleWatchListUpdateResponse(Message message) {
+        if (message instanceof ErrorMessage errorMessage) {
+            handleErrorResponse(errorMessage);
+            return;
+        }
+        if (!(message instanceof WatchListChangedMessage changed)) {
+            showListStatus("Unexpected watch list response from server.", "-fx-text-fill: #d9534f;");
+            return;
+        }
+        applyWatchListChange(changed);
+    }
+
+    private void handleWatchListChanged(WatchListChangedMessage changed) {
+        applyWatchListChange(changed);
+    }
+
+    private void applyWatchListChange(WatchListChangedMessage changed) {
+        if (changed == null || changed.getAuctionId() == null) {
+            return;
+        }
+        if (changed.isWatched()) {
+            watchedAuctionIds.add(changed.getAuctionId());
+        } else {
+            watchedAuctionIds.remove(changed.getAuctionId());
+        }
+        applyFilters();
+    }
+
+    private String formatWatchButtonText(String auctionId) {
+        return watchedAuctionIds.contains(auctionId) ? "Saved" : "Save";
     }
 
     private void hideListStatus() {

@@ -14,12 +14,14 @@ import net.auctionapp.common.messages.types.ErrorMessage;
 import net.auctionapp.common.messages.types.GetAuctionDetailsRequestMessage;
 import net.auctionapp.common.messages.types.GetAuctionListRequestMessage;
 import net.auctionapp.common.messages.types.GetNotificationsRequestMessage;
+import net.auctionapp.common.messages.types.GetWatchListRequestMessage;
 import net.auctionapp.common.messages.types.GetWalletRequestMessage;
 import net.auctionapp.common.messages.types.LoginRequestMessage;
 import net.auctionapp.common.messages.types.PongMessage;
 import net.auctionapp.common.messages.types.RegisterRequestMessage;
 import net.auctionapp.common.messages.types.ObserverAuctionMessage;
 import net.auctionapp.common.messages.types.UpdateAuctionRequestMessage;
+import net.auctionapp.common.messages.types.UpdateWatchListRequestMessage;
 import net.auctionapp.common.messages.types.WithdrawRequestMessage;
 import net.auctionapp.server.ClientHandler;
 import net.auctionapp.server.services.AuctionService;
@@ -27,6 +29,7 @@ import net.auctionapp.server.services.AuthService;
 import net.auctionapp.server.services.NotificationService;
 import net.auctionapp.server.services.UserService;
 import net.auctionapp.server.services.WalletService;
+import net.auctionapp.server.services.WatchListService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -44,7 +47,8 @@ public final class MessageRouter {
             AuctionService auctionService,
             UserService userService,
             NotificationService notificationService,
-            WalletService walletService
+            WalletService walletService,
+            WatchListService watchListService
     ) {
         register(MessageType.PING, Message.class,
                 (message, clientHandler) -> clientHandler.sendResponse(new PongMessage(), message));
@@ -71,6 +75,10 @@ public final class MessageRouter {
         register(MessageType.DEPOSIT_REQUEST, DepositRequestMessage.class, walletService::handleDeposit);
         register(MessageType.WITHDRAW_REQUEST, WithdrawRequestMessage.class, walletService::handleWithdraw);
         register(MessageType.GET_WALLET_REQUEST, GetWalletRequestMessage.class, walletService::handleGetWallet);
+        register(MessageType.GET_WATCH_LIST_REQUEST, GetWatchListRequestMessage.class,
+                watchListService::handleGetWatchList);
+        register(MessageType.UPDATE_WATCH_LIST_REQUEST, UpdateWatchListRequestMessage.class,
+                watchListService::handleUpdateWatchList);
     }
 
     public void dispatch(Message message, ClientHandler clientHandler) {

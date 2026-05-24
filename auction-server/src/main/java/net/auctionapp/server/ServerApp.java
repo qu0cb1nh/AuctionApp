@@ -20,11 +20,13 @@ import net.auctionapp.server.config.ServerConfig;
 import net.auctionapp.server.dao.JdbcAuctionDao;
 import net.auctionapp.server.dao.JdbcNotificationDao;
 import net.auctionapp.server.dao.JdbcUserDao;
+import net.auctionapp.server.dao.JdbcWatchListDao;
 import net.auctionapp.server.services.AuthService;
 import net.auctionapp.server.services.AuctionService;
 import net.auctionapp.server.services.DatabaseService;
 import net.auctionapp.server.services.NotificationService;
 import net.auctionapp.server.services.WalletService;
+import net.auctionapp.server.services.WatchListService;
 import net.auctionapp.server.managers.SessionManager;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -59,6 +61,7 @@ public class ServerApp {
             WalletService.getInstance().setUserDao(jdbcUserDao);
             WalletService.getInstance().setAuctionDao(jdbcAuctionDao);
             NotificationService.getInstance().setNotificationDao(new JdbcNotificationDao());
+            WatchListService.getInstance().setWatchListDao(new JdbcWatchListDao());
             AuctionService.getInstance().startStatusScheduler();
 
             String host = ServerConfig.getServerHost();
