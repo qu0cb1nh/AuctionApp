@@ -131,6 +131,35 @@ public final class NotificationService {
         pushToOnlineClients(normalizedSellerId, sellerNotification);
     }
 
+    public void sendBidRemovalNotifications(String auctionId, String sellerId, String leadingBidderId) {
+        String normalizedLeaderId = StringUtil.normalizeString(leadingBidderId);
+        if (!normalizedLeaderId.isEmpty()) {
+            Notification leaderNotification = requireNotificationDao().createNotification(
+                    normalizedLeaderId,
+                    NotificationType.OUTBID,
+                    "You are now the leading bidder",
+                    "A higher bid was removed, so you are now the leading bidder.",
+                    auctionId,
+                    LocalDateTime.now()
+            );
+            pushToOnlineClients(normalizedLeaderId, leaderNotification);
+        }
+
+        String normalizedSellerId = StringUtil.normalizeString(sellerId);
+        if (normalizedSellerId.isEmpty()) {
+            return;
+        }
+        Notification sellerNotification = requireNotificationDao().createNotification(
+                normalizedSellerId,
+                NotificationType.AUCTION_SELLER_RESULT,
+                "The leading bid changed",
+                "The leading bid on your auction has changed because a bid was removed.",
+                auctionId,
+                LocalDateTime.now()
+        );
+        pushToOnlineClients(normalizedSellerId, sellerNotification);
+    }
+
     private void sendCurrentInbox(String userId, net.auctionapp.common.messages.Message request, ClientHandler handler) {
         List<Notification> notifications = requireNotificationDao().findByUserId(userId);
         handler.sendResponse(new NotificationsResponseMessage(notifications), request);

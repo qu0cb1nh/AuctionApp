@@ -17,7 +17,7 @@ import java.util.List;
  */
 public class Auction extends Entity {
     private static final long ANTI_SNIPING_THRESHOLD_SECONDS = 30;
-    private static final long ANTI_SNIPING_EXTENSION_SECONDS = 100;
+    private static final long ANTI_SNIPING_EXTENSION_SECONDS = 60;
 
     private final String sellerId;
     private LocalDateTime startTime;
@@ -114,6 +114,12 @@ public class Auction extends Entity {
 
     public synchronized List<BidTransaction> getBidHistory() {
         return new ArrayList<>(bidHistory);
+    }
+
+    public synchronized List<BidTransaction> getActiveBidHistory() {
+        return bidHistory.stream()
+                .filter(BidTransaction::isActive)
+                .toList();
     }
 
     public synchronized void restoreBidHistory(List<BidTransaction> persistedBids) {
@@ -214,6 +220,25 @@ public class Auction extends Entity {
         this.winnerBidderId = winnerBidderId;
     }
 
+    public synchronized List<BidTransaction> invalidateActiveBidsBy(String bidderId) {
+        List<BidTransaction> invalidatedBids = new ArrayList<>();
+        if (bidderId == null || bidderId.isBlank()) {
+            return invalidatedBids;
+        }
+        for (int index = 0; index < bidHistory.size(); index++) {
+            BidTransaction bid = bidHistory.get(index);
+            if (bid != null && bid.isActive() && bidderId.equalsIgnoreCase(bid.getBidderId())) {
+                BidTransaction invalidatedBid = bid.invalidate();
+                bidHistory.set(index, invalidatedBid);
+                invalidatedBids.add(invalidatedBid);
+            }
+        }
+        if (!invalidatedBids.isEmpty()) {
+            recalculateLeadingBid();
+        }
+        return invalidatedBids;
+    }
+
     public synchronized BigDecimal getMinimumNextBid() {
         if (currentPrice == null || minimumBidIncrement == null) {
             return null;
@@ -272,6 +297,20 @@ public class Auction extends Entity {
                 leadingBidderId,
                 getId()
         ));
+    }
+
+    private void recalculateLeadingBid() {
+        BidTransaction highestActiveBid = bidHistory.stream()
+                .filter(bid -> bid != null && bid.isActive() && bid.getAmount() != null)
+                .max(Comparator.comparing(BidTransaction::getAmount))
+                .orElse(null);
+        if (highestActiveBid == null) {
+            currentPrice = startingPrice;
+            leadingBidderId = null;
+            return;
+        }
+        currentPrice = highestActiveBid.getAmount();
+        leadingBidderId = highestActiveBid.getBidderId();
     }
 
 }

@@ -17,4 +17,11 @@ public interface AuctionDao {
     boolean updateAuction(Auction auction);
 
     boolean settleAuction(Auction auction, Map<String, BigDecimal> committedAmountsByBidder);
+
+    boolean applyUserBanEffects(
+            String bannedUserId,
+            List<Auction> updatedAuctions,
+            List<BidTransaction> invalidatedBids,
+            Map<String, BigDecimal> fundsToRelease
+    );
 }

@@ -204,6 +204,14 @@ public class AuthService {
     }
 
     public User updateUserBanStatus(String actorId, String targetUserId, boolean banned) {
+        User target = validateUserBanStatusUpdate(actorId, targetUserId, banned);
+        if (!requireUserDao().updateBanStatus(target.getId(), banned)) {
+            throw new NotFoundException("User not found.");
+        }
+        return applyPersistedUserBanStatus(target, banned);
+    }
+
+    public User validateUserBanStatusUpdate(String actorId, String targetUserId, boolean banned) {
         User actor = requireAdminUser(actorId);
         String normalizedTargetUserId = StringUtil.normalizeString(targetUserId);
         if (normalizedTargetUserId.isEmpty()) {
@@ -213,15 +221,14 @@ public class AuthService {
             throw new AuthorizationException("Admin cannot ban own account.");
         }
 
-        User target = requireUserById(normalizedTargetUserId);
-        if (!requireUserDao().updateBanStatus(normalizedTargetUserId, banned)) {
-            throw new NotFoundException("User not found.");
-        }
+        return requireUserById(normalizedTargetUserId);
+    }
 
+    public User applyPersistedUserBanStatus(User target, boolean banned) {
         target.setBanned(banned);
         cacheUser(target);
         if (banned) {
-            logoutBannedUserSessions(normalizedTargetUserId);
+            logoutBannedUserSessions(target.getId());
         }
         return target;
     }
