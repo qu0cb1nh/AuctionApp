@@ -253,7 +253,7 @@ public class NotificationsMenuController implements Initializable {
         return switch (activeFilterIndex) {
             case 1 -> notificationType == NotificationType.OUTBID;
             case 2 -> notificationType == NotificationType.AUCTION_SELLER_RESULT;
-            case 3 -> false;
+            case 3 -> notificationType == NotificationType.WATCH_LIST_ENDING_SOON;
             case 4 -> notificationType == NotificationType.AUCTION_WON;
             default -> true;
         };
@@ -267,6 +267,7 @@ public class NotificationsMenuController implements Initializable {
             case OUTBID -> "Bids";
             case AUCTION_WON -> "Results";
             case AUCTION_SELLER_RESULT -> "My Auctions";
+            case WATCH_LIST_ENDING_SOON -> "System";
         };
     }
 

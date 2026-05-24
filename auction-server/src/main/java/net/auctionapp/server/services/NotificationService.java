@@ -17,11 +17,13 @@ import net.auctionapp.server.managers.SessionManager;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.Set;
 
 public final class NotificationService {
     private static final NotificationService INSTANCE = new NotificationService();
+    private static final DateTimeFormatter END_TIME_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm");
 
     private final SessionManager sessionManager;
     private final AuthService authService;
@@ -167,6 +169,29 @@ public final class NotificationService {
                 LocalDateTime.now()
         );
         pushToOnlineClients(normalizedSellerId, sellerNotification);
+    }
+
+    public void sendWatchListEndingSoonNotification(
+            String userId,
+            String auctionId,
+            String auctionTitle,
+            LocalDateTime endTime
+    ) {
+        String targetUserId = StringUtil.normalizeString(userId);
+        if (targetUserId.isEmpty()) {
+            return;
+        }
+        String safeTitle = auctionTitle == null || auctionTitle.isBlank() ? "an auction" : "\"" + auctionTitle + "\"";
+        String endTimeText = endTime == null ? "soon" : endTime.format(END_TIME_FORMATTER);
+        Notification notification = requireNotificationDao().createNotification(
+                targetUserId,
+                NotificationType.WATCH_LIST_ENDING_SOON,
+                "Saved auction ending soon",
+                "Your saved auction " + safeTitle + " ends at " + endTimeText + ".",
+                auctionId,
+                LocalDateTime.now()
+        );
+        pushToOnlineClients(targetUserId, notification);
     }
 
     private void sendCurrentInbox(String userId, net.auctionapp.common.messages.Message request, ClientHandler handler) {
