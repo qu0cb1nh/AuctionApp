@@ -13,6 +13,9 @@ public class AuctionSummary {
     private final BigDecimal minimumNextBid;
     private final AuctionStatus status;
     private final String leadingBidderId;
+    private final String leadingBidderUsername;
+    private final String sellerId;
+    private final String sellerUsername;
     private final LocalDateTime startTime;
     private final LocalDateTime endTime;
     private final String imageUrl;
@@ -57,12 +60,75 @@ public class AuctionSummary {
             String imageUrl,
             ItemType itemType
     ) {
+        this(
+                auctionId,
+                title,
+                currentPrice,
+                minimumNextBid,
+                status,
+                leadingBidderId,
+                startTime,
+                endTime,
+                imageUrl,
+                itemType,
+                leadingBidderId
+        );
+    }
+
+    public AuctionSummary(
+            String auctionId,
+            String title,
+            BigDecimal currentPrice,
+            BigDecimal minimumNextBid,
+            AuctionStatus status,
+            String leadingBidderId,
+            LocalDateTime startTime,
+            LocalDateTime endTime,
+            String imageUrl,
+            ItemType itemType,
+            String leadingBidderUsername
+    ) {
+        this(
+                auctionId,
+                title,
+                currentPrice,
+                minimumNextBid,
+                status,
+                leadingBidderId,
+                startTime,
+                endTime,
+                imageUrl,
+                itemType,
+                leadingBidderUsername,
+                null,
+                null
+        );
+    }
+
+    public AuctionSummary(
+            String auctionId,
+            String title,
+            BigDecimal currentPrice,
+            BigDecimal minimumNextBid,
+            AuctionStatus status,
+            String leadingBidderId,
+            LocalDateTime startTime,
+            LocalDateTime endTime,
+            String imageUrl,
+            ItemType itemType,
+            String leadingBidderUsername,
+            String sellerId,
+            String sellerUsername
+    ) {
         this.auctionId = auctionId;
         this.title = title;
         this.currentPrice = currentPrice;
         this.minimumNextBid = minimumNextBid;
         this.status = status;
         this.leadingBidderId = leadingBidderId;
+        this.leadingBidderUsername = leadingBidderUsername;
+        this.sellerId = sellerId;
+        this.sellerUsername = sellerUsername;
         this.startTime = startTime;
         this.endTime = endTime;
         this.imageUrl = imageUrl;
@@ -91,6 +157,22 @@ public class AuctionSummary {
 
     public String getLeadingBidderId() {
         return leadingBidderId;
+    }
+
+    public String getLeadingBidderUsername() {
+        return leadingBidderUsername == null || leadingBidderUsername.isBlank()
+                ? leadingBidderId
+                : leadingBidderUsername;
+    }
+
+    public String getSellerId() {
+        return sellerId;
+    }
+
+    public String getSellerUsername() {
+        return sellerUsername == null || sellerUsername.isBlank()
+                ? sellerId
+                : sellerUsername;
     }
 
     public LocalDateTime getStartTime() {

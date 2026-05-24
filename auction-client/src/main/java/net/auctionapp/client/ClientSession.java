@@ -73,9 +73,6 @@ public final class ClientSession {
         if (normalizedSellerId.isEmpty()) {
             return false;
         }
-        String currentUserId = getUserId();
-        String currentUsername = getUsername();
-        return normalizedSellerId.equals(StringUtil.normalizeString(currentUserId))
-                || normalizedSellerId.equals(StringUtil.normalizeString(currentUsername));
+        return normalizedSellerId.equals(StringUtil.normalizeString(getUserId()));
     }
 }

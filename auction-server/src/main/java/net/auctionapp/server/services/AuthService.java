@@ -26,6 +26,7 @@ import org.slf4j.LoggerFactory;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
+import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 
@@ -117,7 +118,7 @@ public class AuthService {
 
             String passwordHash = BCrypt.hashpw(password, BCrypt.gensalt());
             User user = new User(
-                    normalizedUsername,
+                    UUID.randomUUID().toString(),
                     username,
                     passwordHash,
                     UserRoleUtil.fromDatabaseRole("user"),
@@ -171,7 +172,7 @@ public class AuthService {
             return cachedUser;
         }
 
-        Optional<User> userFromDatabase = requireUserDao().findByUsername(normalizedUserId);
+        Optional<User> userFromDatabase = requireUserDao().findById(normalizedUserId);
         if (userFromDatabase.isEmpty()) {
             throw new NotFoundException("User not found.");
         }

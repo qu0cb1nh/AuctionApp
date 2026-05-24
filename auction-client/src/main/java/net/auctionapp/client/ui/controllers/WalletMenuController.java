@@ -8,7 +8,9 @@ import javafx.scene.control.TextField;
 import net.auctionapp.client.services.WalletService;
 import net.auctionapp.client.ui.controllers.components.HeaderController;
 import net.auctionapp.client.ui.managers.NotificationToastManager;
+import net.auctionapp.client.ui.managers.SceneManager;
 import net.auctionapp.common.messages.Message;
+import net.auctionapp.common.messages.MessageType;
 import net.auctionapp.common.messages.types.ErrorMessage;
 import net.auctionapp.common.messages.types.WalletResponseMessage;
 import org.slf4j.Logger;
@@ -23,7 +25,13 @@ public class WalletMenuController implements Initializable {
     private static final Logger LOGGER = LoggerFactory.getLogger(WalletMenuController.class);
 
     @FXML
-    private TextField balanceField;
+    private TextField totalBalanceField;
+
+    @FXML
+    private TextField availableBalanceField;
+
+    @FXML
+    private TextField pendingBalanceField;
 
     @FXML
     private HeaderController appHeaderController;
@@ -46,6 +54,7 @@ public class WalletMenuController implements Initializable {
     @Override
     public void initialize(URL location, ResourceBundle resources) {
         appHeaderController.setupHeader("Wallet");
+        SceneManager.registerSceneMessageListener(MessageType.BALANCE_UPDATE, this::handleBalanceUpdate);
         updateBalanceDisplay();
         requestWallet();
     }
@@ -120,6 +129,12 @@ public class WalletMenuController implements Initializable {
         NotificationToastManager.showError(message);
     }
 
+    private void handleBalanceUpdate(WalletResponseMessage update) {
+        currentBalance = defaultMoney(update.getBalance());
+        currentPendingBalance = defaultMoney(update.getPendingBalance());
+        updateBalanceDisplay();
+    }
+
     private BigDecimal readAmount(TextField field, String label) {
         String value = field.getText() == null ? "" : field.getText().trim().replace(" ", "");
         if (value.isBlank()) {
@@ -149,8 +164,9 @@ public class WalletMenuController implements Initializable {
     }
 
     private void updateBalanceDisplay() {
-        balanceField.setText(formatMoney(currentBalance));
-        LOGGER.debug("Current pending balance: {}", currentPendingBalance);
+        totalBalanceField.setText(formatMoney(currentBalance.add(currentPendingBalance)));
+        availableBalanceField.setText(formatMoney(currentBalance));
+        pendingBalanceField.setText(formatMoney(currentPendingBalance));
     }
 
     private String formatMoney(BigDecimal value) {

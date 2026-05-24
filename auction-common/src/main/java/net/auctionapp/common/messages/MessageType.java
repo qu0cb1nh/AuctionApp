@@ -93,12 +93,12 @@ public enum MessageType {
     GET_WALLET_REQUEST,
 
     /**
-     * Request for the current user's saved auctions.
+     * Request for the current user's watchlist auctions.
      */
     GET_WATCH_LIST_REQUEST,
 
     /**
-     * Adds or removes one auction from the current user's saved auctions.
+     * Adds or removes one auction from the current user's watchlist.
      */
     UPDATE_WATCH_LIST_REQUEST,
 
@@ -196,12 +196,12 @@ public enum MessageType {
     WALLET_RESPONSE,
 
     /**
-     * Response containing the current user's saved auctions.
+     * Response containing the current user's watchlist auctions.
      */
     WATCH_LIST_RESPONSE,
 
     /**
-     * Response or push event announcing one saved-auction state change.
+     * Response or push event announcing one watchlist state change.
      */
     WATCH_LIST_CHANGED,
 

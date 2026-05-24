@@ -94,7 +94,8 @@ public final class AppLifecycleManager {
         Platform.runLater(() -> NotificationToastManager.show(
                 notification.getTitle(),
                 notification.getBody(),
-                shouldPlayNotificationSound(notification)
+                shouldPlayNotificationSound(notification),
+                notification.getAuctionId()
         ));
     }
 

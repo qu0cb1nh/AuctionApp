@@ -11,6 +11,7 @@ import javafx.scene.layout.HBox;
 import javafx.scene.layout.VBox;
 import net.auctionapp.client.ClientSession;
 import net.auctionapp.client.services.AuctionService;
+import net.auctionapp.client.services.WatchListService;
 import net.auctionapp.client.ui.controllers.components.AuctionCardController;
 import net.auctionapp.client.ui.controllers.components.HeaderController;
 import net.auctionapp.client.ui.managers.SceneManager;
@@ -19,9 +20,12 @@ import net.auctionapp.client.utils.ResourcesUtil;
 import net.auctionapp.common.auction.AuctionStatus;
 import net.auctionapp.common.items.ItemType;
 import net.auctionapp.common.messages.Message;
+import net.auctionapp.common.messages.MessageType;
 import net.auctionapp.common.messages.types.AuctionDetailsResponseMessage;
 import net.auctionapp.common.messages.types.AuctionListResponseMessage;
 import net.auctionapp.common.messages.types.ErrorMessage;
+import net.auctionapp.common.messages.types.WatchListChangedMessage;
+import net.auctionapp.common.messages.types.WatchListResponseMessage;
 
 import java.io.IOException;
 import java.math.BigDecimal;
@@ -61,6 +65,8 @@ public class PurchasesMenuController implements Initializable {
     private final List<ListingCard> allListings = new ArrayList<>();
     private final List<ListingCard> loadedListings = new ArrayList<>();
     private final Set<String> pendingAuctionIds = new HashSet<>();
+    private final Set<String> watchedAuctionIds = new HashSet<>();
+    private boolean watchListLoaded;
 
     @Override
     public void initialize(URL location, ResourceBundle resources) {
@@ -69,6 +75,8 @@ public class PurchasesMenuController implements Initializable {
         statusFilterComboBox.getSelectionModel().select(STATUS_ACTIVE);
         summaryLabel.setManaged(false);
         summaryLabel.setVisible(false);
+        SceneManager.registerSceneMessageListener(MessageType.WATCH_LIST_CHANGED, this::handleWatchListChanged);
+        requestWatchList();
         loadListings();
     }
 
@@ -101,6 +109,22 @@ public class PurchasesMenuController implements Initializable {
             return;
         }
         handleAuctionListResponse(response);
+    }
+
+    private void requestWatchList() {
+        WatchListService.getInstance().requestWatchList(this::handleWatchListResponse);
+    }
+
+    private void handleWatchListResponse(Message message) {
+        if (!(message instanceof WatchListResponseMessage response)) {
+            return;
+        }
+        watchedAuctionIds.clear();
+        response.getAuctions().stream()
+                .filter(auction -> auction != null && auction.getAuctionId() != null)
+                .forEach(auction -> watchedAuctionIds.add(auction.getAuctionId()));
+        watchListLoaded = true;
+        applyFilters();
     }
 
     private void handleAuctionListResponse(AuctionListResponseMessage response) {
@@ -227,24 +251,24 @@ public class PurchasesMenuController implements Initializable {
 
     private HBox loadListingCard(ListingCard listing) {
         boolean active = STATUS_ACTIVE.equals(listing.status());
-        boolean canManageAuction = active && ClientSession.getInstance().canManageAuction(listing.sellerId());
+        boolean canManageAuction = ClientSession.getInstance().canManageAuction(listing.sellerId());
         AuctionCardController.CardData cardData = new AuctionCardController.CardData(
                 listing.imageUrl(),
                 listing.itemType(),
                 listing.title(),
-                "Status: " + listing.status(),
-                statusColor(listing.status()),
+                "Owner: " + formatOwner(listing.sellerUsername()),
+                "#4a5f73",
                 "Auction state: " + listing.auctionStatus().name(),
                 "Starting price: " + formatMoney(listing.startingPrice()),
                 formatTimingLabel(listing.endTime(), listing.auctionStatus()),
                 active ? "Current Price" : "Final Price",
                 formatMoney(listing.currentPrice()),
                 active ? "#0057ff" : "#1f2933",
-                "Bids",
-                String.valueOf(listing.bidCount()),
+                "Ends At",
+                formatDateTime(listing.endTime()),
                 "#1f2933",
-                "Winner",
-                safeWinnerName(listing.winnerBidderId()),
+                bidderCaption(listing),
+                bidderValue(listing),
                 "#1f2933",
                 "View auction",
                 () -> {
@@ -252,7 +276,9 @@ public class PurchasesMenuController implements Initializable {
             SceneManager.switchToAuctionDetails(listing.auctionId());
         },
                 canManageAuction ? "Manage auction" : null,
-                canManageAuction ? () -> handleManageAuction(listing.auctionId()) : null
+                canManageAuction ? () -> handleManageAuction(listing.auctionId()) : null,
+                watchListLoaded ? formatWatchListButtonText(listing.auctionId()) : null,
+                watchListLoaded ? () -> handleToggleWatchList(listing.auctionId()) : null
         );
         return loadAuctionCardComponent(cardData);
     }
@@ -290,10 +316,12 @@ public class PurchasesMenuController implements Initializable {
                 deriveListingStatus(response, bidCount),
                 response.getStatus(),
                 response.getSellerId(),
+                response.getSellerUsername(),
                 response.getStartingPrice(),
                 response.getCurrentPrice(),
                 bidCount,
                 response.getEndTime(),
+                displayUsername(response.getLeadingBidderUsername(), response.getLeadingBidderId()),
                 resolveWinner(response),
                 response.getImageUrl(),
                 response.getItemType()
@@ -322,15 +350,19 @@ public class PurchasesMenuController implements Initializable {
 
     private String resolveWinner(AuctionDetailsResponseMessage response) {
         if (response.getWinnerBidderId() != null && !response.getWinnerBidderId().isBlank()) {
-            return response.getWinnerBidderId();
+            return displayUsername(response.getWinnerBidderUsername(), response.getWinnerBidderId());
         }
         if (response.getStatus() != AuctionStatus.CANCELED
                 && isFinished(response)
                 && response.getLeadingBidderId() != null
                 && !response.getLeadingBidderId().isBlank()) {
-            return response.getLeadingBidderId();
+            return displayUsername(response.getLeadingBidderUsername(), response.getLeadingBidderId());
         }
         return null;
+    }
+
+    private String displayUsername(String username, String userId) {
+        return username == null || username.isBlank() ? userId : username;
     }
 
     private boolean hasWinner(AuctionDetailsResponseMessage response) {
@@ -348,15 +380,6 @@ public class PurchasesMenuController implements Initializable {
         };
     }
 
-    private String statusColor(String status) {
-        return switch (status) {
-            case STATUS_ACTIVE -> "#1f8f4c";
-            case STATUS_SOLD -> "#2962ff";
-            case STATUS_CANCELED -> "#6b7280";
-            default -> "#3f5569";
-        };
-    }
-
     private String formatMoney(BigDecimal amount) {
         if (amount == null) {
             return "N/A";
@@ -369,6 +392,33 @@ public class PurchasesMenuController implements Initializable {
             return "No winner";
         }
         return winner;
+    }
+
+    private String bidderCaption(ListingCard listing) {
+        if (listing.auctionStatus() == AuctionStatus.PAID || STATUS_CANCELED.equals(listing.status())) {
+            return "Winner";
+        }
+        return "Top Bidder";
+    }
+
+    private String bidderValue(ListingCard listing) {
+        if (STATUS_CANCELED.equals(listing.status())) {
+            return "No winner";
+        }
+        if (listing.auctionStatus() == AuctionStatus.PAID) {
+            return safeWinnerName(listing.winnerBidderName());
+        }
+        return listing.leadingBidderName() == null || listing.leadingBidderName().isBlank()
+                ? "No bids yet"
+                : listing.leadingBidderName();
+    }
+
+    private String formatOwner(String sellerUsername) {
+        return sellerUsername == null || sellerUsername.isBlank() ? "Unknown" : sellerUsername;
+    }
+
+    private String formatDateTime(LocalDateTime time) {
+        return time == null ? "N/A" : CARD_TIME_FORMATTER.format(time);
     }
 
     private String formatTimingLabel(LocalDateTime endTime, AuctionStatus auctionStatus) {
@@ -402,6 +452,37 @@ public class PurchasesMenuController implements Initializable {
         return response != null
                 && response.getEndTime() != null
                 && !LocalDateTime.now().isBefore(response.getEndTime());
+    }
+
+    private void handleToggleWatchList(String auctionId) {
+        boolean targetState = !watchedAuctionIds.contains(auctionId);
+        WatchListService.getInstance().updateWatched(auctionId, targetState, this::handleWatchListUpdateResponse);
+    }
+
+    private void handleWatchListUpdateResponse(Message message) {
+        if (message instanceof ErrorMessage errorMessage) {
+            handleErrorResponse(errorMessage);
+            return;
+        }
+        if (message instanceof WatchListChangedMessage changed) {
+            handleWatchListChanged(changed);
+        }
+    }
+
+    private void handleWatchListChanged(WatchListChangedMessage changed) {
+        if (changed == null || changed.getAuctionId() == null) {
+            return;
+        }
+        if (changed.isWatched()) {
+            watchedAuctionIds.add(changed.getAuctionId());
+        } else {
+            watchedAuctionIds.remove(changed.getAuctionId());
+        }
+        applyFilters();
+    }
+
+    private String formatWatchListButtonText(String auctionId) {
+        return watchedAuctionIds.contains(auctionId) ? "Watching" : "Add to watchlist";
     }
 
     private void updateSummary() {
@@ -448,11 +529,13 @@ public class PurchasesMenuController implements Initializable {
             String status,
             AuctionStatus auctionStatus,
             String sellerId,
+            String sellerUsername,
             BigDecimal startingPrice,
             BigDecimal currentPrice,
             int bidCount,
             LocalDateTime endTime,
-            String winnerBidderId,
+            String leadingBidderName,
+            String winnerBidderName,
             String imageUrl,
             ItemType itemType
     ) {

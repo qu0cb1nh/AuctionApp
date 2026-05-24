@@ -46,11 +46,11 @@ public final class AuctionCardController {
     @FXML
     private Button secondaryButton;
     @FXML
-    private Button saveButton;
+    private Button watchListButton;
 
     private Runnable primaryAction;
     private Runnable secondaryAction;
-    private Runnable saveAction;
+    private Runnable watchListAction;
 
     public void bindCard(CardData data) {
         if (data == null) {
@@ -69,11 +69,11 @@ public final class AuctionCardController {
         setMetric(metricThreeBox, metricThreeCaptionLabel, metricThreeValueLabel, data.metricThreeCaption(), data.metricThreeValue(), data.metricThreeColor());
         configureButton(primaryButton, data.primaryButtonText(), data.primaryAction());
         configureButton(secondaryButton, data.secondaryButtonText(), data.secondaryAction());
-        configureButton(saveButton, data.saveButtonText(), data.saveAction());
-        if (data.saveButtonText() != null && data.saveButtonText().equals("Saved")) {
-            saveButton.setStyle("-fx-background-color: #fee2e2; -fx-text-fill: #c62828; -fx-background-radius: 6; -fx-font-weight: bold; -fx-cursor: hand;");
+        configureButton(watchListButton, data.watchListButtonText(), data.watchListAction());
+        if (data.watchListButtonText() != null && data.watchListButtonText().equals("Watching")) {
+            watchListButton.setStyle("-fx-background-color: #fee2e2; -fx-text-fill: #c62828; -fx-background-radius: 6; -fx-font-weight: bold; -fx-cursor: hand;");
         } else {
-            saveButton.setStyle("-fx-background-color: #e7f8fb; -fx-text-fill: #217b93; -fx-background-radius: 6; -fx-font-weight: bold; -fx-cursor: hand;");
+            watchListButton.setStyle("-fx-background-color: #e7f8fb; -fx-text-fill: #217b93; -fx-background-radius: 6; -fx-font-weight: bold; -fx-cursor: hand;");
         }
     }
 
@@ -92,9 +92,9 @@ public final class AuctionCardController {
     }
 
     @FXML
-    public void handleSaveAction(ActionEvent event) {
-        if (saveAction != null) {
-            saveAction.run();
+    public void handleWatchListAction(ActionEvent event) {
+        if (watchListAction != null) {
+            watchListAction.run();
         }
     }
 
@@ -140,7 +140,7 @@ public final class AuctionCardController {
             secondaryAction = action;
             return;
         }
-        saveAction = action;
+        watchListAction = action;
     }
 
     private String textOrFallback(String value, String fallback) {
@@ -172,57 +172,7 @@ public final class AuctionCardController {
             Runnable primaryAction,
             String secondaryButtonText,
             Runnable secondaryAction,
-            String saveButtonText,
-            Runnable saveAction
-    ) {
-        public CardData(
-                String imageUrl,
-                ItemType itemType,
-                String title,
-                String statusText,
-                String statusColor,
-                String detailOne,
-                String detailTwo,
-                String detailThree,
-                String metricOneCaption,
-                String metricOneValue,
-                String metricOneColor,
-                String metricTwoCaption,
-                String metricTwoValue,
-                String metricTwoColor,
-                String metricThreeCaption,
-                String metricThreeValue,
-                String metricThreeColor,
-                String primaryButtonText,
-                Runnable primaryAction,
-                String secondaryButtonText,
-                Runnable secondaryAction
-        ) {
-            this(
-                    imageUrl,
-                    itemType,
-                    title,
-                    statusText,
-                    statusColor,
-                    detailOne,
-                    detailTwo,
-                    detailThree,
-                    metricOneCaption,
-                    metricOneValue,
-                    metricOneColor,
-                    metricTwoCaption,
-                    metricTwoValue,
-                    metricTwoColor,
-                    metricThreeCaption,
-                    metricThreeValue,
-                    metricThreeColor,
-                    primaryButtonText,
-                    primaryAction,
-                    secondaryButtonText,
-                    secondaryAction,
-                    null,
-                    null
-            );
-        }
-    }
+            String watchListButtonText,
+            Runnable watchListAction
+    ) {}
 }

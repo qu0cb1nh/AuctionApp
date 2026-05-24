@@ -20,15 +20,28 @@
                 <Insets bottom="36.0" left="42.0" right="42.0" top="38.0" />
             </padding>
             <children>
-                <VBox alignment="CENTER" maxWidth="520.0" minHeight="150.0" prefHeight="150.0" spacing="10.0" style="-fx-background-color: white; -fx-background-radius: 8px; -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.08), 12, 0, 0, 3);">
+                <HBox alignment="CENTER" maxWidth="760.0" spacing="12.0">
                     <children>
-                        <Label style="-fx-font-size: 18px; -fx-font-weight: bold; -fx-text-fill: #153e5c;" text="Available Balance" />
-                        <TextField fx:id="balanceField" alignment="CENTER" editable="false" focusTraversable="false" prefHeight="60.0" prefWidth="480.0" style="-fx-background-color: transparent; -fx-border-color: transparent; -fx-text-fill: #3bb3c3; -fx-font-size: 42px; -fx-font-weight: bold;" text="0" />
+                        <VBox alignment="CENTER" minHeight="125.0" prefHeight="125.0" prefWidth="245.0" spacing="10.0" style="-fx-background-color: white; -fx-background-radius: 8px; -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.08), 12, 0, 0, 3);">
+                            <children>
+                                <Label style="-fx-font-size: 15px; -fx-font-weight: bold; -fx-text-fill: #153e5c;" text="Total Balance" />
+                                <TextField fx:id="totalBalanceField" alignment="CENTER" editable="false" focusTraversable="false" prefHeight="48.0" prefWidth="220.0" style="-fx-background-color: transparent; -fx-border-color: transparent; -fx-text-fill: #153e5c; -fx-font-size: 26px; -fx-font-weight: bold;" text="0" />
+                            </children>
+                        </VBox>
+                        <VBox alignment="CENTER" minHeight="125.0" prefHeight="125.0" prefWidth="245.0" spacing="10.0" style="-fx-background-color: white; -fx-background-radius: 8px; -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.08), 12, 0, 0, 3);">
+                            <children>
+                                <Label style="-fx-font-size: 15px; -fx-font-weight: bold; -fx-text-fill: #153e5c;" text="Available Balance" />
+                                <TextField fx:id="availableBalanceField" alignment="CENTER" editable="false" focusTraversable="false" prefHeight="48.0" prefWidth="220.0" style="-fx-background-color: transparent; -fx-border-color: transparent; -fx-text-fill: #3bb3c3; -fx-font-size: 26px; -fx-font-weight: bold;" text="0" />
+                            </children>
+                        </VBox>
+                        <VBox alignment="CENTER" minHeight="125.0" prefHeight="125.0" prefWidth="245.0" spacing="10.0" style="-fx-background-color: white; -fx-background-radius: 8px; -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.08), 12, 0, 0, 3);">
+                            <children>
+                                <Label style="-fx-font-size: 15px; -fx-font-weight: bold; -fx-text-fill: #153e5c;" text="On Hold for Bids" />
+                                <TextField fx:id="pendingBalanceField" alignment="CENTER" editable="false" focusTraversable="false" prefHeight="48.0" prefWidth="220.0" style="-fx-background-color: transparent; -fx-border-color: transparent; -fx-text-fill: #d97706; -fx-font-size: 26px; -fx-font-weight: bold;" text="0" />
+                            </children>
+                        </VBox>
                     </children>
-                    <padding>
-                        <Insets bottom="18.0" left="24.0" right="24.0" top="18.0" />
-                    </padding>
-                </VBox>
+                </HBox>
 
                 <VBox maxWidth="640.0" spacing="10.0">
                     <children>

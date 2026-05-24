@@ -79,7 +79,7 @@ public class AuctionItemMenuController implements Initializable, AuctionContextC
     @FXML
     private Button placeBidButton;
     @FXML
-    private Button watchButton;
+    private Button watchListButton;
     @FXML
     private VBox bidSection;
     @FXML
@@ -100,15 +100,15 @@ public class AuctionItemMenuController implements Initializable, AuctionContextC
     private LocalDateTime auctionEndTime;
     private Timeline countdownTimeline;
     private boolean closeRefreshRequested;
-    private boolean watched;
-    private boolean watchStateLoaded;
+    private boolean inWatchList;
+    private boolean watchListStateLoaded;
 
     @Override
     public void initialize(URL location, ResourceBundle resources) {
         appHeaderController.setupHeader("Auction Details");
         messageLabel.setText("");
         placeBidButton.setDisable(true);
-        updateWatchButton();
+        updateWatchListButton();
         auctionStatusLabel.setText("N/A");
         minimumNextBidLabel.setText("N/A");
         priceHistoryChart.getData().clear();
@@ -137,8 +137,8 @@ public class AuctionItemMenuController implements Initializable, AuctionContextC
     public void setAuctionId(String auctionId) {
         currentAuctionId = auctionId;
         closeRefreshRequested = false;
-        watchStateLoaded = false;
-        updateWatchButton();
+        watchListStateLoaded = false;
+        updateWatchListButton();
         if (currentAuctionId == null || currentAuctionId.isBlank()) {
             setErrorMessage("No auction selected.");
             placeBidButton.setDisable(true);
@@ -179,7 +179,7 @@ public class AuctionItemMenuController implements Initializable, AuctionContextC
         if (currentAuctionId == null || currentAuctionId.isBlank()) {
             return;
         }
-        WatchListService.getInstance().updateWatched(currentAuctionId, !watched, this::handleWatchListUpdateResponse);
+        WatchListService.getInstance().updateWatched(currentAuctionId, !inWatchList, this::handleWatchListUpdateResponse);
     }
 
     private void registerEventListeners() {
@@ -216,7 +216,7 @@ public class AuctionItemMenuController implements Initializable, AuctionContextC
         minimumNextBid = response.getMinimumNextBid() == null ? currentHighestBid : response.getMinimumNextBid();
         currentBidLabel.setText("$" + currentHighestBid.toPlainString());
         minimumNextBidLabel.setText("$" + minimumNextBid.stripTrailingZeros().toPlainString());
-        leadingBidderLabel.setText(formatTopBidder(response.getLeadingBidderId()));
+        leadingBidderLabel.setText(formatTopBidder(response.getLeadingBidderUsername()));
         closeRefreshRequested = isClosedAuction(response);
         setAuctionEndTime(response.getEndTime());
         updateAuctionStatusLabel(response);
@@ -233,10 +233,10 @@ public class AuctionItemMenuController implements Initializable, AuctionContextC
             setErrorMessage("Unexpected watch list response from server.");
             return;
         }
-        watched = response.getAuctions().stream()
+        inWatchList = response.getAuctions().stream()
                 .anyMatch(auction -> auction != null && currentAuctionId.equals(auction.getAuctionId()));
-        watchStateLoaded = true;
-        updateWatchButton();
+        watchListStateLoaded = true;
+        updateWatchListButton();
     }
 
     private void handleWatchListUpdateResponse(Message message) {
@@ -255,18 +255,18 @@ public class AuctionItemMenuController implements Initializable, AuctionContextC
         if (changed == null || !currentAuctionId.equals(changed.getAuctionId())) {
             return;
         }
-        watched = changed.isWatched();
-        watchStateLoaded = true;
-        updateWatchButton();
+        inWatchList = changed.isWatched();
+        watchListStateLoaded = true;
+        updateWatchListButton();
     }
 
-    private void updateWatchButton() {
-        if (watchButton == null) {
+    private void updateWatchListButton() {
+        if (watchListButton == null) {
             return;
         }
-        watchButton.setDisable(currentAuctionId == null || currentAuctionId.isBlank() || !watchStateLoaded);
-        watchButton.setText(watched ? "Saved" : "Save");
-        watchButton.setStyle(watched
+        watchListButton.setDisable(currentAuctionId == null || currentAuctionId.isBlank() || !watchListStateLoaded);
+        watchListButton.setText(inWatchList ? "Watching" : "Add to watchlist");
+        watchListButton.setStyle(inWatchList
                 ? "-fx-background-color: #fee2e2; -fx-text-fill: #c62828; -fx-background-radius: 20px; -fx-padding: 10px 24px; -fx-font-weight: bold; -fx-cursor: hand;"
                 : "-fx-background-color: #e7f8fb; -fx-text-fill: #217b93; -fx-background-radius: 20px; -fx-padding: 10px 24px; -fx-font-weight: bold; -fx-cursor: hand;");
     }

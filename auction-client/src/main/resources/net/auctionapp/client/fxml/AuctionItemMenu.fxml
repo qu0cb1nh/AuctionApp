@@ -48,7 +48,7 @@
                         <HBox alignment="CENTER_LEFT" spacing="16.0">
                             <children>
                                 <Label fx:id="productNameLabel" style="-fx-font-size: 32px; -fx-font-weight: bold; -fx-text-fill: #333333;" text="Iphone 17 Pro Max" HBox.hgrow="ALWAYS" />
-                                <Button fx:id="watchButton" mnemonicParsing="false" onAction="#handleToggleWatchList" style="-fx-background-color: #e7f8fb; -fx-text-fill: #217b93; -fx-background-radius: 20px; -fx-padding: 10px 24px; -fx-font-weight: bold; -fx-cursor: hand;" text="Save" />
+                                <Button fx:id="watchListButton" mnemonicParsing="false" onAction="#handleToggleWatchList" style="-fx-background-color: #e7f8fb; -fx-text-fill: #217b93; -fx-background-radius: 20px; -fx-padding: 10px 24px; -fx-font-weight: bold; -fx-cursor: hand;" text="Add to watchlist" />
                             </children>
                         </HBox>
                         <Label fx:id="descriptionLabel" style="-fx-font-size: 15px; -fx-text-fill: #666666;" text="Brand new, factory-sealed. 1TB model in Desert Titanium. Official manufacturer's warranty included." wrapText="true" />

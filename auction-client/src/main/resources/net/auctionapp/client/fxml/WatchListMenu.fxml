@@ -16,7 +16,7 @@
                 <fx:include fx:id="appHeader" source="components/Header.fxml" />
                 <HBox alignment="CENTER_LEFT" spacing="14.0" style="-fx-background-color: #3bb3d1;">
                     <children>
-                        <Label style="-fx-text-fill: white; -fx-font-size: 18px; -fx-font-weight: bold;" text="Your saved auctions" />
+                        <Label style="-fx-text-fill: white; -fx-font-size: 18px; -fx-font-weight: bold;" text="Your watchlist" />
                         <Region HBox.hgrow="ALWAYS" />
                         <Button mnemonicParsing="false" onAction="#handleRefresh" prefHeight="35.0" prefWidth="100.0" style="-fx-background-color: white; -fx-text-fill: #3bb3d1; -fx-background-radius: 10; -fx-font-weight: bold;" text="Refresh" />
                     </children>
@@ -32,8 +32,8 @@
             <content>
                 <VBox spacing="10.0" style="-fx-padding: 20;">
                     <children>
-                        <Label style="-fx-font-size: 20px; -fx-font-weight: bold; -fx-text-fill: #153e5c;" text="Saved Auctions" />
-                        <Label fx:id="listStatusLabel" style="-fx-text-fill: #3f5569; -fx-font-size: 12px;" text="Loading saved auctions..." />
+                        <Label style="-fx-font-size: 20px; -fx-font-weight: bold; -fx-text-fill: #153e5c;" text="My Watchlist" />
+                        <Label fx:id="listStatusLabel" style="-fx-text-fill: #3f5569; -fx-font-size: 12px;" text="Loading watchlist..." />
                         <VBox fx:id="auctionFlowPane" spacing="8.0" />
                     </children>
                 </VBox>

@@ -9,14 +9,16 @@ import java.util.Optional;
 public interface UserDao {
     Optional<User> findByUsername(String normalizedUsername);
 
+    Optional<User> findById(String userId);
+
     boolean createUser(User user);
 
     List<User> findAllUsers();
 
-    boolean updateBanStatus(String normalizedUsername, boolean banned);
+    boolean updateBanStatus(String userId, boolean banned);
 
-    boolean increaseBalance(String normalizedUsername, BigDecimal amount);
+    boolean increaseBalance(String userId, BigDecimal amount);
 
-    boolean tryDecreaseBalance(String normalizedUsername, BigDecimal amount);
+    boolean tryDecreaseBalance(String userId, BigDecimal amount);
 
 }

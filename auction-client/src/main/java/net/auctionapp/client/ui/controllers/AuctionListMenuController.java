@@ -18,7 +18,6 @@ import net.auctionapp.client.utils.ResourcesUtil;
 import net.auctionapp.client.services.AuctionService;
 import net.auctionapp.client.services.WatchListService;
 import net.auctionapp.client.ClientSession;
-import net.auctionapp.client.utils.DurationFormatUtil;
 import net.auctionapp.common.messages.Message;
 import net.auctionapp.common.messages.types.AuctionListResponseMessage;
 import net.auctionapp.common.messages.types.AuctionSummary;
@@ -31,7 +30,6 @@ import net.auctionapp.common.auction.AuctionStatus;
 import java.io.IOException;
 import java.math.BigDecimal;
 import java.net.URL;
-import java.time.Duration;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
@@ -64,7 +62,6 @@ public class AuctionListMenuController implements Initializable {
 
     private final List<AuctionSummary> allAuctions = new ArrayList<>();
     private final Set<String> watchedAuctionIds = new HashSet<>();
-    private boolean adminUser;
     private boolean authenticatedUser;
     private boolean watchListLoaded;
 
@@ -72,7 +69,6 @@ public class AuctionListMenuController implements Initializable {
     @Override
     public void initialize(URL location, ResourceBundle resources) {
         appHeaderController.setupHeader("Explore Auctions");
-        adminUser = ClientSession.getInstance().isAdmin();
         authenticatedUser = ClientSession.getInstance().isAuthenticated();
         statusFilterComboBox.getItems().setAll(
                 STATUS_ALL,
@@ -193,30 +189,30 @@ public class AuctionListMenuController implements Initializable {
     }
 
     private HBox loadAuctionCard(AuctionSummary auction) {
-        String displayStatus = deriveDisplayStatus(auction);
+        boolean canManageAuction = ClientSession.getInstance().canManageAuction(auction.getSellerId());
         AuctionCardController.CardData cardData = new AuctionCardController.CardData(
                 auction.getImageUrl(),
                 auction.getItemType(),
                 auction.getTitle(),
-                "Status: " + displayStatus,
-                statusColor(displayStatus),
+                "Owner: " + formatOwner(auction.getSellerUsername()),
+                "#4a5f73",
                 "Minimum Next Bid: " + formatPrice(auction.getMinimumNextBid()),
                 "Start: " + formatDateTime(auction.getStartTime()),
                 "End: " + formatDateTime(auction.getEndTime()),
                 "Current Bid",
                 formatPrice(auction.getCurrentPrice()),
                 "#0057ff",
-                "Time Left",
-                formatTimingLabel(auction).replace("Ends in: ", "").replace("Starts in: ", ""),
+                "Ends At",
+                formatDateTime(auction.getEndTime()),
                 "#e03621",
                 "Top Bidder",
-                formatTopBidder(auction.getLeadingBidderId()),
+                formatTopBidder(auction.getLeadingBidderUsername()),
                 "#1f2933",
-                resolveButtonLabel(displayStatus),
+                "View auction",
                 () -> handleViewItem(auction.getAuctionId()),
-                adminUser ? "Manage auction" : null,
-                adminUser ? () -> handleManageAuction(auction.getAuctionId()) : null,
-                authenticatedUser && watchListLoaded ? formatWatchButtonText(auction.getAuctionId()) : null,
+                canManageAuction ? "Manage auction" : null,
+                canManageAuction ? () -> handleManageAuction(auction.getAuctionId()) : null,
+                authenticatedUser && watchListLoaded ? formatWatchListButtonText(auction.getAuctionId()) : null,
                 authenticatedUser && watchListLoaded ? () -> handleToggleWatchList(auction.getAuctionId()) : null
         );
         return loadAuctionCardComponent(cardData);
@@ -288,37 +284,8 @@ public class AuctionListMenuController implements Initializable {
         return leadingBidderId;
     }
 
-    private String formatTimingLabel(AuctionSummary auction) {
-        if (auction == null || auction.getStatus() == null || auction.getEndTime() == null) {
-            return "Time: N/A";
-        }
-        LocalDateTime now = LocalDateTime.now();
-        if (auction.getStartTime() != null && now.isBefore(auction.getStartTime())) {
-            return "Starts in: " + DurationFormatUtil.formatRemainingDuration(Duration.between(now, auction.getStartTime()));
-        }
-        if (auction.getStatus() == AuctionStatus.RUNNING && !now.isBefore(auction.getStartTime()) && now.isBefore(auction.getEndTime())) {
-            return "Ends in: " + DurationFormatUtil.formatRemainingDuration(Duration.between(now, auction.getEndTime()));
-        }
-        if (now.isAfter(auction.getEndTime())) {
-            return "Ended";
-        }
-        return "Scheduled";
-    }
-
-    private String statusColor(String status) {
-        return switch (status) {
-            case "RUNNING" -> "#1f8f4c";
-            case "PAID" -> "#2e7d32";
-            case "CANCELED" -> "#6b7280";
-            default -> "#6b7280";
-        };
-    }
-
-    private String resolveButtonLabel(String status) {
-        if ("RUNNING".equalsIgnoreCase(status)) {
-            return "Bid now!";
-        }
-        return "View details";
+    private String formatOwner(String sellerUsername) {
+        return sellerUsername == null || sellerUsername.isBlank() ? "Unknown" : sellerUsername;
     }
 
     private String deriveDisplayStatus(AuctionSummary auction) {
@@ -382,8 +349,8 @@ public class AuctionListMenuController implements Initializable {
         applyFilters();
     }
 
-    private String formatWatchButtonText(String auctionId) {
-        return watchedAuctionIds.contains(auctionId) ? "Saved" : "Save";
+    private String formatWatchListButtonText(String auctionId) {
+        return watchedAuctionIds.contains(auctionId) ? "Watching" : "Add to watchlist";
     }
 
     private void hideListStatus() {

@@ -11,6 +11,7 @@ import javafx.scene.layout.HBox;
 import javafx.scene.layout.VBox;
 import net.auctionapp.client.ClientSession;
 import net.auctionapp.client.services.AuctionService;
+import net.auctionapp.client.services.WatchListService;
 import net.auctionapp.client.ui.controllers.components.AuctionCardController;
 import net.auctionapp.client.ui.controllers.components.HeaderController;
 import net.auctionapp.client.ui.managers.SceneManager;
@@ -19,10 +20,14 @@ import net.auctionapp.client.utils.ResourcesUtil;
 import net.auctionapp.common.auction.AuctionStatus;
 import net.auctionapp.common.items.ItemType;
 import net.auctionapp.common.messages.Message;
+import net.auctionapp.common.messages.MessageType;
 import net.auctionapp.common.messages.types.AuctionDetailsResponseMessage;
 import net.auctionapp.common.messages.types.AuctionListResponseMessage;
+import net.auctionapp.common.messages.types.AuctionSummary;
 import net.auctionapp.common.messages.types.BidView;
 import net.auctionapp.common.messages.types.ErrorMessage;
+import net.auctionapp.common.messages.types.WatchListChangedMessage;
+import net.auctionapp.common.messages.types.WatchListResponseMessage;
 
 import java.io.IOException;
 import java.math.BigDecimal;
@@ -66,6 +71,8 @@ public class MyActivityMenuController implements Initializable {
     private final List<ActivityCard> allActivities = new ArrayList<>();
     private final List<ActivityCard> loadedActivities = new ArrayList<>();
     private final Set<String> pendingAuctionIds = new HashSet<>();
+    private final Set<String> watchedAuctionIds = new HashSet<>();
+    private boolean watchListLoaded;
 
     @Override
     public void initialize(URL location, ResourceBundle resources) {
@@ -74,6 +81,8 @@ public class MyActivityMenuController implements Initializable {
         statusFilterComboBox.getSelectionModel().select(STATUS_ACTIVE);
         summaryLabel.setManaged(false);
         summaryLabel.setVisible(false);
+        SceneManager.registerSceneMessageListener(MessageType.WATCH_LIST_CHANGED, this::handleWatchListChanged);
+        requestWatchList();
         loadActivities();
     }
 
@@ -106,6 +115,24 @@ public class MyActivityMenuController implements Initializable {
             return;
         }
         handleAuctionListResponse(response);
+    }
+
+    private void requestWatchList() {
+        WatchListService.getInstance().requestWatchList(this::handleWatchListResponse);
+    }
+
+    private void handleWatchListResponse(Message message) {
+        if (!(message instanceof WatchListResponseMessage response)) {
+            return;
+        }
+        watchedAuctionIds.clear();
+        for (AuctionSummary auction : response.getAuctions()) {
+            if (auction != null && auction.getAuctionId() != null) {
+                watchedAuctionIds.add(auction.getAuctionId());
+            }
+        }
+        watchListLoaded = true;
+        applyFilters();
     }
 
     private void handleAuctionListResponse(AuctionListResponseMessage response) {
@@ -233,14 +260,13 @@ public class MyActivityMenuController implements Initializable {
 
     private HBox loadActivityCard(ActivityCard activity) {
         boolean active = STATUS_ACTIVE.equals(activity.status());
-        String metricThreeCaption = active ? "Minimum Next" : "Winner";
-        String metricThreeValue = active ? formatMoney(activity.minimumNextBid()) : safeWinnerName(activity.winnerBidderId());
+        boolean canManageAuction = ClientSession.getInstance().canManageAuction(activity.sellerId());
         AuctionCardController.CardData cardData = new AuctionCardController.CardData(
                 activity.imageUrl(),
                 activity.itemType(),
                 activity.auctionTitle(),
-                "Status: " + activity.status(),
-                statusColor(activity.status()),
+                "Owner: " + formatOwner(activity.sellerUsername()),
+                "#4a5f73",
                 "Bid state: " + activity.bidPosition(),
                 formatTimingLabel(activity.endTime(), activity.auctionStatus()),
                 "Bid count: " + activity.bidCount(),
@@ -250,16 +276,18 @@ public class MyActivityMenuController implements Initializable {
                 active ? "Current Price" : "Final Price",
                 formatMoney(activity.currentPrice()),
                 active ? "#e03621" : "#1f2933",
-                metricThreeCaption,
-                metricThreeValue,
+                active ? "Ends At" : "Winner",
+                active ? formatDateTime(activity.endTime()) : safeWinnerName(activity.winnerBidderId()),
                 "#1f2933",
-                buttonLabelForActivity(activity),
+                "View auction",
                 () -> {
             statusLabel.setText("Opening auction: " + activity.auctionTitle());
             SceneManager.switchToAuctionDetails(activity.auctionId());
         },
-                null,
-                null
+                canManageAuction ? "Manage auction" : null,
+                canManageAuction ? () -> SceneManager.switchToManageAuction(activity.auctionId()) : null,
+                watchListLoaded ? formatWatchListButtonText(activity.auctionId()) : null,
+                watchListLoaded ? () -> handleToggleWatchList(activity.auctionId()) : null
         );
         return loadAuctionCardComponent(cardData);
     }
@@ -304,11 +332,12 @@ public class MyActivityMenuController implements Initializable {
                 deriveActivityStatus(response, currentUserId),
                 deriveBidPosition(response, currentUserId),
                 response.getStatus(),
+                response.getSellerId(),
+                response.getSellerUsername(),
                 yourMaxBid,
                 response.getCurrentPrice(),
-                response.getMinimumNextBid(),
                 bidHistory.size(),
-                response.getWinnerBidderId(),
+                displayUsername(response.getWinnerBidderUsername(), response.getWinnerBidderId()),
                 response.getEndTime(),
                 response.getImageUrl(),
                 response.getItemType()
@@ -350,21 +379,6 @@ public class MyActivityMenuController implements Initializable {
         };
     }
 
-    private String statusColor(String status) {
-        return switch (status) {
-            case STATUS_ACTIVE, STATUS_WON -> "#1f8f4c";
-            case STATUS_LOST -> "#c13c21";
-            default -> "#3f5569";
-        };
-    }
-
-    private String buttonLabelForActivity(ActivityCard activity) {
-        if (STATUS_ACTIVE.equals(activity.status()) && POSITION_OUTBID.equals(activity.bidPosition())) {
-            return "Bid again";
-        }
-        return "View auction";
-    }
-
     private String formatMoney(BigDecimal amount) {
         if (amount == null) {
             return "N/A";
@@ -377,6 +391,18 @@ public class MyActivityMenuController implements Initializable {
             return "No winner";
         }
         return winner;
+    }
+
+    private String formatOwner(String sellerUsername) {
+        return sellerUsername == null || sellerUsername.isBlank() ? "Unknown" : sellerUsername;
+    }
+
+    private String formatDateTime(LocalDateTime time) {
+        return time == null ? "N/A" : CARD_TIME_FORMATTER.format(time);
+    }
+
+    private String displayUsername(String username, String userId) {
+        return username == null || username.isBlank() ? userId : username;
     }
 
     private String formatTimingLabel(LocalDateTime endTime, AuctionStatus auctionStatus) {
@@ -404,6 +430,37 @@ public class MyActivityMenuController implements Initializable {
                 && response.getStatus() == AuctionStatus.RUNNING
                 && response.getEndTime() != null
                 && !LocalDateTime.now().isBefore(response.getEndTime());
+    }
+
+    private void handleToggleWatchList(String auctionId) {
+        boolean targetState = !watchedAuctionIds.contains(auctionId);
+        WatchListService.getInstance().updateWatched(auctionId, targetState, this::handleWatchListUpdateResponse);
+    }
+
+    private void handleWatchListUpdateResponse(Message message) {
+        if (message instanceof ErrorMessage errorMessage) {
+            handleErrorResponse(errorMessage);
+            return;
+        }
+        if (message instanceof WatchListChangedMessage changed) {
+            handleWatchListChanged(changed);
+        }
+    }
+
+    private void handleWatchListChanged(WatchListChangedMessage changed) {
+        if (changed == null || changed.getAuctionId() == null) {
+            return;
+        }
+        if (changed.isWatched()) {
+            watchedAuctionIds.add(changed.getAuctionId());
+        } else {
+            watchedAuctionIds.remove(changed.getAuctionId());
+        }
+        applyFilters();
+    }
+
+    private String formatWatchListButtonText(String auctionId) {
+        return watchedAuctionIds.contains(auctionId) ? "Watching" : "Add to watchlist";
     }
 
     private void updateSummary() {
@@ -450,9 +507,10 @@ public class MyActivityMenuController implements Initializable {
             String status,
             String bidPosition,
             AuctionStatus auctionStatus,
+            String sellerId,
+            String sellerUsername,
             BigDecimal yourMaxBid,
             BigDecimal currentPrice,
-            BigDecimal minimumNextBid,
             int bidCount,
             String winnerBidderId,
             LocalDateTime endTime,
