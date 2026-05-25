@@ -4,6 +4,7 @@ import net.auctionapp.client.ui.controllers.components.HeaderController;
 
 import javafx.animation.KeyFrame;
 import javafx.animation.Timeline;
+import javafx.css.PseudoClass;
 import javafx.event.ActionEvent;
 import javafx.fxml.FXML;
 import javafx.fxml.Initializable;
@@ -54,6 +55,16 @@ public class AuctionItemMenuController implements Initializable, AuctionContextC
     private static final int MAX_VISIBLE_BIDS = 16;
     private static final DateTimeFormatter CHART_TIME_FORMAT = DateTimeFormatter.ofPattern("HH:mm:ss");
     private static final DateTimeFormatter TOOLTIP_TIME_FORMAT = DateTimeFormatter.ofPattern("MMM d, HH:mm:ss");
+    private static final PseudoClass WATCHING_STATE = PseudoClass.getPseudoClass("watching");
+    private static final PseudoClass RUNNING_STATE = PseudoClass.getPseudoClass("running");
+    private static final PseudoClass URGENT_STATE = PseudoClass.getPseudoClass("urgent");
+    private static final PseudoClass ENDED_STATE = PseudoClass.getPseudoClass("ended");
+    private static final PseudoClass PAID_STATE = PseudoClass.getPseudoClass("paid");
+    private static final PseudoClass CANCELED_STATE = PseudoClass.getPseudoClass("canceled");
+    private static final PseudoClass NEUTRAL_STATE = PseudoClass.getPseudoClass("neutral");
+    private static final PseudoClass SUCCESS_STATE = PseudoClass.getPseudoClass("success");
+    private static final PseudoClass ERROR_STATE = PseudoClass.getPseudoClass("error");
+    private static final PseudoClass INFO_STATE = PseudoClass.getPseudoClass("info");
 
     @FXML
     private HeaderController appHeaderController;
@@ -267,9 +278,7 @@ public class AuctionItemMenuController implements Initializable, AuctionContextC
         }
         watchListButton.setDisable(currentAuctionId == null || currentAuctionId.isBlank() || !watchListStateLoaded);
         watchListButton.setText(inWatchList ? "Watching" : "Add to watchlist");
-        watchListButton.setStyle(inWatchList
-                ? "-fx-background-color: #fee2e2; -fx-text-fill: #c62828; -fx-background-radius: 20px; -fx-padding: 10px 24px; -fx-font-weight: bold; -fx-cursor: hand;"
-                : "-fx-background-color: #e7f8fb; -fx-text-fill: #217b93; -fx-background-radius: 20px; -fx-padding: 10px 24px; -fx-font-weight: bold; -fx-cursor: hand;");
+        watchListButton.pseudoClassStateChanged(WATCHING_STATE, inWatchList);
     }
 
     private void handleBidResult(Message message) {
@@ -492,32 +501,31 @@ public class AuctionItemMenuController implements Initializable, AuctionContextC
     }
 
     private void updateTimeRemainingStyle(LocalDateTime endTime) {
+        timeRemainingLabel.pseudoClassStateChanged(RUNNING_STATE, false);
+        timeRemainingLabel.pseudoClassStateChanged(URGENT_STATE, false);
+        timeRemainingLabel.pseudoClassStateChanged(ENDED_STATE, false);
         if (endTime == null) {
-            timeRemainingLabel.setStyle("-fx-font-size: 16px; -fx-font-weight: bold; -fx-text-fill: #333333;");
             return;
         }
         java.time.Duration remaining = java.time.Duration.between(LocalDateTime.now(), endTime);
         if (remaining.isNegative() || remaining.isZero()) {
-            timeRemainingLabel.setStyle("-fx-font-size: 16px; -fx-font-weight: bold; -fx-text-fill: #6b7280;");
+            timeRemainingLabel.pseudoClassStateChanged(ENDED_STATE, true);
             return;
         }
         if (remaining.toMinutes() < 5) {
-            timeRemainingLabel.setStyle("-fx-font-size: 16px; -fx-font-weight: bold; -fx-text-fill: #c13c21;");
+            timeRemainingLabel.pseudoClassStateChanged(URGENT_STATE, true);
             return;
         }
-        timeRemainingLabel.setStyle("-fx-font-size: 16px; -fx-font-weight: bold; -fx-text-fill: #1f8f4c;");
+        timeRemainingLabel.pseudoClassStateChanged(RUNNING_STATE, true);
     }
 
     private void updateAuctionStatusLabel(AuctionDetailsResponseMessage response) {
         String displayStatus = deriveDisplayStatus(response);
-        String color = switch (displayStatus) {
-            case "RUNNING" -> "#1f8f4c";
-            case "PAID" -> "#2e7d32";
-            case "CANCELED" -> "#6b7280";
-            default -> "#3f5569";
-        };
         auctionStatusLabel.setText(displayStatus);
-        auctionStatusLabel.setStyle("-fx-font-size: 16px; -fx-font-weight: bold; -fx-text-fill: " + color + ";");
+        auctionStatusLabel.pseudoClassStateChanged(RUNNING_STATE, "RUNNING".equals(displayStatus));
+        auctionStatusLabel.pseudoClassStateChanged(PAID_STATE, "PAID".equals(displayStatus));
+        auctionStatusLabel.pseudoClassStateChanged(CANCELED_STATE, "CANCELED".equals(displayStatus));
+        auctionStatusLabel.pseudoClassStateChanged(NEUTRAL_STATE, "N/A".equals(displayStatus));
     }
 
     private String deriveDisplayStatus(AuctionDetailsResponseMessage response) {
@@ -603,16 +611,22 @@ public class AuctionItemMenuController implements Initializable, AuctionContextC
 
     private void setSuccessMessage(String text) {
         messageLabel.setText(text);
-        messageLabel.setStyle("-fx-text-fill: green;");
+        setMessageState(SUCCESS_STATE);
     }
 
     private void setErrorMessage(String text) {
         messageLabel.setText(text);
-        messageLabel.setStyle("-fx-text-fill: red;");
+        setMessageState(ERROR_STATE);
     }
 
     private void setInfoMessage(String text) {
         messageLabel.setText(text);
-        messageLabel.setStyle("-fx-text-fill: #666666;");
+        setMessageState(INFO_STATE);
+    }
+
+    private void setMessageState(PseudoClass activeState) {
+        messageLabel.pseudoClassStateChanged(SUCCESS_STATE, activeState == SUCCESS_STATE);
+        messageLabel.pseudoClassStateChanged(ERROR_STATE, activeState == ERROR_STATE);
+        messageLabel.pseudoClassStateChanged(INFO_STATE, activeState == INFO_STATE);
     }
 }

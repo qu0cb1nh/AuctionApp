@@ -25,9 +25,11 @@ import net.auctionapp.server.services.AuthService;
 import net.auctionapp.server.services.AuctionService;
 import net.auctionapp.server.services.DatabaseService;
 import net.auctionapp.server.services.NotificationService;
+import net.auctionapp.server.services.UserService;
 import net.auctionapp.server.services.WalletService;
 import net.auctionapp.server.services.WatchListService;
 import net.auctionapp.server.managers.SessionManager;
+import net.auctionapp.server.messages.MessageRouter;
 import net.auctionapp.server.exceptions.DatabaseException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -64,6 +66,14 @@ public class ServerApp {
             NotificationService.getInstance().setNotificationDao(new JdbcNotificationDao());
             WatchListService.getInstance().setWatchListDao(new JdbcWatchListDao());
             AuctionService.getInstance().startStatusScheduler();
+            MessageRouter messageRouter = new MessageRouter(
+                    AuthService.getInstance(),
+                    AuctionService.getInstance(),
+                    UserService.getInstance(),
+                    NotificationService.getInstance(),
+                    WalletService.getInstance(),
+                    WatchListService.getInstance()
+            );
 
             String host = ServerConfig.getServerHost();
             int port = ServerConfig.getServerPort();
@@ -80,7 +90,7 @@ public class ServerApp {
                 LOGGER.info("New client connected: {}", clientSocket.getInetAddress());
 
                 // Each client will be handled by a separate thread
-                ClientHandler handler = new ClientHandler(clientSocket);
+                ClientHandler handler = new ClientHandler(clientSocket, messageRouter);
                 try {
                     CLIENT_THREAD_POOL.execute(handler);
                 } catch (RejectedExecutionException e) {

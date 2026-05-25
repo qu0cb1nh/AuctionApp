@@ -10,6 +10,8 @@ import net.auctionapp.common.messages.auction.CloseAuctionRequestMessage;
 import net.auctionapp.common.messages.auction.CreateItemRequestMessage;
 import net.auctionapp.common.messages.auction.GetAuctionDetailsRequestMessage;
 import net.auctionapp.common.messages.auction.GetAuctionListRequestMessage;
+import net.auctionapp.common.messages.auction.GetMyActivityRequestMessage;
+import net.auctionapp.common.messages.auction.GetMyListingsRequestMessage;
 import net.auctionapp.common.messages.auction.ObserveAuctionRequestMessage;
 import net.auctionapp.common.messages.auction.UpdateAuctionRequestMessage;
 import net.auctionapp.common.messages.auth.LoginRequestMessage;
@@ -58,6 +60,10 @@ public final class MessageRouter {
                 auctionService::handleGetAuctionList);
         register(MessageType.GET_AUCTION_DETAILS_REQUEST, GetAuctionDetailsRequestMessage.class,
                 auctionService::handleGetAuctionDetails);
+        register(MessageType.GET_MY_ACTIVITY_REQUEST, GetMyActivityRequestMessage.class,
+                auctionService::handleGetMyActivity);
+        register(MessageType.GET_MY_LISTINGS_REQUEST, GetMyListingsRequestMessage.class,
+                auctionService::handleGetMyListings);
         register(MessageType.OBSERVE_AUCTION_REQUEST, ObserveAuctionRequestMessage.class,
                 auctionService::handleObserveAuction);
         register(MessageType.GET_NOTIFICATIONS_REQUEST, GetNotificationsRequestMessage.class,

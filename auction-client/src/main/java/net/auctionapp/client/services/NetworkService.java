@@ -22,7 +22,6 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.UUID;
 import java.util.concurrent.*;
-import java.util.function.Consumer;
 
 public final class NetworkService {
     private static final NetworkService INSTANCE = new NetworkService();
@@ -123,22 +122,6 @@ public final class NetworkService {
         if (!sendJson(JsonUtil.toJson(message))) {
             closeResourcesQuietly();
         }
-    }
-
-    public void sendRequest(Message request, MessageListener<Message> callback, Consumer<Throwable> onError) {
-        Objects.requireNonNull(request, "request must not be null");
-        Objects.requireNonNull(callback, "callback must not be null");
-        Objects.requireNonNull(onError, "onError must not be null");
-
-        sendRequest(request).whenComplete((message, throwable) -> Platform.runLater(() -> {
-            if (throwable == null) {
-                callback.onMessage(message);
-                return;
-            }
-            Throwable failure = unwrapCompletionException(throwable);
-            logRequestFailure(failure);
-            onError.accept(failure);
-        }));
     }
 
     public void sendRequest(Message request, MessageListener<Message> callback) {

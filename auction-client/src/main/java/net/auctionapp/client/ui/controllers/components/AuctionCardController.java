@@ -1,6 +1,7 @@
 package net.auctionapp.client.ui.controllers.components;
 
 import javafx.event.ActionEvent;
+import javafx.css.PseudoClass;
 import javafx.fxml.FXML;
 import javafx.scene.control.Button;
 import javafx.scene.control.Label;
@@ -11,6 +12,10 @@ import net.auctionapp.client.utils.ResourcesUtil;
 import net.auctionapp.common.items.ItemType;
 
 public final class AuctionCardController {
+    private static final PseudoClass WATCHING_STATE = PseudoClass.getPseudoClass("watching");
+    private static final PseudoClass MUTED_STATE = PseudoClass.getPseudoClass("muted");
+    private static final PseudoClass PRIMARY_STATE = PseudoClass.getPseudoClass("primary");
+    private static final PseudoClass DANGER_STATE = PseudoClass.getPseudoClass("danger");
     @FXML
     private ImageView thumbnailImageView;
     @FXML
@@ -59,22 +64,20 @@ public final class AuctionCardController {
         setImage(data.imageUrl(), data.itemType());
         titleLabel.setText(textOrFallback(data.title(), "Untitled auction"));
         statusLabel.setText(textOrFallback(data.statusText(), ""));
-        statusLabel.setStyle("-fx-font-weight: bold; -fx-font-size: 12px; -fx-text-fill: "
-                + textOrFallback(data.statusColor(), "#3f5569") + ";");
+        setTone(statusLabel, data.statusTone());
         setOptionalLabel(detailOneLabel, data.detailOne());
         setOptionalLabel(detailTwoLabel, data.detailTwo());
         setOptionalLabel(detailThreeLabel, data.detailThree());
-        setMetric(metricOneBox, metricOneCaptionLabel, metricOneValueLabel, data.metricOneCaption(), data.metricOneValue(), data.metricOneColor());
-        setMetric(metricTwoBox, metricTwoCaptionLabel, metricTwoValueLabel, data.metricTwoCaption(), data.metricTwoValue(), data.metricTwoColor());
-        setMetric(metricThreeBox, metricThreeCaptionLabel, metricThreeValueLabel, data.metricThreeCaption(), data.metricThreeValue(), data.metricThreeColor());
+        setMetric(metricOneBox, metricOneCaptionLabel, metricOneValueLabel, data.metricOneCaption(), data.metricOneValue(), data.metricOneTone());
+        setMetric(metricTwoBox, metricTwoCaptionLabel, metricTwoValueLabel, data.metricTwoCaption(), data.metricTwoValue(), data.metricTwoTone());
+        setMetric(metricThreeBox, metricThreeCaptionLabel, metricThreeValueLabel, data.metricThreeCaption(), data.metricThreeValue(), data.metricThreeTone());
         configureButton(primaryButton, data.primaryButtonText(), data.primaryAction());
         configureButton(secondaryButton, data.secondaryButtonText(), data.secondaryAction());
         configureButton(watchListButton, data.watchListButtonText(), data.watchListAction());
-        if (data.watchListButtonText() != null && data.watchListButtonText().equals("Watching")) {
-            watchListButton.setStyle("-fx-background-color: #fee2e2; -fx-text-fill: #c62828; -fx-background-radius: 6; -fx-font-weight: bold; -fx-cursor: hand;");
-        } else {
-            watchListButton.setStyle("-fx-background-color: #e7f8fb; -fx-text-fill: #217b93; -fx-background-radius: 6; -fx-font-weight: bold; -fx-cursor: hand;");
-        }
+        watchListButton.pseudoClassStateChanged(
+                WATCHING_STATE,
+                "Watching".equals(data.watchListButtonText())
+        );
     }
 
     @FXML
@@ -114,7 +117,7 @@ public final class AuctionCardController {
         label.setVisible(visible);
     }
 
-    private void setMetric(VBox metricBox, Label captionLabel, Label valueLabel, String caption, String value, String color) {
+    private void setMetric(VBox metricBox, Label captionLabel, Label valueLabel, String caption, String value, TextTone tone) {
         boolean visible = (caption != null && !caption.isBlank()) || (value != null && !value.isBlank());
         metricBox.setManaged(visible);
         metricBox.setVisible(visible);
@@ -123,8 +126,14 @@ public final class AuctionCardController {
         }
         captionLabel.setText(textOrFallback(caption, ""));
         valueLabel.setText(textOrFallback(value, "N/A"));
-        valueLabel.setStyle("-fx-font-size: 13px; -fx-font-weight: bold; -fx-text-fill: "
-                + textOrFallback(color, "#1f2933") + ";");
+        setTone(valueLabel, tone);
+    }
+
+    private void setTone(Label label, TextTone tone) {
+        TextTone resolvedTone = tone == null ? TextTone.DEFAULT : tone;
+        label.pseudoClassStateChanged(MUTED_STATE, resolvedTone == TextTone.MUTED);
+        label.pseudoClassStateChanged(PRIMARY_STATE, resolvedTone == TextTone.PRIMARY);
+        label.pseudoClassStateChanged(DANGER_STATE, resolvedTone == TextTone.DANGER);
     }
 
     private void configureButton(Button button, String text, Runnable action) {
@@ -155,19 +164,19 @@ public final class AuctionCardController {
             ItemType itemType,
             String title,
             String statusText,
-            String statusColor,
+            TextTone statusTone,
             String detailOne,
             String detailTwo,
             String detailThree,
             String metricOneCaption,
             String metricOneValue,
-            String metricOneColor,
+            TextTone metricOneTone,
             String metricTwoCaption,
             String metricTwoValue,
-            String metricTwoColor,
+            TextTone metricTwoTone,
             String metricThreeCaption,
             String metricThreeValue,
-            String metricThreeColor,
+            TextTone metricThreeTone,
             String primaryButtonText,
             Runnable primaryAction,
             String secondaryButtonText,
@@ -175,4 +184,11 @@ public final class AuctionCardController {
             String watchListButtonText,
             Runnable watchListAction
     ) {}
+
+    public enum TextTone {
+        DEFAULT,
+        MUTED,
+        PRIMARY,
+        DANGER
+    }
 }

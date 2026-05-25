@@ -1,0 +1,199 @@
+.list-status {
+    -fx-font-size: 12px;
+    -fx-text-fill: #666666;
+}
+
+.list-status:error,
+.load-error {
+    -fx-text-fill: #d9534f;
+}
+
+.empty-state {
+    -fx-font-size: 14px;
+    -fx-font-weight: bold;
+    -fx-text-fill: #4a5f73;
+}
+
+.activity-status,
+.listing-status {
+    -fx-text-fill: #666666;
+}
+
+.activity-status:error,
+.listing-status:error {
+    -fx-font-size: 12px;
+    -fx-font-weight: bold;
+    -fx-text-fill: #d9534f;
+}
+
+.admin-status,
+.manage-status {
+    -fx-text-fill: #3f5569;
+}
+
+.admin-status:error,
+.manage-status:error {
+    -fx-text-fill: #c13c21;
+}
+
+.admin-status:success,
+.manage-status:success {
+    -fx-text-fill: #1f8f4c;
+}
+
+.admin-nav-label {
+    -fx-font-size: 15px;
+    -fx-text-fill: #53677a;
+    -fx-cursor: hand;
+    -fx-padding: 6 10 6 10;
+}
+
+.admin-nav-label:active {
+    -fx-font-weight: bold;
+    -fx-underline: true;
+    -fx-text-fill: #153e5c;
+}
+
+.create-status {
+    -fx-font-size: 13px;
+    -fx-text-fill: #666666;
+}
+
+.create-status:error,
+.image-status:error {
+    -fx-text-fill: #d9534f;
+}
+
+.create-status:success {
+    -fx-text-fill: #2e7d32;
+}
+
+.image-status {
+    -fx-font-size: 13px;
+    -fx-text-fill: #888888;
+}
+
+.image-status:selected {
+    -fx-text-fill: #666666;
+}
+
+.notification-filter-label {
+    -fx-text-fill: #6b7280;
+    -fx-cursor: hand;
+}
+
+.notification-filter-label:active {
+    -fx-text-fill: #3bb3d1;
+    -fx-font-weight: bold;
+}
+
+.notification-filter-underline {
+    -fx-background-color: transparent;
+    -fx-pref-height: 2px;
+}
+
+.notification-filter-underline:active {
+    -fx-background-color: #2f80ed;
+}
+
+.notification-status {
+    -fx-font-size: 12px;
+    -fx-text-fill: #6b7280;
+}
+
+.notification-status:error {
+    -fx-text-fill: #d9534f;
+}
+
+.notification-empty {
+    -fx-font-size: 13px;
+    -fx-text-fill: #6b7280;
+}
+
+.auction-card-status {
+    -fx-font-size: 12px;
+    -fx-font-weight: bold;
+    -fx-text-fill: #3f5569;
+}
+
+.auction-card-status:muted {
+    -fx-text-fill: #4a5f73;
+}
+
+.auction-card-metric-value {
+    -fx-font-size: 13px;
+    -fx-font-weight: bold;
+    -fx-text-fill: #1f2933;
+}
+
+.auction-card-metric-value:primary {
+    -fx-text-fill: #0057ff;
+}
+
+.auction-card-metric-value:danger {
+    -fx-text-fill: #e03621;
+}
+
+.auction-card-watch-button {
+    -fx-background-color: #e7f8fb;
+    -fx-text-fill: #217b93;
+    -fx-background-radius: 6px;
+    -fx-font-weight: bold;
+    -fx-cursor: hand;
+}
+
+.auction-card-watch-button:watching {
+    -fx-background-color: #fee2e2;
+    -fx-text-fill: #c62828;
+}
+
+.notification-card {
+    -fx-background-color: white;
+    -fx-border-color: #d6e4f0;
+    -fx-border-width: 1px;
+    -fx-border-radius: 12px;
+    -fx-background-radius: 12px;
+    -fx-padding: 14px;
+}
+
+.notification-card:card-hover {
+    -fx-background-color: #f0f8ff;
+    -fx-border-color: #3bb3d1;
+}
+
+.notification-card:card-hover:openable {
+    -fx-cursor: hand;
+}
+
+.notification-clear-button {
+    -fx-background-color: #f3f4f6;
+    -fx-border-color: #d1d5db;
+    -fx-border-radius: 6px;
+    -fx-background-radius: 6px;
+    -fx-padding: 5px 12px;
+    -fx-text-fill: #374151;
+    -fx-font-weight: bold;
+    -fx-cursor: hand;
+}
+
+.notification-clear-button:hover {
+    -fx-background-color: #e0f2fe;
+    -fx-border-color: #3bb3d1;
+    -fx-text-fill: #153e5c;
+}
+
+.notification-toast.openable {
+    -fx-cursor: hand;
+}
+
+.assistant-bubble:warning {
+    -fx-text-fill: #e67e22;
+}
+
+.assistant-bubble:error {
+    -fx-text-fill: #e74c3c;
+}
+
+.assistant-bubble:success {
+    -fx-text-fill: #27ae60;
+}

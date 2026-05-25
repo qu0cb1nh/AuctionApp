@@ -68,8 +68,7 @@ public class WalletMenuController implements Initializable {
         setBusy(true);
         WalletService.getInstance().deposit(
                 amount,
-                message -> handleWalletMutationResponse(message, depositField),
-                this::handleWalletRequestError
+                message -> handleWalletMutationResponse(message, depositField)
         );
     }
 
@@ -82,13 +81,12 @@ public class WalletMenuController implements Initializable {
         setBusy(true);
         WalletService.getInstance().withdraw(
                 amount,
-                message -> handleWalletMutationResponse(message, withdrawField),
-                this::handleWalletRequestError
+                message -> handleWalletMutationResponse(message, withdrawField)
         );
     }
 
     private void requestWallet() {
-        WalletService.getInstance().requestWallet(this::handleWalletResponse, this::handleWalletRequestError);
+        WalletService.getInstance().requestWallet(this::handleWalletResponse);
     }
 
     private void handleWalletMutationResponse(Message message, TextField sourceField) {
@@ -119,14 +117,6 @@ public class WalletMenuController implements Initializable {
         NotificationToastManager.showError("Unexpected wallet response.");
         LOGGER.warn("Unexpected wallet response type: {}", message == null ? "null" : message.getType());
         return false;
-    }
-
-    private void handleWalletRequestError(Throwable throwable) {
-        setBusy(false);
-        String message = throwable == null || throwable.getMessage() == null
-                ? "Wallet request failed."
-                : throwable.getMessage();
-        NotificationToastManager.showError(message);
     }
 
     private void handleBalanceUpdate(WalletResponseMessage update) {

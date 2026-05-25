@@ -82,3 +82,74 @@
 .price-chart .default-color0.chart-line-symbol:hover {
     -fx-background-color: #167d8d, white;
 }
+
+.auction-watch-button {
+    -fx-background-color: #e7f8fb;
+    -fx-text-fill: #217b93;
+    -fx-background-radius: 20px;
+    -fx-padding: 10px 24px;
+    -fx-font-weight: bold;
+    -fx-cursor: hand;
+}
+
+.auction-watch-button:watching {
+    -fx-background-color: #fee2e2;
+    -fx-text-fill: #c62828;
+}
+
+.time-remaining {
+    -fx-font-size: 16px;
+    -fx-font-weight: bold;
+    -fx-text-fill: #333333;
+}
+
+.time-remaining:running {
+    -fx-text-fill: #1f8f4c;
+}
+
+.time-remaining:urgent {
+    -fx-text-fill: #c13c21;
+}
+
+.time-remaining:ended {
+    -fx-text-fill: #6b7280;
+}
+
+.auction-status {
+    -fx-font-size: 16px;
+    -fx-font-weight: bold;
+    -fx-text-fill: #2962ff;
+}
+
+.auction-status:running {
+    -fx-text-fill: #1f8f4c;
+}
+
+.auction-status:paid {
+    -fx-text-fill: #2e7d32;
+}
+
+.auction-status:canceled {
+    -fx-text-fill: #6b7280;
+}
+
+.auction-status:neutral {
+    -fx-text-fill: #3f5569;
+}
+
+.auction-message {
+    -fx-font-size: 13px;
+    -fx-text-fill: #888888;
+}
+
+.auction-message:success {
+    -fx-text-fill: green;
+}
+
+.auction-message:error {
+    -fx-text-fill: red;
+}
+
+.auction-message:info {
+    -fx-text-fill: #666666;
+}

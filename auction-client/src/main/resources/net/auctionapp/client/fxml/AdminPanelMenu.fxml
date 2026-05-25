@@ -13,7 +13,7 @@
 <?import javafx.scene.layout.StackPane?>
 <?import javafx.scene.layout.VBox?>
 
-<BorderPane prefHeight="634.0" prefWidth="967.0" xmlns="http://javafx.com/javafx/25" xmlns:fx="http://javafx.com/fxml/1" fx:controller="net.auctionapp.client.ui.controllers.AdminPanelMenuController">
+<BorderPane prefHeight="634.0" prefWidth="967.0" stylesheets="@../styles/ui-states.css" xmlns="http://javafx.com/javafx/25" xmlns:fx="http://javafx.com/fxml/1" fx:controller="net.auctionapp.client.ui.controllers.AdminPanelMenuController">
     <top>
         <fx:include fx:id="appHeader" source="components/Header.fxml" />
     </top>
@@ -22,11 +22,11 @@
             <content>
                 <VBox spacing="12.0" style="-fx-padding: 20;">
                     <children>
-                        <Label fx:id="statusLabel" style="-fx-text-fill: #3f5569;" text="Ready." />
+                        <Label fx:id="statusLabel" styleClass="admin-status" text="Ready." />
                         <HBox alignment="CENTER_LEFT" prefHeight="40.0" spacing="8.0">
                             <children>
-                                <Label fx:id="userManagementNavLabel" minWidth="180.0" onMouseClicked="#handleShowUserManagement" prefWidth="180.0" style="-fx-font-size: 15px; -fx-font-weight: bold; -fx-underline: true; -fx-cursor: hand;" text="User Management" />
-                                <Label fx:id="auctionManagementNavLabel" minWidth="230.0" onMouseClicked="#handleShowAuctionManagement" prefWidth="230.0" style="-fx-font-size: 15px; -fx-cursor: hand;" text="Auction Management" />
+                                <Label fx:id="userManagementNavLabel" minWidth="180.0" onMouseClicked="#handleShowUserManagement" prefWidth="180.0" styleClass="admin-nav-label" text="User Management" />
+                                <Label fx:id="auctionManagementNavLabel" minWidth="230.0" onMouseClicked="#handleShowAuctionManagement" prefWidth="230.0" styleClass="admin-nav-label" text="Auction Management" />
                                 <Region HBox.hgrow="ALWAYS" />
                             </children>
                         </HBox>

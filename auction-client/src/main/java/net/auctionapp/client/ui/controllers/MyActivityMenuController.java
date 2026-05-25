@@ -1,6 +1,7 @@
 package net.auctionapp.client.ui.controllers;
 
 import javafx.event.ActionEvent;
+import javafx.css.PseudoClass;
 import javafx.fxml.FXML;
 import javafx.fxml.FXMLLoader;
 import javafx.fxml.Initializable;
@@ -23,8 +24,8 @@ import net.auctionapp.common.messages.Message;
 import net.auctionapp.common.messages.MessageType;
 import net.auctionapp.common.dto.AuctionSummary;
 import net.auctionapp.common.dto.BidView;
+import net.auctionapp.common.messages.auction.AuctionDetailsListResponseMessage;
 import net.auctionapp.common.messages.auction.AuctionDetailsResponseMessage;
-import net.auctionapp.common.messages.auction.AuctionListResponseMessage;
 import net.auctionapp.common.messages.system.ErrorResponseMessage;
 import net.auctionapp.common.messages.watchlist.WatchListChangedResponseMessage;
 import net.auctionapp.common.messages.watchlist.WatchListResponseMessage;
@@ -47,7 +48,7 @@ import java.util.Set;
 
 public class MyActivityMenuController implements Initializable {
     private static final DateTimeFormatter CARD_TIME_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm");
-    private static final String STATUS_TEXT_STYLE = "-fx-text-fill: #666666;";
+    private static final PseudoClass ERROR_STATE = PseudoClass.getPseudoClass("error");
     private static final String STATUS_ACTIVE = "Active";
     private static final String STATUS_WON = "Won";
     private static final String STATUS_LOST = "Lost";
@@ -69,10 +70,9 @@ public class MyActivityMenuController implements Initializable {
     private Label summaryLabel;
 
     private final List<ActivityCard> allActivities = new ArrayList<>();
-    private final List<ActivityCard> loadedActivities = new ArrayList<>();
-    private final Set<String> pendingAuctionIds = new HashSet<>();
     private final Set<String> watchedAuctionIds = new HashSet<>();
     private boolean watchListLoaded;
+    private boolean activityLoading;
 
     @Override
     public void initialize(URL location, ResourceBundle resources) {
@@ -97,24 +97,35 @@ public class MyActivityMenuController implements Initializable {
     }
 
     private void loadActivities() {
-        pendingAuctionIds.clear();
+        activityLoading = true;
         allActivities.clear();
-        loadedActivities.clear();
         renderActivityCards(List.of(), false);
-        showStatus("Loading your activities...", STATUS_TEXT_STYLE);
-        AuctionService.getInstance().requestAuctionList(this::handleAuctionListRequestResult);
+        showStatus("Loading your activities...", false);
+        AuctionService.getInstance().requestMyActivity(this::handleActivityRequestResult);
     }
 
-    private void handleAuctionListRequestResult(Message message) {
+    private void handleActivityRequestResult(Message message) {
+        activityLoading = false;
         if (message instanceof ErrorResponseMessage errorMessage) {
             handleErrorResponse(errorMessage);
             return;
         }
-        if (!(message instanceof AuctionListResponseMessage response)) {
-            showStatus("Unexpected response from server.", "-fx-text-fill: #d9534f; -fx-font-size: 12px; -fx-font-weight: bold;");
+        if (!(message instanceof AuctionDetailsListResponseMessage response)) {
+            showStatus("Unexpected response from server.", true);
             return;
         }
-        handleAuctionListResponse(response);
+        String currentUserId = resolveCurrentUserId();
+        allActivities.clear();
+        allActivities.addAll(
+                response.getAuctions().stream()
+                        .map(auction -> toActivityCard(auction, currentUserId))
+                        .flatMap(Optional::stream)
+                        .sorted(Comparator.<ActivityCard>comparingInt(card -> statusPriority(card.status()))
+                                .thenComparing(ActivityCard::endTime, Comparator.nullsLast(LocalDateTime::compareTo))
+                                .thenComparing(ActivityCard::auctionTitle, String.CASE_INSENSITIVE_ORDER))
+                        .toList()
+        );
+        applyFilters();
     }
 
     private void requestWatchList() {
@@ -135,86 +146,8 @@ public class MyActivityMenuController implements Initializable {
         applyFilters();
     }
 
-    private void handleAuctionListResponse(AuctionListResponseMessage response) {
-        pendingAuctionIds.clear();
-        loadedActivities.clear();
-
-        List<String> auctionIds = response.getAuctions() == null ? List.of()
-                : response.getAuctions().stream()
-                .map(summary -> summary == null ? null : summary.getAuctionId())
-                .filter(id -> id != null && !id.isBlank())
-                .toList();
-
-        if (auctionIds.isEmpty()) {
-            allActivities.clear();
-            renderActivityCards(List.of(), false);
-            showStatus("No auctions available yet.", STATUS_TEXT_STYLE);
-            updateSummary();
-            return;
-        }
-
-        pendingAuctionIds.addAll(auctionIds);
-        showStatus("Loading auction details...", STATUS_TEXT_STYLE);
-        for (String auctionId : auctionIds) {
-            AuctionService.getInstance().requestAuctionDetails(
-                    auctionId,
-                    detailResponse -> handleAuctionDetailsRequestResult(auctionId, detailResponse)
-            );
-        }
-    }
-
-    private void handleAuctionDetailsRequestResult(String auctionId, Message message) {
-        if (message instanceof ErrorResponseMessage errorMessage) {
-            completeLoadingAfterDetailFailure(auctionId, errorMessage.getErrorMessage());
-            return;
-        }
-        handleAuctionDetailsResponse(message);
-    }
-
-    private void handleAuctionDetailsResponse(Message message) {
-        if (!(message instanceof AuctionDetailsResponseMessage response)) {
-            return;
-        }
-        if (!pendingAuctionIds.remove(response.getAuctionId())) {
-            return;
-        }
-
-        toActivityCard(response, resolveCurrentUserId()).ifPresent(loadedActivities::add);
-        if (!pendingAuctionIds.isEmpty()) {
-            showStatus("Loading auction details...", STATUS_TEXT_STYLE);
-            return;
-        }
-        finalizeLoadedActivities();
-    }
-
-    private void completeLoadingAfterDetailFailure(String auctionId, String errorMessage) {
-        if (auctionId != null) {
-            pendingAuctionIds.remove(auctionId);
-        }
-        if (errorMessage != null && !errorMessage.isBlank()) {
-            showStatus(errorMessage, "-fx-text-fill: #d9534f; -fx-font-size: 12px; -fx-font-weight: bold;");
-        }
-        if (!pendingAuctionIds.isEmpty()) {
-            showStatus("Loading auction details...", STATUS_TEXT_STYLE);
-            return;
-        }
-        finalizeLoadedActivities();
-    }
-
-    private void finalizeLoadedActivities() {
-        allActivities.clear();
-        allActivities.addAll(
-                loadedActivities.stream()
-                        .sorted(Comparator.<ActivityCard>comparingInt(card -> statusPriority(card.status()))
-                                .thenComparing(ActivityCard::endTime, Comparator.nullsLast(LocalDateTime::compareTo))
-                                .thenComparing(ActivityCard::auctionTitle, String.CASE_INSENSITIVE_ORDER))
-                        .toList()
-        );
-        applyFilters();
-    }
-
     private void handleErrorResponse(ErrorResponseMessage errorMessage) {
-        showStatus(errorMessage.getErrorMessage(), "-fx-text-fill: #d9534f; -fx-font-size: 12px; -fx-font-weight: bold;");
+        showStatus(errorMessage.getErrorMessage(), true);
     }
 
     private void applyFilters() {
@@ -233,7 +166,7 @@ public class MyActivityMenuController implements Initializable {
 
         renderActivityCards(filtered, !allActivities.isEmpty());
         updateSummary();
-        if (pendingAuctionIds.isEmpty()) {
+        if (!activityLoading) {
             hideStatus();
         }
     }
@@ -248,7 +181,7 @@ public class MyActivityMenuController implements Initializable {
             Label emptyLabel = new Label(hasAnyActivities
                     ? "No " + statusText + " activities match your current filters."
                     : "You have not placed any bids yet.");
-            emptyLabel.setStyle("-fx-font-size: 14px; -fx-font-weight: bold; -fx-text-fill: #4a5f73;");
+            emptyLabel.getStyleClass().add("empty-state");
             activityFlowPane.getChildren().add(emptyLabel);
             return;
         }
@@ -266,19 +199,19 @@ public class MyActivityMenuController implements Initializable {
                 activity.itemType(),
                 activity.auctionTitle(),
                 "Owner: " + formatOwner(activity.sellerUsername()),
-                "#4a5f73",
+                AuctionCardController.TextTone.MUTED,
                 "Bid state: " + activity.bidPosition(),
                 formatTimingLabel(activity.endTime(), activity.auctionStatus()),
                 "Bid count: " + activity.bidCount(),
                 "Your Max Bid",
                 formatMoney(activity.yourMaxBid()),
-                "#0057ff",
+                AuctionCardController.TextTone.PRIMARY,
                 active ? "Current Price" : "Final Price",
                 formatMoney(activity.currentPrice()),
-                active ? "#e03621" : "#1f2933",
+                active ? AuctionCardController.TextTone.DANGER : AuctionCardController.TextTone.DEFAULT,
                 active ? "Ends At" : "Winner",
                 active ? formatDateTime(activity.endTime()) : safeWinnerName(activity.winnerBidderId()),
-                "#1f2933",
+                AuctionCardController.TextTone.DEFAULT,
                 "View auction",
                 () -> {
             statusLabel.setText("Opening auction: " + activity.auctionTitle());
@@ -301,7 +234,7 @@ public class MyActivityMenuController implements Initializable {
             return card;
         } catch (IOException | RuntimeException e) {
             Label fallback = new Label("Failed to load activity card.");
-            fallback.setStyle("-fx-text-fill: #d9534f;");
+            fallback.getStyleClass().add("load-error");
             return new HBox(fallback);
         }
     }
@@ -490,14 +423,14 @@ public class MyActivityMenuController implements Initializable {
         statusLabel.setVisible(false);
     }
 
-    private void showStatus(String text, String style) {
+    private void showStatus(String text, boolean error) {
         if (text == null || text.isBlank()) {
             hideStatus();
             return;
         }
         statusLabel.setManaged(true);
         statusLabel.setVisible(true);
-        statusLabel.setStyle(style);
+        statusLabel.pseudoClassStateChanged(ERROR_STATE, error);
         statusLabel.setText(text);
     }
 

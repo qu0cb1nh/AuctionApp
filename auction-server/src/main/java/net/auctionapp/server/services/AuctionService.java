@@ -6,6 +6,7 @@ import net.auctionapp.common.messages.MessageType;
 import net.auctionapp.common.dto.AuctionSummary;
 import net.auctionapp.common.dto.BidView;
 import net.auctionapp.common.messages.auction.AuctionActionResponseMessage;
+import net.auctionapp.common.messages.auction.AuctionDetailsListResponseMessage;
 import net.auctionapp.common.messages.auction.AuctionDetailsResponseMessage;
 import net.auctionapp.common.messages.auction.AuctionEndedResponseMessage;
 import net.auctionapp.common.messages.auction.AuctionListResponseMessage;
@@ -17,6 +18,8 @@ import net.auctionapp.common.messages.auction.CreateItemRequestMessage;
 import net.auctionapp.common.messages.auction.CreateItemResponseMessage;
 import net.auctionapp.common.messages.auction.GetAuctionDetailsRequestMessage;
 import net.auctionapp.common.messages.auction.GetAuctionListRequestMessage;
+import net.auctionapp.common.messages.auction.GetMyActivityRequestMessage;
+import net.auctionapp.common.messages.auction.GetMyListingsRequestMessage;
 import net.auctionapp.common.messages.auction.ObserveAuctionRequestMessage;
 import net.auctionapp.common.messages.auction.PriceUpdateResponseMessage;
 import net.auctionapp.common.messages.auction.UpdateAuctionRequestMessage;
@@ -109,6 +112,40 @@ public final class AuctionService {
             handler.sendResponse(response, message);
         } catch (AuthenticationException | NotFoundException e) {
             handler.sendResponse(new ErrorResponseMessage(e.getMessage()), message);
+        }
+    }
+
+    public void handleGetMyActivity(GetMyActivityRequestMessage request, ClientHandler handler) {
+        try {
+            handler.ensureAuthenticated();
+            String userId = StringUtil.normalizeString(handler.getAuthenticatedId());
+            List<AuctionDetailsResponseMessage> activity = new ArrayList<>();
+            for (Auction auction : auctions.values()) {
+                boolean hasBid = auction.getActiveBidHistory().stream()
+                        .anyMatch(bid -> userId.equals(StringUtil.normalizeString(bid.getBidderId())));
+                if (hasBid) {
+                    activity.add(buildAuctionDetailsResponse(auction));
+                }
+            }
+            handler.sendResponse(new AuctionDetailsListResponseMessage(activity), request);
+        } catch (AuthenticationException | NotFoundException e) {
+            handler.sendResponse(new ErrorResponseMessage(e.getMessage()), request);
+        }
+    }
+
+    public void handleGetMyListings(GetMyListingsRequestMessage request, ClientHandler handler) {
+        try {
+            handler.ensureAuthenticated();
+            String userId = StringUtil.normalizeString(handler.getAuthenticatedId());
+            List<AuctionDetailsResponseMessage> listings = new ArrayList<>();
+            for (Auction auction : auctions.values()) {
+                if (userId.equals(StringUtil.normalizeString(auction.getSellerId()))) {
+                    listings.add(buildAuctionDetailsResponse(auction));
+                }
+            }
+            handler.sendResponse(new AuctionDetailsListResponseMessage(listings), request);
+        } catch (AuthenticationException | NotFoundException e) {
+            handler.sendResponse(new ErrorResponseMessage(e.getMessage()), request);
         }
     }
 

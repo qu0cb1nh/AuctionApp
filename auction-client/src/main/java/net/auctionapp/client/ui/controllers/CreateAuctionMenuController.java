@@ -3,6 +3,7 @@ package net.auctionapp.client.ui.controllers;
 import net.auctionapp.client.ui.controllers.components.HeaderController;
 
 import javafx.collections.FXCollections;
+import javafx.css.PseudoClass;
 import javafx.event.ActionEvent;
 import javafx.fxml.FXML;
 import javafx.fxml.Initializable;
@@ -43,6 +44,9 @@ import java.util.ResourceBundle;
 public class CreateAuctionMenuController implements Initializable {
     private static final DateTimeFormatter TIME_FORMATTER = DateTimeFormatter.ofPattern("HH:mm");
     private static final long MAX_IMAGE_BYTES = 5L * 1024L * 1024L;
+    private static final PseudoClass ERROR_STATE = PseudoClass.getPseudoClass("error");
+    private static final PseudoClass SUCCESS_STATE = PseudoClass.getPseudoClass("success");
+    private static final PseudoClass SELECTED_STATE = PseudoClass.getPseudoClass("selected");
 
     private boolean imageUploaded;
 
@@ -152,18 +156,15 @@ public class CreateAuctionMenuController implements Initializable {
     @FXML
     public void handleCreateAuction(ActionEvent event) {
         if (!ClientSession.getInstance().canCreateAuction()) {
-            statusLabel.setStyle("-fx-font-size: 13px; -fx-text-fill: #d9534f;");
-            statusLabel.setText("Please log in before creating an auction.");
+            setStatus("Please log in before creating an auction.", ERROR_STATE);
             return;
         }
         try {
             CreateItemRequestMessage request = buildRequestFromForm();
-            statusLabel.setStyle("-fx-font-size: 13px; -fx-text-fill: #666666;");
-            statusLabel.setText("Creating auction...");
+            setStatus("Creating auction...", null);
             AuctionService.getInstance().createAuction(request, this::handleCreateResponse);
         } catch (IllegalArgumentException ex) {
-            statusLabel.setStyle("-fx-font-size: 13px; -fx-text-fill: #d9534f;");
-            statusLabel.setText(ex.getMessage());
+            setStatus(ex.getMessage(), ERROR_STATE);
         }
     }
 
@@ -298,26 +299,30 @@ public class CreateAuctionMenuController implements Initializable {
 
     private void handleCreateResponse(Message message) {
         if (message instanceof ErrorResponseMessage errorMessage) {
-            statusLabel.setStyle("-fx-font-size: 13px; -fx-text-fill: #d9534f;");
-            statusLabel.setText(errorMessage.getErrorMessage());
+            setStatus(errorMessage.getErrorMessage(), ERROR_STATE);
             return;
         }
         if (!(message instanceof CreateItemResponseMessage result) || message.getType() != MessageType.CREATE_ITEM_SUCCESS) {
-            statusLabel.setStyle("-fx-font-size: 13px; -fx-text-fill: #d9534f;");
-            statusLabel.setText("Unexpected response from server.");
+            setStatus("Unexpected response from server.", ERROR_STATE);
             return;
         }
-        statusLabel.setStyle("-fx-font-size: 13px; -fx-text-fill: #2e7d32;");
         String responseText = result.getImageUrl() == null || result.getImageUrl().isBlank()
                 ? result.getMessage()
                 : result.getMessage() + " Image uploaded.";
-        statusLabel.setText(responseText);
+        setStatus(responseText, SUCCESS_STATE);
         SceneManager.switchSceneWithDelay("AuctionListMenu.fxml", 600);
     }
 
     private void setImageStatus(String text, boolean error) {
-        imageStatusLabel.setStyle("-fx-font-size: 13px; -fx-text-fill: " + (error ? "#d9534f" : "#666666") + ";");
+        imageStatusLabel.pseudoClassStateChanged(ERROR_STATE, error);
+        imageStatusLabel.pseudoClassStateChanged(SELECTED_STATE, !error);
         imageStatusLabel.setText(text);
+    }
+
+    private void setStatus(String text, PseudoClass state) {
+        statusLabel.pseudoClassStateChanged(ERROR_STATE, state == ERROR_STATE);
+        statusLabel.pseudoClassStateChanged(SUCCESS_STATE, state == SUCCESS_STATE);
+        statusLabel.setText(text);
     }
 
     private BigDecimal parsePositiveDecimal(String input, String fieldName) {
