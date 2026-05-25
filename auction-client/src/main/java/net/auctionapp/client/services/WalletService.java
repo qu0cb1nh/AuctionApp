@@ -1,9 +1,9 @@
 package net.auctionapp.client.services;
 
 import net.auctionapp.common.messages.Message;
-import net.auctionapp.common.messages.types.DepositRequestMessage;
-import net.auctionapp.common.messages.types.GetWalletRequestMessage;
-import net.auctionapp.common.messages.types.WithdrawRequestMessage;
+import net.auctionapp.common.messages.wallet.DepositRequestMessage;
+import net.auctionapp.common.messages.wallet.GetWalletRequestMessage;
+import net.auctionapp.common.messages.wallet.WithdrawRequestMessage;
 
 import java.math.BigDecimal;
 import java.util.function.Consumer;

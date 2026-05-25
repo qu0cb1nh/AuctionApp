@@ -18,12 +18,12 @@ import net.auctionapp.client.services.AuctionService;
 import net.auctionapp.client.ClientSession;
 import net.auctionapp.client.ui.managers.SceneManager;
 import net.auctionapp.common.messages.Message;
-import net.auctionapp.common.messages.types.AdminActionResultMessage;
-import net.auctionapp.common.messages.types.AdminGetUsersResponseMessage;
-import net.auctionapp.common.messages.types.AdminUserViewMessage;
-import net.auctionapp.common.messages.types.AuctionListResponseMessage;
-import net.auctionapp.common.messages.types.AuctionSummary;
-import net.auctionapp.common.messages.types.ErrorMessage;
+import net.auctionapp.common.dto.AdminUserView;
+import net.auctionapp.common.dto.AuctionSummary;
+import net.auctionapp.common.messages.admin.AdminActionResponseMessage;
+import net.auctionapp.common.messages.admin.AdminGetUsersResponseMessage;
+import net.auctionapp.common.messages.auction.AuctionListResponseMessage;
+import net.auctionapp.common.messages.system.ErrorResponseMessage;
 import net.auctionapp.common.auction.AuctionStatus;
 import net.auctionapp.common.users.UserRole;
 import net.auctionapp.common.utils.StringUtil;
@@ -190,7 +190,7 @@ public class AdminPanelMenuController implements Initializable {
     }
 
     private void handleUsersResponse(Message message) {
-        if (message instanceof ErrorMessage errorMessage) {
+        if (message instanceof ErrorResponseMessage errorMessage) {
             setErrorStatus(errorMessage.getErrorMessage());
             return;
         }
@@ -200,7 +200,7 @@ public class AdminPanelMenuController implements Initializable {
         }
 
         usersTable.getItems().clear();
-        for (AdminUserViewMessage user : response.getUsers()) {
+        for (AdminUserView user : response.getUsers()) {
             String username = user.getUsername() == null ? "" : user.getUsername();
             String userId = user.getUserId();
             if (userId == null || userId.isBlank()) {
@@ -219,11 +219,11 @@ public class AdminPanelMenuController implements Initializable {
     }
 
     private void handleUserBanUpdateResponse(Message message) {
-        if (message instanceof ErrorMessage errorMessage) {
+        if (message instanceof ErrorResponseMessage errorMessage) {
             setErrorStatus(errorMessage.getErrorMessage());
             return;
         }
-        if (!(message instanceof AdminActionResultMessage result)) {
+        if (!(message instanceof AdminActionResponseMessage result)) {
             setErrorStatus("Unexpected response while updating user ban state.");
             return;
         }
@@ -232,7 +232,7 @@ public class AdminPanelMenuController implements Initializable {
     }
 
     private void handleAuctionListResponse(Message message) {
-        if (message instanceof ErrorMessage errorMessage) {
+        if (message instanceof ErrorResponseMessage errorMessage) {
             setErrorStatus(errorMessage.getErrorMessage());
             return;
         }

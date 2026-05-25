@@ -14,7 +14,7 @@ import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
-import net.auctionapp.common.messages.types.ErrorMessage;
+import net.auctionapp.common.messages.system.ErrorResponseMessage;
 import net.auctionapp.common.utils.JsonUtil;
 import net.auctionapp.server.config.ServerConfig;
 import net.auctionapp.server.dao.JdbcAuctionDao;
@@ -28,6 +28,7 @@ import net.auctionapp.server.services.NotificationService;
 import net.auctionapp.server.services.WalletService;
 import net.auctionapp.server.services.WatchListService;
 import net.auctionapp.server.managers.SessionManager;
+import net.auctionapp.server.exceptions.DatabaseException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -87,6 +88,8 @@ public class ServerApp {
                     rejectClient(clientSocket, "Server is busy. Try again later.");
                 }
             }
+        } catch (DatabaseException e) {
+            LOGGER.error("Database initialization failed; server cannot start.", e);
         } catch (SocketException e) {
             if (RUNNING.get()) {
                 LOGGER.error("Server socket error: {}", e.getMessage());
@@ -141,7 +144,7 @@ public class ServerApp {
         try {
             LOGGER.warn("Rejected client {}: {}", clientSocket.getInetAddress(), reason);
             PrintWriter writer = new PrintWriter(clientSocket.getOutputStream(), true);
-            writer.println(JsonUtil.toJson(new ErrorMessage(reason)));
+            writer.println(JsonUtil.toJson(new ErrorResponseMessage(reason)));
         } catch (IOException e) {
             LOGGER.warn("Failed to send rejection message to client: {}", e.getMessage());
         } finally {

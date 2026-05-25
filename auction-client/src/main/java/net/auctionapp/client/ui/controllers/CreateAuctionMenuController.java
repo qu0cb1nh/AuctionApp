@@ -22,9 +22,9 @@ import net.auctionapp.client.ClientSession;
 import net.auctionapp.client.utils.ResourcesUtil;
 import net.auctionapp.common.messages.Message;
 import net.auctionapp.common.messages.MessageType;
-import net.auctionapp.common.messages.types.CreateItemRequestMessage;
-import net.auctionapp.common.messages.types.CreateItemResultMessage;
-import net.auctionapp.common.messages.types.ErrorMessage;
+import net.auctionapp.common.messages.auction.CreateItemRequestMessage;
+import net.auctionapp.common.messages.auction.CreateItemResponseMessage;
+import net.auctionapp.common.messages.system.ErrorResponseMessage;
 import net.auctionapp.common.items.ItemType;
 
 import java.math.BigDecimal;
@@ -297,12 +297,12 @@ public class CreateAuctionMenuController implements Initializable {
     }
 
     private void handleCreateResponse(Message message) {
-        if (message instanceof ErrorMessage errorMessage) {
+        if (message instanceof ErrorResponseMessage errorMessage) {
             statusLabel.setStyle("-fx-font-size: 13px; -fx-text-fill: #d9534f;");
             statusLabel.setText(errorMessage.getErrorMessage());
             return;
         }
-        if (!(message instanceof CreateItemResultMessage result) || message.getType() != MessageType.CREATE_ITEM_SUCCESS) {
+        if (!(message instanceof CreateItemResponseMessage result) || message.getType() != MessageType.CREATE_ITEM_SUCCESS) {
             statusLabel.setStyle("-fx-font-size: 13px; -fx-text-fill: #d9534f;");
             statusLabel.setText("Unexpected response from server.");
             return;

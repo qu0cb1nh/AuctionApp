@@ -1,11 +1,11 @@
 package net.auctionapp.server.services;
 
 import net.auctionapp.common.messages.MessageType;
-import net.auctionapp.common.messages.types.ErrorMessage;
-import net.auctionapp.common.messages.types.LoginRequestMessage;
-import net.auctionapp.common.messages.types.LoginResultMessage;
-import net.auctionapp.common.messages.types.RegisterRequestMessage;
-import net.auctionapp.common.messages.types.RegisterResultMessage;
+import net.auctionapp.common.messages.auth.ForcedLogoutResponseMessage;
+import net.auctionapp.common.messages.auth.LoginRequestMessage;
+import net.auctionapp.common.messages.auth.LoginResponseMessage;
+import net.auctionapp.common.messages.auth.RegisterRequestMessage;
+import net.auctionapp.common.messages.auth.RegisterResponseMessage;
 import net.auctionapp.common.exceptions.ValidationException;
 import net.auctionapp.server.managers.SessionManager;
 import net.auctionapp.server.models.users.User;
@@ -80,7 +80,7 @@ public class AuthService {
 
             cacheUser(user);
             UserRole clientRole = UserRoleUtil.toClientRole(user);
-            LoginResultMessage success = new LoginResultMessage(
+            LoginResponseMessage success = new LoginResponseMessage(
                     MessageType.LOGIN_SUCCESS,
                     user.getId(),
                     user.getUsername(),
@@ -131,7 +131,7 @@ public class AuthService {
 
             cacheUser(user);
 
-            RegisterResultMessage success = new RegisterResultMessage(
+            RegisterResponseMessage success = new RegisterResponseMessage(
                     MessageType.REGISTER_SUCCESS,
                     username,
                     "Registration successful. Redirecting..."
@@ -144,19 +144,27 @@ public class AuthService {
         }
     }
 
-    private void sendLoginFailure(LoginRequestMessage request, ClientHandler clientHandler, String message) {
-        LoginResultMessage failure = new LoginResultMessage(MessageType.LOGIN_FAILURE, null, null, null, message);
+    private void sendLoginFailure(
+            LoginRequestMessage request,
+            ClientHandler clientHandler,
+            String message
+    ) {
+        LoginResponseMessage failure = new LoginResponseMessage(MessageType.LOGIN_FAILURE, null, null, null, message);
         clientHandler.sendResponse(failure, request);
     }
 
-    private void sendRegisterFailure(RegisterRequestMessage request, ClientHandler clientHandler, String message) {
-        RegisterResultMessage failure = new RegisterResultMessage(MessageType.REGISTER_FAILURE, null, message);
+    private void sendRegisterFailure(
+            RegisterRequestMessage request,
+            ClientHandler clientHandler,
+            String message
+    ) {
+        RegisterResponseMessage failure = new RegisterResponseMessage(MessageType.REGISTER_FAILURE, null, message);
         clientHandler.sendResponse(failure, request);
     }
 
     private UserDao requireUserDao() {
         if (userDao == null) {
-            throw new IllegalStateException("User DAO has not been configured.");
+            throw new DatabaseException("User persistence is not configured.");
         }
         return userDao;
     }
@@ -258,7 +266,9 @@ public class AuthService {
         }
         List<ClientHandler> sessionSnapshot = List.copyOf(sessions);
         for (ClientHandler clientHandler : sessionSnapshot) {
-            clientHandler.sendMessage(new ErrorMessage("Your account has been banned. You have been logged out."));
+            clientHandler.sendMessage(new ForcedLogoutResponseMessage(
+                    "Your account has been banned. You have been logged out."
+            ));
             clientHandler.logout();
         }
     }

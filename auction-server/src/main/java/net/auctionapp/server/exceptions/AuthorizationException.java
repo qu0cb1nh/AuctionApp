@@ -1,6 +1,6 @@
 package net.auctionapp.server.exceptions;
 
-public class AuthorizationException extends AuctionAppException {
+public class AuthorizationException extends RuntimeException {
     public AuthorizationException(String message) {
         super(message);
     }

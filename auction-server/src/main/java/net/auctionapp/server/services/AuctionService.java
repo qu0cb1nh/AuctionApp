@@ -1,25 +1,26 @@
 package net.auctionapp.server.services;
 
+import net.auctionapp.common.exceptions.ValidationException;
 import net.auctionapp.common.messages.Message;
 import net.auctionapp.common.messages.MessageType;
-import net.auctionapp.common.messages.types.AuctionDetailsResponseMessage;
-import net.auctionapp.common.messages.types.AuctionEndedMessage;
-import net.auctionapp.common.messages.types.AuctionActionResultMessage;
-import net.auctionapp.common.messages.types.AuctionListResponseMessage;
-import net.auctionapp.common.messages.types.AuctionSummary;
-import net.auctionapp.common.messages.types.BidRequestMessage;
-import net.auctionapp.common.messages.types.BidResultMessage;
-import net.auctionapp.common.messages.types.BidView;
-import net.auctionapp.common.messages.types.CancelAuctionRequestMessage;
-import net.auctionapp.common.messages.types.CloseAuctionRequestMessage;
-import net.auctionapp.common.messages.types.CreateItemRequestMessage;
-import net.auctionapp.common.messages.types.CreateItemResultMessage;
-import net.auctionapp.common.messages.types.ErrorMessage;
-import net.auctionapp.common.messages.types.GetAuctionDetailsRequestMessage;
-import net.auctionapp.common.messages.types.GetAuctionListRequestMessage;
-import net.auctionapp.common.messages.types.ObserverAuctionMessage;
-import net.auctionapp.common.messages.types.PriceUpdateMessage;
-import net.auctionapp.common.messages.types.UpdateAuctionRequestMessage;
+import net.auctionapp.common.dto.AuctionSummary;
+import net.auctionapp.common.dto.BidView;
+import net.auctionapp.common.messages.auction.AuctionActionResponseMessage;
+import net.auctionapp.common.messages.auction.AuctionDetailsResponseMessage;
+import net.auctionapp.common.messages.auction.AuctionEndedResponseMessage;
+import net.auctionapp.common.messages.auction.AuctionListResponseMessage;
+import net.auctionapp.common.messages.auction.BidRequestMessage;
+import net.auctionapp.common.messages.auction.BidResponseMessage;
+import net.auctionapp.common.messages.auction.CancelAuctionRequestMessage;
+import net.auctionapp.common.messages.auction.CloseAuctionRequestMessage;
+import net.auctionapp.common.messages.auction.CreateItemRequestMessage;
+import net.auctionapp.common.messages.auction.CreateItemResponseMessage;
+import net.auctionapp.common.messages.auction.GetAuctionDetailsRequestMessage;
+import net.auctionapp.common.messages.auction.GetAuctionListRequestMessage;
+import net.auctionapp.common.messages.auction.ObserveAuctionRequestMessage;
+import net.auctionapp.common.messages.auction.PriceUpdateResponseMessage;
+import net.auctionapp.common.messages.auction.UpdateAuctionRequestMessage;
+import net.auctionapp.common.messages.system.ErrorResponseMessage;
 import net.auctionapp.server.models.auction.Auction;
 import net.auctionapp.common.auction.AuctionStatus;
 import net.auctionapp.server.models.auction.BidTransaction;
@@ -32,13 +33,14 @@ import net.auctionapp.common.utils.MoneyUtil;
 import net.auctionapp.common.utils.StringUtil;
 import net.auctionapp.server.ClientHandler;
 import net.auctionapp.server.dao.AuctionDao;
-import net.auctionapp.server.exceptions.AuctionAppException;
+import net.auctionapp.server.exceptions.AuthenticationException;
 import net.auctionapp.server.exceptions.AuthorizationException;
 import net.auctionapp.server.exceptions.DatabaseException;
+import net.auctionapp.server.exceptions.ImageStorageException;
+import net.auctionapp.server.exceptions.InsufficientFundsException;
 import net.auctionapp.server.exceptions.InvalidAuctionStateException;
 import net.auctionapp.server.exceptions.InvalidBidException;
 import net.auctionapp.server.exceptions.NotFoundException;
-import net.auctionapp.server.exceptions.ValidationException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -105,12 +107,12 @@ public final class AuctionService {
             Auction auction = requireAuction(message.getAuctionId());
             AuctionDetailsResponseMessage response = buildAuctionDetailsResponse(auction);
             handler.sendResponse(response, message);
-        } catch (AuctionAppException e) {
-            handler.sendResponse(new ErrorMessage(e.getMessage()), message);
+        } catch (AuthenticationException | NotFoundException e) {
+            handler.sendResponse(new ErrorResponseMessage(e.getMessage()), message);
         }
     }
 
-    public void handleObserveAuction(ObserverAuctionMessage message, ClientHandler handler) {
+    public void handleObserveAuction(ObserveAuctionRequestMessage message, ClientHandler handler) {
         if (!message.isObserving()) {
             removeSubscriber(message.getAuctionId(), handler);
             return;
@@ -119,8 +121,8 @@ public final class AuctionService {
             handler.ensureAuthenticated();
             Auction auction = requireAuction(message.getAuctionId());
             auctionSubscribers.computeIfAbsent(auction.getId(), ignored -> ConcurrentHashMap.newKeySet()).add(handler);
-        } catch (AuctionAppException e) {
-            handler.sendResponse(new ErrorMessage(e.getMessage()), message);
+        } catch (AuthenticationException | NotFoundException e) {
+            handler.sendResponse(new ErrorResponseMessage(e.getMessage()), message);
         }
     }
 
@@ -156,7 +158,7 @@ public final class AuctionService {
                     message.getStartTime(),
                     message.getEndTime()
             );
-            handler.sendResponse(new CreateItemResultMessage(
+            handler.sendResponse(new CreateItemResponseMessage(
                     auction.getId(),
                     auction.getItem().getTitle(),
                     auction.getItem().getImageUrl(),
@@ -164,13 +166,19 @@ public final class AuctionService {
             ), message);
         } catch (DatabaseException e) {
             cloudinaryImageService.deleteAuctionItemImage(uploadedImage);
-            handler.sendResponse(new ErrorMessage("Failed to save auction to database: " + e.getMessage()), message);
-        } catch (AuctionAppException e) {
+            LOGGER.warn("Auction creation persistence failed: {}", e.getMessage(), e);
+            handler.sendResponse(new ErrorResponseMessage("Unable to save auction."), message);
+        } catch (ImageStorageException e) {
             cloudinaryImageService.deleteAuctionItemImage(uploadedImage);
-            handler.sendResponse(new ErrorMessage(e.getMessage()), message);
+            LOGGER.warn("Auction image upload failed: {}", e.getMessage(), e);
+            handler.sendResponse(new ErrorResponseMessage("Unable to store auction image."), message);
+        } catch (AuthenticationException | InvalidAuctionStateException | NotFoundException | ValidationException e) {
+            cloudinaryImageService.deleteAuctionItemImage(uploadedImage);
+            handler.sendResponse(new ErrorResponseMessage(e.getMessage()), message);
         } catch (RuntimeException e) {
             cloudinaryImageService.deleteAuctionItemImage(uploadedImage);
-            handler.sendResponse(new ErrorMessage("Failed to create auction."), message);
+            LOGGER.warn("Auction creation failed unexpectedly: {}", e.getMessage(), e);
+            handler.sendResponse(new ErrorResponseMessage("Failed to create auction."), message);
         }
     }
 
@@ -185,8 +193,15 @@ public final class AuctionService {
             sendBidAccepted(handler, message, updatedAuction);
             broadcastPriceUpdate(updatedAuction);
             trySendOutbidNotification(previousLeadingBidderId, updatedAuction);
-        } catch (AuctionAppException e) {
+        } catch (AuthenticationException | InvalidAuctionStateException | InvalidBidException | InsufficientFundsException
+                 | NotFoundException | ValidationException e) {
             sendBidRejected(handler, message, auctionId, e.getMessage());
+        } catch (DatabaseException e) {
+            LOGGER.warn("Bid persistence failed for auction {}: {}", auctionId, e.getMessage(), e);
+            sendBidRejected(handler, message, auctionId, "Unable to process bid.");
+        } catch (RuntimeException e) {
+            LOGGER.warn("Bid processing failed unexpectedly for auction {}: {}", auctionId, e.getMessage(), e);
+            sendBidRejected(handler, message, auctionId, "Unable to process bid.");
         }
     }
 
@@ -204,7 +219,7 @@ public final class AuctionService {
                     request.getStartTime(),
                     request.getEndTime()
             );
-            handler.sendResponse(new AuctionActionResultMessage("Auction updated successfully."), request);
+            handler.sendResponse(new AuctionActionResponseMessage("Auction updated successfully."), request);
         } catch (RuntimeException e) {
             sendAuctionActionError(handler, request, e);
         }
@@ -215,7 +230,7 @@ public final class AuctionService {
             handler.ensureAuthenticated();
             String actorId = StringUtil.normalizeString(handler.getAuthenticatedId());
             cancelAuction(actorId, request.getAuctionId());
-            handler.sendResponse(new AuctionActionResultMessage("Auction canceled successfully."), request);
+            handler.sendResponse(new AuctionActionResponseMessage("Auction canceled successfully."), request);
         } catch (RuntimeException e) {
             sendAuctionActionError(handler, request, e);
         }
@@ -226,7 +241,7 @@ public final class AuctionService {
             handler.ensureAuthenticated();
             String actorId = StringUtil.normalizeString(handler.getAuthenticatedId());
             closeAuction(actorId, request.getAuctionId());
-            handler.sendResponse(new AuctionActionResultMessage("Auction closed successfully."), request);
+            handler.sendResponse(new AuctionActionResponseMessage("Auction closed successfully."), request);
         } catch (RuntimeException e) {
             sendAuctionActionError(handler, request, e);
         }
@@ -391,11 +406,7 @@ public final class AuctionService {
     private String submitBid(String auctionId, String bidderId, BigDecimal amount) {
         Auction auction = requireAuction(auctionId);
         String normalizedBidderId = StringUtil.normalizeString(bidderId);
-        try {
-            MoneyUtil.requirePositiveMoney(amount, "Bid amount");
-        } catch (IllegalArgumentException e) {
-            throw new ValidationException(e.getMessage());
-        }
+        MoneyUtil.requirePositiveMoney(amount, "Bid amount");
         if (Objects.equals(auction.getSellerId(), normalizedBidderId)) {
             throw new InvalidBidException("Seller cannot bid on own auction.");
         }
@@ -610,7 +621,7 @@ public final class AuctionService {
 
     private Item createItemFromRequest(CreateItemRequestMessage message) {
         if (message.getItemType() == null) {
-            throw new AuctionAppException("Item type is required.");
+            throw new ValidationException("Item type is required.");
         }
         ItemFactory factory = ItemFactories.forType(message.getItemType());
         return factory.createItem(message);
@@ -618,7 +629,7 @@ public final class AuctionService {
 
     private void persistAuction(Auction auction) {
         if (auctionDao == null) {
-            throw new AuctionAppException("Auction persistence is not configured.");
+            throw new DatabaseException("Auction persistence is not configured.");
         }
         try {
             if (auctionDao.createAuction(auction)) {
@@ -629,7 +640,7 @@ public final class AuctionService {
             throw e;
         }
         auctions.remove(auction.getId());
-        throw new AuctionAppException("Auction could not be persisted.");
+        throw new DatabaseException("Auction could not be persisted.");
     }
 
     private void persistAuctionState(Auction auction) {
@@ -638,16 +649,16 @@ public final class AuctionService {
 
     private void persistAcceptedBid(Auction auction, BidTransaction bid, BigDecimal amountToLock) {
         if (auctionDao == null) {
-            throw new AuctionAppException("Auction persistence is not configured.");
+            throw new DatabaseException("Auction persistence is not configured.");
         }
         try {
             if (auctionDao.recordBid(auction, bid, amountToLock)) {
                 return;
             }
         } catch (DatabaseException e) {
-            throw new AuctionAppException("Failed to persist bid.");
+            throw new DatabaseException("Failed to persist bid.", e);
         }
-        throw new InvalidBidException("Insufficient balance. Please check your wallet.");
+        throw new InsufficientFundsException("Insufficient balance. Please check your wallet.");
     }
 
     private void persistAuctionDetails(Auction auction) {
@@ -659,9 +670,9 @@ public final class AuctionService {
                 return;
             }
         } catch (DatabaseException e) {
-            throw new AuctionAppException("Failed to persist auction details.");
+            throw new DatabaseException("Failed to persist auction details.", e);
         }
-        throw new AuctionAppException("Auction details could not be persisted.");
+        throw new DatabaseException("Auction details could not be persisted.");
     }
 
     private void persistUserBanEffects(
@@ -671,16 +682,16 @@ public final class AuctionService {
             Map<String, BigDecimal> fundsToRelease
     ) {
         if (auctionDao == null) {
-            throw new AuctionAppException("Auction persistence is not configured.");
+            throw new DatabaseException("Auction persistence is not configured.");
         }
         try {
             if (auctionDao.applyUserBanEffects(bannedUserId, changedAuctions, invalidatedBids, fundsToRelease)) {
                 return;
             }
         } catch (DatabaseException e) {
-            throw new AuctionAppException("Failed to persist user ban effects.");
+            throw new DatabaseException("Failed to persist user ban effects.", e);
         }
-        throw new AuctionAppException("User ban effects could not be persisted.");
+        throw new DatabaseException("User ban effects could not be persisted.");
     }
 
     private void mergeFundsToRelease(
@@ -757,7 +768,7 @@ public final class AuctionService {
             return;
         }
         trySendAuctionEndedNotifications(auction);
-        sendToSubscribers(auction.getId(), new AuctionEndedMessage(
+        sendToSubscribers(auction.getId(), new AuctionEndedResponseMessage(
                 auction.getId(),
                 auction.getWinnerBidderId(),
                 auction.getCurrentPrice()
@@ -766,7 +777,7 @@ public final class AuctionService {
 
     private void sendBidAccepted(ClientHandler handler, BidRequestMessage request, Auction auction) {
         synchronized (auction) {
-            handler.sendResponse(new BidResultMessage(
+            handler.sendResponse(new BidResponseMessage(
                     MessageType.BID_ACCEPTED,
                     auction.getId(),
                     auction.getCurrentPrice(),
@@ -777,8 +788,13 @@ public final class AuctionService {
         }
     }
 
-    private void sendBidRejected(ClientHandler handler, BidRequestMessage request, String auctionId, String message) {
-        handler.sendResponse(new BidResultMessage(
+    private void sendBidRejected(
+            ClientHandler handler,
+            BidRequestMessage request,
+            String auctionId,
+            String message
+    ) {
+        handler.sendResponse(new BidResponseMessage(
                 MessageType.BID_REJECTED,
                 auctionId,
                 null,
@@ -787,14 +803,26 @@ public final class AuctionService {
         ), request);
     }
 
-    private void sendAuctionActionError(ClientHandler handler, net.auctionapp.common.messages.Message request, RuntimeException e) {
-        String message = (e instanceof AuctionAppException) ? e.getMessage() : "Auction request failed.";
-        handler.sendResponse(new ErrorMessage(message), request);
+    private void sendAuctionActionError(ClientHandler handler, Message request, RuntimeException e) {
+        if (e instanceof AuthenticationException
+                || e instanceof AuthorizationException
+                || e instanceof InvalidAuctionStateException
+                || e instanceof NotFoundException
+                || e instanceof ValidationException) {
+            handler.sendResponse(new ErrorResponseMessage(e.getMessage()), request);
+            return;
+        }
+        if (e instanceof DatabaseException) {
+            LOGGER.warn("Auction action persistence failed: {}", e.getMessage(), e);
+        } else {
+            LOGGER.warn("Auction action failed unexpectedly: {}", e.getMessage(), e);
+        }
+        handler.sendResponse(new ErrorResponseMessage("Auction request failed."), request);
     }
 
     private void broadcastPriceUpdate(Auction auction) {
         synchronized (auction) {
-            sendToSubscribers(auction.getId(), new PriceUpdateMessage(
+            sendToSubscribers(auction.getId(), new PriceUpdateResponseMessage(
                     auction.getId(),
                     auction.getCurrentPrice(),
                     displayUsername(auction.getLeadingBidderId()),
@@ -846,7 +874,7 @@ public final class AuctionService {
                     updatedAuction.getCurrentPrice(),
                     newLeadingBidderId
             );
-        } catch (AuctionAppException e) {
+        } catch (DatabaseException e) {
             LOGGER.warn("Failed to send outbid notification for auction {}: {}", updatedAuction.getId(), e.getMessage());
         }
     }
@@ -863,7 +891,7 @@ public final class AuctionService {
                     auction.getWinnerBidderId(),
                     auction.getCurrentPrice()
             );
-        } catch (AuctionAppException e) {
+        } catch (DatabaseException e) {
             LOGGER.warn("Failed to send auction-ended notifications for {}: {}", auction.getId(), e.getMessage());
         }
     }
@@ -879,7 +907,7 @@ public final class AuctionService {
                     auction.getSellerId(),
                     auction.getLeadingBidderId()
             );
-        } catch (AuctionAppException e) {
+        } catch (DatabaseException e) {
             LOGGER.warn("Failed to send bid-removal notifications for {}: {}", auction.getId(), e.getMessage());
         }
     }

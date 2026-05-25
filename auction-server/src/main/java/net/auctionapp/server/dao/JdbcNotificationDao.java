@@ -76,7 +76,7 @@ public class JdbcNotificationDao implements NotificationDao {
             statement.setTimestamp(7, Timestamp.valueOf(timestamp));
             int updatedRows = statement.executeUpdate();
             if (updatedRows != 1) {
-                throw new DatabaseException("Notification could not be created.", new IllegalStateException());
+                throw new DatabaseException("Notification could not be created.");
             }
             return new Notification(id, userId, type, title, body, auctionId, timestamp);
         } catch (SQLException e) {
@@ -125,7 +125,7 @@ public class JdbcNotificationDao implements NotificationDao {
     private Notification mapNotification(ResultSet resultSet) throws SQLException {
         Timestamp createdAt = resultSet.getTimestamp("created_at");
         if (createdAt == null) {
-            throw new DatabaseException("Notification created_at cannot be null.", new IllegalStateException());
+            throw new DatabaseException("Notification created_at cannot be null.");
         }
         return new Notification(
                 resultSet.getString("id"),

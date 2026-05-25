@@ -19,11 +19,11 @@ import net.auctionapp.client.services.AuctionService;
 import net.auctionapp.client.services.WatchListService;
 import net.auctionapp.client.ClientSession;
 import net.auctionapp.common.messages.Message;
-import net.auctionapp.common.messages.types.AuctionListResponseMessage;
-import net.auctionapp.common.messages.types.AuctionSummary;
-import net.auctionapp.common.messages.types.ErrorMessage;
-import net.auctionapp.common.messages.types.WatchListChangedMessage;
-import net.auctionapp.common.messages.types.WatchListResponseMessage;
+import net.auctionapp.common.dto.AuctionSummary;
+import net.auctionapp.common.messages.auction.AuctionListResponseMessage;
+import net.auctionapp.common.messages.system.ErrorResponseMessage;
+import net.auctionapp.common.messages.watchlist.WatchListChangedResponseMessage;
+import net.auctionapp.common.messages.watchlist.WatchListResponseMessage;
 import net.auctionapp.common.messages.MessageType;
 import net.auctionapp.common.auction.AuctionStatus;
 
@@ -93,7 +93,7 @@ public class AuctionListMenuController implements Initializable {
     }
 
     private void handleAuctionListResult(Message message) {
-        if (message instanceof ErrorMessage errorMessage) {
+        if (message instanceof ErrorResponseMessage errorMessage) {
             handleErrorResponse(errorMessage);
             return;
         }
@@ -111,7 +111,7 @@ public class AuctionListMenuController implements Initializable {
         applyFilters();
     }
 
-    private void handleErrorResponse(ErrorMessage errorMessage) {
+    private void handleErrorResponse(ErrorResponseMessage errorMessage) {
         showListStatus(errorMessage.getErrorMessage(), "-fx-text-fill: #d9534f;");
     }
 
@@ -120,7 +120,7 @@ public class AuctionListMenuController implements Initializable {
     }
 
     private void handleWatchListResponse(Message message) {
-        if (message instanceof ErrorMessage errorMessage) {
+        if (message instanceof ErrorResponseMessage errorMessage) {
             handleErrorResponse(errorMessage);
             return;
         }
@@ -322,22 +322,22 @@ public class AuctionListMenuController implements Initializable {
     }
 
     private void handleWatchListUpdateResponse(Message message) {
-        if (message instanceof ErrorMessage errorMessage) {
+        if (message instanceof ErrorResponseMessage errorMessage) {
             handleErrorResponse(errorMessage);
             return;
         }
-        if (!(message instanceof WatchListChangedMessage changed)) {
+        if (!(message instanceof WatchListChangedResponseMessage changed)) {
             showListStatus("Unexpected watch list response from server.", "-fx-text-fill: #d9534f;");
             return;
         }
         applyWatchListChange(changed);
     }
 
-    private void handleWatchListChanged(WatchListChangedMessage changed) {
+    private void handleWatchListChanged(WatchListChangedResponseMessage changed) {
         applyWatchListChange(changed);
     }
 
-    private void applyWatchListChange(WatchListChangedMessage changed) {
+    private void applyWatchListChange(WatchListChangedResponseMessage changed) {
         if (changed == null || changed.getAuctionId() == null) {
             return;
         }

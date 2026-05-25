@@ -2,9 +2,10 @@ package net.auctionapp.server.services;
 
 import com.cloudinary.Cloudinary;
 import com.cloudinary.utils.ObjectUtils;
-import net.auctionapp.common.messages.types.CreateItemRequestMessage;
+import net.auctionapp.common.exceptions.ValidationException;
+import net.auctionapp.common.messages.auction.CreateItemRequestMessage;
 import net.auctionapp.common.utils.ConfigUtil;
-import net.auctionapp.server.exceptions.ValidationException;
+import net.auctionapp.server.exceptions.ImageStorageException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -41,7 +42,7 @@ public final class CloudinaryImageService {
             return null;
         }
         if (cloudinary == null) {
-            throw new ValidationException("Cloudinary is not configured.");
+            throw new ImageStorageException("Image storage is not configured.");
         }
 
         String contentType = normalizeContentType(request.getImageContentType());
@@ -61,11 +62,13 @@ public final class CloudinaryImageService {
             Object publicId = uploadResult.get("public_id");
             if (secureUrl == null || secureUrl.toString().isBlank()
                     || publicId == null || publicId.toString().isBlank()) {
-                throw new ValidationException("Cloudinary did not return an image URL.");
+                throw new ImageStorageException("Image storage returned an invalid response.");
             }
             return new UploadedImage(secureUrl.toString(), publicId.toString());
+        } catch (ImageStorageException e) {
+            throw e;
         } catch (IOException | RuntimeException e) {
-            throw new ValidationException("Failed to upload image to Cloudinary.");
+            throw new ImageStorageException("Failed to upload auction image.", e);
         }
     }
 

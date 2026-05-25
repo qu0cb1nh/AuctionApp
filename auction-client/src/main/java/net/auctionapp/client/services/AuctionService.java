@@ -1,14 +1,14 @@
 package net.auctionapp.client.services;
 
 import net.auctionapp.common.messages.Message;
-import net.auctionapp.common.messages.types.BidRequestMessage;
-import net.auctionapp.common.messages.types.CancelAuctionRequestMessage;
-import net.auctionapp.common.messages.types.CloseAuctionRequestMessage;
-import net.auctionapp.common.messages.types.CreateItemRequestMessage;
-import net.auctionapp.common.messages.types.GetAuctionDetailsRequestMessage;
-import net.auctionapp.common.messages.types.GetAuctionListRequestMessage;
-import net.auctionapp.common.messages.types.ObserverAuctionMessage;
-import net.auctionapp.common.messages.types.UpdateAuctionRequestMessage;
+import net.auctionapp.common.messages.auction.BidRequestMessage;
+import net.auctionapp.common.messages.auction.CancelAuctionRequestMessage;
+import net.auctionapp.common.messages.auction.CloseAuctionRequestMessage;
+import net.auctionapp.common.messages.auction.CreateItemRequestMessage;
+import net.auctionapp.common.messages.auction.GetAuctionDetailsRequestMessage;
+import net.auctionapp.common.messages.auction.GetAuctionListRequestMessage;
+import net.auctionapp.common.messages.auction.ObserveAuctionRequestMessage;
+import net.auctionapp.common.messages.auction.UpdateAuctionRequestMessage;
 
 import java.math.BigDecimal;
 
@@ -51,6 +51,6 @@ public final class AuctionService {
     }
 
     public void observeAuction(String auctionId, boolean observing) {
-        NetworkService.getInstance().sendMessage(new ObserverAuctionMessage(auctionId, observing));
+        NetworkService.getInstance().sendMessage(new ObserveAuctionRequestMessage(auctionId, observing));
     }
 }

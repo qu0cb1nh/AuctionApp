@@ -25,16 +25,17 @@ import net.auctionapp.client.services.WatchListService;
 import net.auctionapp.client.ClientSession;
 import net.auctionapp.client.ui.managers.SceneManager;
 import net.auctionapp.client.utils.ResourcesUtil;
+import net.auctionapp.common.exceptions.ValidationException;
 import net.auctionapp.common.messages.Message;
 import net.auctionapp.common.messages.MessageType;
-import net.auctionapp.common.messages.types.AuctionDetailsResponseMessage;
-import net.auctionapp.common.messages.types.AuctionEndedMessage;
-import net.auctionapp.common.messages.types.BidResultMessage;
-import net.auctionapp.common.messages.types.BidView;
-import net.auctionapp.common.messages.types.ErrorMessage;
-import net.auctionapp.common.messages.types.PriceUpdateMessage;
-import net.auctionapp.common.messages.types.WatchListChangedMessage;
-import net.auctionapp.common.messages.types.WatchListResponseMessage;
+import net.auctionapp.common.dto.BidView;
+import net.auctionapp.common.messages.auction.AuctionDetailsResponseMessage;
+import net.auctionapp.common.messages.auction.AuctionEndedResponseMessage;
+import net.auctionapp.common.messages.auction.BidResponseMessage;
+import net.auctionapp.common.messages.auction.PriceUpdateResponseMessage;
+import net.auctionapp.common.messages.system.ErrorResponseMessage;
+import net.auctionapp.common.messages.watchlist.WatchListChangedResponseMessage;
+import net.auctionapp.common.messages.watchlist.WatchListResponseMessage;
 import net.auctionapp.common.auction.AuctionStatus;
 import net.auctionapp.common.items.ItemType;
 import net.auctionapp.common.utils.MoneyUtil;
@@ -159,7 +160,7 @@ public class AuctionItemMenuController implements Initializable, AuctionContextC
         try {
             BigDecimal bid = parseBidAmount(bidAmountField.getText(), minimumNextBid);
             AuctionService.getInstance().placeBid(currentAuctionId, bid, this::handleBidResult);
-        } catch (IllegalArgumentException e) {
+        } catch (IllegalArgumentException | ValidationException e) {
             setErrorMessage(e.getMessage());
         }
     }
@@ -197,7 +198,7 @@ public class AuctionItemMenuController implements Initializable, AuctionContextC
     }
 
     private void handleAuctionDetailsResponse(Message message) {
-        if (message instanceof ErrorMessage errorMessage) {
+        if (message instanceof ErrorResponseMessage errorMessage) {
             setErrorMessage(errorMessage.getErrorMessage());
             return;
         }
@@ -225,7 +226,7 @@ public class AuctionItemMenuController implements Initializable, AuctionContextC
     }
 
     private void handleWatchListResponse(Message message) {
-        if (message instanceof ErrorMessage errorMessage) {
+        if (message instanceof ErrorResponseMessage errorMessage) {
             setErrorMessage(errorMessage.getErrorMessage());
             return;
         }
@@ -240,18 +241,18 @@ public class AuctionItemMenuController implements Initializable, AuctionContextC
     }
 
     private void handleWatchListUpdateResponse(Message message) {
-        if (message instanceof ErrorMessage errorMessage) {
+        if (message instanceof ErrorResponseMessage errorMessage) {
             setErrorMessage(errorMessage.getErrorMessage());
             return;
         }
-        if (!(message instanceof WatchListChangedMessage changed)) {
+        if (!(message instanceof WatchListChangedResponseMessage changed)) {
             setErrorMessage("Unexpected watch list response from server.");
             return;
         }
         handleWatchListChanged(changed);
     }
 
-    private void handleWatchListChanged(WatchListChangedMessage changed) {
+    private void handleWatchListChanged(WatchListChangedResponseMessage changed) {
         if (changed == null || !currentAuctionId.equals(changed.getAuctionId())) {
             return;
         }
@@ -272,11 +273,11 @@ public class AuctionItemMenuController implements Initializable, AuctionContextC
     }
 
     private void handleBidResult(Message message) {
-        if (message instanceof ErrorMessage errorMessage) {
+        if (message instanceof ErrorResponseMessage errorMessage) {
             setErrorMessage(errorMessage.getErrorMessage());
             return;
         }
-        if (!(message instanceof BidResultMessage result)) {
+        if (!(message instanceof BidResponseMessage result)) {
             setErrorMessage("Unexpected response from server.");
             return;
         }
@@ -302,7 +303,7 @@ public class AuctionItemMenuController implements Initializable, AuctionContextC
         setErrorMessage("Unexpected bid response from server.");
     }
 
-    private void handlePriceUpdate(PriceUpdateMessage update) {
+    private void handlePriceUpdate(PriceUpdateResponseMessage update) {
         if (!currentAuctionId.equals(update.getAuctionId())) {
             return;
         }
@@ -317,7 +318,7 @@ public class AuctionItemMenuController implements Initializable, AuctionContextC
         setInfoMessage("New highest bid by " + update.getLeadingUserName());
     }
 
-    private void handleAuctionEnded(AuctionEndedMessage update) {
+    private void handleAuctionEnded(AuctionEndedResponseMessage update) {
         if (!currentAuctionId.equals(update.getAuctionId())) {
             return;
         }

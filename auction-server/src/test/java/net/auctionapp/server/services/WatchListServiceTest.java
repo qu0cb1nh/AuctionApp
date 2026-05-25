@@ -1,7 +1,7 @@
 package net.auctionapp.server.services;
 
 import net.auctionapp.common.auction.AuctionStatus;
-import net.auctionapp.common.messages.types.AuctionSummary;
+import net.auctionapp.common.dto.AuctionSummary;
 import org.junit.jupiter.api.Test;
 
 import java.math.BigDecimal;

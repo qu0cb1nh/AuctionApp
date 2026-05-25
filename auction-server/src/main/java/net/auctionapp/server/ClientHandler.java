@@ -2,10 +2,12 @@ package net.auctionapp.server;
 
 import net.auctionapp.common.messages.Message;
 import net.auctionapp.common.messages.MessageType;
-import net.auctionapp.common.messages.types.ErrorMessage;
+import net.auctionapp.common.messages.auth.ForcedLogoutResponseMessage;
+import net.auctionapp.common.messages.system.ErrorResponseMessage;
 import net.auctionapp.common.users.UserRole;
 import net.auctionapp.common.utils.JsonUtil;
-import net.auctionapp.server.exceptions.AuctionAppException;
+import net.auctionapp.server.exceptions.AuthenticationException;
+import net.auctionapp.server.exceptions.NotFoundException;
 import net.auctionapp.server.services.AuthService;
 import net.auctionapp.server.services.AuctionService;
 import net.auctionapp.server.services.NotificationService;
@@ -79,9 +81,9 @@ public class ClientHandler implements Runnable {
                     }
 
                     handleMessagesFromClient(message);
-                } catch (Exception e) {
+                } catch (RuntimeException e) {
                     LOGGER.error("Error processing message from {}: {}", clientSocket.getInetAddress(), jsonString, e);
-                    sendResponse(new ErrorMessage("Error processing your request: " + e.getMessage()), message);
+                    sendResponse(new ErrorResponseMessage("Unable to process request."), message);
                 }
             }
         } catch (IOException e) {
@@ -161,7 +163,7 @@ public class ClientHandler implements Runnable {
 
     public void ensureAuthenticated() {
         if (authenticatedUserId == null || authenticatedRole == null) {
-            throw new AuctionAppException("You must log in before using auction features.");
+            throw new AuthenticationException("You must log in before using auction features.");
         }
         authService.requireActiveUserById(authenticatedUserId);
     }
@@ -186,8 +188,8 @@ public class ClientHandler implements Runnable {
         try {
             authService.requireActiveUserById(authenticatedUserId);
             return true;
-        } catch (AuctionAppException e) {
-            sendResponse(new ErrorMessage(e.getMessage()), message);
+        } catch (AuthenticationException | NotFoundException e) {
+            sendMessage(new ForcedLogoutResponseMessage(e.getMessage()));
             closeConnection();
             return false;
         }
