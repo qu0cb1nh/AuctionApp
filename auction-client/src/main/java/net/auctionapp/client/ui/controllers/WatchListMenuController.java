@@ -1,6 +1,7 @@
 package net.auctionapp.client.ui.controllers;
 
 import javafx.event.ActionEvent;
+import javafx.css.PseudoClass;
 import javafx.fxml.FXML;
 import javafx.fxml.FXMLLoader;
 import javafx.fxml.Initializable;
@@ -31,6 +32,7 @@ import java.util.ResourceBundle;
 
 public class WatchListMenuController implements Initializable {
     private static final DateTimeFormatter CARD_TIME_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm");
+    private static final PseudoClass ERROR_STATE = PseudoClass.getPseudoClass("error");
 
     @FXML
     private HeaderController appHeaderController;
@@ -54,17 +56,17 @@ public class WatchListMenuController implements Initializable {
     }
 
     private void requestWatchList() {
-        showListStatus("Loading watchlist...", "-fx-text-fill: #666666;");
+        showListStatus("Loading watchlist...", false);
         WatchListService.getInstance().requestWatchList(this::handleWatchListResponse);
     }
 
     private void handleWatchListResponse(Message message) {
         if (message instanceof ErrorResponseMessage errorMessage) {
-            showListStatus(errorMessage.getErrorMessage(), "-fx-text-fill: #d9534f;");
+            showListStatus(errorMessage.getErrorMessage(), true);
             return;
         }
         if (!(message instanceof WatchListResponseMessage response)) {
-            showListStatus("Unexpected response from server.", "-fx-text-fill: #d9534f;");
+            showListStatus("Unexpected response from server.", true);
             return;
         }
         watchedAuctions.clear();
@@ -87,7 +89,7 @@ public class WatchListMenuController implements Initializable {
     private void renderAuctionCards() {
         auctionFlowPane.getChildren().clear();
         if (watchedAuctions.isEmpty()) {
-            showListStatus("Your watchlist is empty.", "-fx-text-fill: #666666;");
+            showListStatus("Your watchlist is empty.", false);
             return;
         }
         hideListStatus();
@@ -103,19 +105,19 @@ public class WatchListMenuController implements Initializable {
                 auction.getItemType(),
                 auction.getTitle(),
                 "Owner: " + formatOwner(auction.getSellerUsername()),
-                "#4a5f73",
+                AuctionCardController.TextTone.MUTED,
                 "Minimum Next Bid: " + formatPrice(auction.getMinimumNextBid()),
                 "Start: " + formatDateTime(auction.getStartTime()),
                 "End: " + formatDateTime(auction.getEndTime()),
                 "Current Bid",
                 formatPrice(auction.getCurrentPrice()),
-                "#0057ff",
+                AuctionCardController.TextTone.PRIMARY,
                 "Ends At",
                 formatDateTime(auction.getEndTime()),
-                "#e03621",
+                AuctionCardController.TextTone.DANGER,
                 "Top Bidder",
                 formatTopBidder(auction.getLeadingBidderUsername()),
-                "#1f2933",
+                AuctionCardController.TextTone.DEFAULT,
                 "View auction",
                 () -> SceneManager.switchToAuctionDetails(auction.getAuctionId()),
                 canManageAuction ? "Manage auction" : null,
@@ -131,7 +133,7 @@ public class WatchListMenuController implements Initializable {
             return card;
         } catch (IOException | RuntimeException e) {
             Label fallback = new Label("Failed to load watchlist auction.");
-            fallback.setStyle("-fx-text-fill: #d9534f;");
+            fallback.getStyleClass().add("load-error");
             return new HBox(fallback);
         }
     }
@@ -142,14 +144,14 @@ public class WatchListMenuController implements Initializable {
 
     private void handleUpdateResponse(Message message) {
         if (message instanceof ErrorResponseMessage errorMessage) {
-            showListStatus(errorMessage.getErrorMessage(), "-fx-text-fill: #d9534f;");
+            showListStatus(errorMessage.getErrorMessage(), true);
             return;
         }
         if (message instanceof WatchListChangedResponseMessage changed) {
             handleWatchListChanged(changed);
             return;
         }
-        showListStatus("Unexpected response from server.", "-fx-text-fill: #d9534f;");
+        showListStatus("Unexpected response from server.", true);
     }
 
     private String formatPrice(BigDecimal value) {
@@ -174,10 +176,10 @@ public class WatchListMenuController implements Initializable {
         listStatusLabel.setVisible(false);
     }
 
-    private void showListStatus(String text, String style) {
+    private void showListStatus(String text, boolean error) {
         listStatusLabel.setManaged(true);
         listStatusLabel.setVisible(true);
-        listStatusLabel.setStyle(style);
+        listStatusLabel.pseudoClassStateChanged(ERROR_STATE, error);
         listStatusLabel.setText(text);
     }
 }

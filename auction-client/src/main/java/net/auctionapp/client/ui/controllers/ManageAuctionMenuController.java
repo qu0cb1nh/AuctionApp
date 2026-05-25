@@ -3,6 +3,7 @@ package net.auctionapp.client.ui.controllers;
 import net.auctionapp.client.ui.controllers.components.HeaderController;
 
 import javafx.event.ActionEvent;
+import javafx.css.PseudoClass;
 import javafx.fxml.FXML;
 import javafx.fxml.Initializable;
 import javafx.scene.control.Button;
@@ -28,6 +29,8 @@ import java.util.ResourceBundle;
 
 public class ManageAuctionMenuController implements Initializable, AuctionContextController {
     private static final DateTimeFormatter DATE_TIME_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm");
+    private static final PseudoClass ERROR_STATE = PseudoClass.getPseudoClass("error");
+    private static final PseudoClass SUCCESS_STATE = PseudoClass.getPseudoClass("success");
 
     @FXML
     private HeaderController appHeaderController;
@@ -275,17 +278,20 @@ public class ManageAuctionMenuController implements Initializable, AuctionContex
     }
 
     private void setSuccessStatus(String text) {
-        statusLabel.setStyle("-fx-text-fill: #1f8f4c;");
+        statusLabel.pseudoClassStateChanged(ERROR_STATE, false);
+        statusLabel.pseudoClassStateChanged(SUCCESS_STATE, true);
         statusLabel.setText(text);
     }
 
     private void setErrorStatus(String text) {
-        statusLabel.setStyle("-fx-text-fill: #c13c21;");
+        statusLabel.pseudoClassStateChanged(ERROR_STATE, true);
+        statusLabel.pseudoClassStateChanged(SUCCESS_STATE, false);
         statusLabel.setText(text);
     }
 
     private void setInfoStatus(String text) {
-        statusLabel.setStyle("-fx-text-fill: #3f5569;");
+        statusLabel.pseudoClassStateChanged(ERROR_STATE, false);
+        statusLabel.pseudoClassStateChanged(SUCCESS_STATE, false);
         statusLabel.setText(text);
     }
 }

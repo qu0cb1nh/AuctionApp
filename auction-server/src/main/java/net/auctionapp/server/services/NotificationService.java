@@ -215,7 +215,7 @@ public final class NotificationService {
             return;
         }
         String normalizedTargetUserId = StringUtil.normalizeString(userId);
-        NotificationResponseMessage pushMessage = new NotificationResponseMessage(normalizedTargetUserId, notification);
+        NotificationResponseMessage pushMessage = new NotificationResponseMessage(notification);
         for (ClientHandler clientHandler : clients) {
             String authenticatedUserId = StringUtil.normalizeString(clientHandler.getAuthenticatedId());
             if (!normalizedTargetUserId.equals(authenticatedUserId)) {

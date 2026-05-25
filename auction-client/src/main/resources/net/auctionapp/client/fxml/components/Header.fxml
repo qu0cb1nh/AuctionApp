@@ -29,7 +29,7 @@
                         <MenuItem mnemonicParsing="false" onAction="#handleOpenWallet" text="Wallet" />
                         <MenuItem mnemonicParsing="false" onAction="#handleOpenNotifications" text="Notifications" />
                         <MenuItem mnemonicParsing="false" onAction="#handleOpenActivity" text="My Activities" />
-                        <MenuItem mnemonicParsing="false" onAction="#handleOpenPurchases" text="My Listings" />
+                        <MenuItem mnemonicParsing="false" onAction="#handleOpenMyListings" text="My Listings" />
                         <MenuItem mnemonicParsing="false" onAction="#handleOpenWatchList" text="My Watchlist" />
                         <MenuItem fx:id="adminPanelMenuItem" mnemonicParsing="false" onAction="#handleOpenAdminPanel" text="Admin Panel" />
                         <MenuItem mnemonicParsing="false" onAction="#handleLogout" text="Logout" />

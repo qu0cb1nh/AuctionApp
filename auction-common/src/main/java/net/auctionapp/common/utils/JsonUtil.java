@@ -55,6 +55,8 @@ public final class JsonUtil {
                 case REGISTER_REQUEST -> GSON.fromJson(json, RegisterRequestMessage.class);
                 case GET_AUCTION_LIST_REQUEST -> GSON.fromJson(json, GetAuctionListRequestMessage.class);
                 case GET_AUCTION_DETAILS_REQUEST -> GSON.fromJson(json, GetAuctionDetailsRequestMessage.class);
+                case GET_MY_ACTIVITY_REQUEST -> GSON.fromJson(json, GetMyActivityRequestMessage.class);
+                case GET_MY_LISTINGS_REQUEST -> GSON.fromJson(json, GetMyListingsRequestMessage.class);
                 case OBSERVE_AUCTION_REQUEST -> GSON.fromJson(json, ObserveAuctionRequestMessage.class);
                 case GET_NOTIFICATIONS_REQUEST -> GSON.fromJson(json, GetNotificationsRequestMessage.class);
                 case GET_WALLET_REQUEST -> GSON.fromJson(json, GetWalletRequestMessage.class);
@@ -72,6 +74,7 @@ public final class JsonUtil {
                 case REGISTER_SUCCESS, REGISTER_FAILURE -> GSON.fromJson(json, RegisterResponseMessage.class);
                 case AUCTION_LIST_RESPONSE -> GSON.fromJson(json, AuctionListResponseMessage.class);
                 case AUCTION_DETAILS_RESPONSE -> GSON.fromJson(json, AuctionDetailsResponseMessage.class);
+                case AUCTION_DETAILS_LIST_RESPONSE -> GSON.fromJson(json, AuctionDetailsListResponseMessage.class);
                 case NOTIFICATIONS_RESPONSE -> GSON.fromJson(json, NotificationsResponseMessage.class);
                 case WATCH_LIST_RESPONSE -> GSON.fromJson(json, WatchListResponseMessage.class);
                 case WATCH_LIST_CHANGED -> GSON.fromJson(json, WatchListChangedResponseMessage.class);

@@ -28,6 +28,16 @@ public enum MessageType {
     GET_AUCTION_DETAILS_REQUEST,
 
     /**
+     * Request for auctions where the authenticated user has participated as a bidder.
+     */
+    GET_MY_ACTIVITY_REQUEST,
+
+    /**
+     * Request for auctions created by the authenticated user.
+     */
+    GET_MY_LISTINGS_REQUEST,
+
+    /**
      * Starts or stops receiving live updates for one auction detail view.
      */
     OBSERVE_AUCTION_REQUEST,
@@ -139,6 +149,11 @@ public enum MessageType {
      * Response containing detailed information about an auction session.
      */
     AUCTION_DETAILS_RESPONSE,
+
+    /**
+     * Response containing filtered detailed auction entries for one user-specific list.
+     */
+    AUCTION_DETAILS_LIST_RESPONSE,
 
     /**
      * Response containing notifications for the authenticated user.

@@ -4,6 +4,7 @@ import net.auctionapp.client.ui.controllers.components.AuctionCardController;
 
 import net.auctionapp.client.ui.controllers.components.HeaderController;
 
+import javafx.css.PseudoClass;
 import javafx.event.ActionEvent;
 import javafx.fxml.FXML;
 import javafx.fxml.FXMLLoader;
@@ -42,6 +43,7 @@ import java.util.Set;
 
 public class AuctionListMenuController implements Initializable {
     private static final DateTimeFormatter CARD_TIME_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm");
+    private static final PseudoClass ERROR_STATE = PseudoClass.getPseudoClass("error");
     private static final String STATUS_ALL = "ALL";
     private static final String SORT_ENDING_SOON = "Ending soon";
     private static final String SORT_HIGHEST_BID = "Highest bid";
@@ -88,7 +90,7 @@ public class AuctionListMenuController implements Initializable {
     }
 
     private void requestAuctionList() {
-        showListStatus("Loading auctions...", "-fx-text-fill: #666666;");
+        showListStatus("Loading auctions...", false);
         AuctionService.getInstance().requestAuctionList(this::handleAuctionListResult);
     }
 
@@ -98,7 +100,7 @@ public class AuctionListMenuController implements Initializable {
             return;
         }
         if (!(message instanceof AuctionListResponseMessage response)) {
-            showListStatus("Unexpected response from server.", "-fx-text-fill: #d9534f;");
+            showListStatus("Unexpected response from server.", true);
             return;
         }
 
@@ -112,7 +114,7 @@ public class AuctionListMenuController implements Initializable {
     }
 
     private void handleErrorResponse(ErrorResponseMessage errorMessage) {
-        showListStatus(errorMessage.getErrorMessage(), "-fx-text-fill: #d9534f;");
+        showListStatus(errorMessage.getErrorMessage(), true);
     }
 
     private void requestWatchList() {
@@ -125,7 +127,7 @@ public class AuctionListMenuController implements Initializable {
             return;
         }
         if (!(message instanceof WatchListResponseMessage response)) {
-            showListStatus("Unexpected watch list response from server.", "-fx-text-fill: #d9534f;");
+            showListStatus("Unexpected watch list response from server.", true);
             return;
         }
         watchedAuctionIds.clear();
@@ -162,13 +164,13 @@ public class AuctionListMenuController implements Initializable {
 
         List<AuctionSummary> sorted = sortAuctions(filtered, selectedSort);
         renderAuctionCards(sorted);
-        showListStatus(null, "-fx-text-fill: #666666;");
+        showListStatus(null, false);
         if (allAuctions.isEmpty()) {
-            showListStatus("No auctions available.", "-fx-text-fill: #666666;");
+            showListStatus("No auctions available.", false);
             return;
         }
         if (filtered.isEmpty()) {
-            showListStatus("No auctions match your search/filter.", "-fx-text-fill: #666666;");
+            showListStatus("No auctions match your search/filter.", false);
             return;
         }
         hideListStatus();
@@ -178,7 +180,7 @@ public class AuctionListMenuController implements Initializable {
         auctionFlowPane.getChildren().clear();
         if (auctions.isEmpty()) {
             Label emptyLabel = new Label("No auctions found.");
-            emptyLabel.setStyle("-fx-font-size: 14px; -fx-font-weight: bold; -fx-text-fill: #4a5f73;");
+            emptyLabel.getStyleClass().add("empty-state");
             auctionFlowPane.getChildren().add(emptyLabel);
             return;
         }
@@ -195,19 +197,19 @@ public class AuctionListMenuController implements Initializable {
                 auction.getItemType(),
                 auction.getTitle(),
                 "Owner: " + formatOwner(auction.getSellerUsername()),
-                "#4a5f73",
+                AuctionCardController.TextTone.MUTED,
                 "Minimum Next Bid: " + formatPrice(auction.getMinimumNextBid()),
                 "Start: " + formatDateTime(auction.getStartTime()),
                 "End: " + formatDateTime(auction.getEndTime()),
                 "Current Bid",
                 formatPrice(auction.getCurrentPrice()),
-                "#0057ff",
+                AuctionCardController.TextTone.PRIMARY,
                 "Ends At",
                 formatDateTime(auction.getEndTime()),
-                "#e03621",
+                AuctionCardController.TextTone.DANGER,
                 "Top Bidder",
                 formatTopBidder(auction.getLeadingBidderUsername()),
-                "#1f2933",
+                AuctionCardController.TextTone.DEFAULT,
                 "View auction",
                 () -> handleViewItem(auction.getAuctionId()),
                 canManageAuction ? "Manage auction" : null,
@@ -227,7 +229,7 @@ public class AuctionListMenuController implements Initializable {
             return card;
         } catch (IOException | RuntimeException e) {
             Label fallback = new Label("Failed to load auction card.");
-            fallback.setStyle("-fx-text-fill: #d9534f;");
+            fallback.getStyleClass().add("load-error");
             return new HBox(fallback);
         }
     }
@@ -327,7 +329,7 @@ public class AuctionListMenuController implements Initializable {
             return;
         }
         if (!(message instanceof WatchListChangedResponseMessage changed)) {
-            showListStatus("Unexpected watch list response from server.", "-fx-text-fill: #d9534f;");
+            showListStatus("Unexpected watch list response from server.", true);
             return;
         }
         applyWatchListChange(changed);
@@ -359,14 +361,14 @@ public class AuctionListMenuController implements Initializable {
         listStatusLabel.setVisible(false);
     }
 
-    private void showListStatus(String text, String style) {
+    private void showListStatus(String text, boolean error) {
         if (text == null || text.isBlank()) {
             hideListStatus();
             return;
         }
         listStatusLabel.setManaged(true);
         listStatusLabel.setVisible(true);
-        listStatusLabel.setStyle(style);
+        listStatusLabel.pseudoClassStateChanged(ERROR_STATE, error);
         listStatusLabel.setText(text);
     }
 

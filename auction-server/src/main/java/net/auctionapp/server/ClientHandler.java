@@ -10,10 +10,6 @@ import net.auctionapp.server.exceptions.AuthenticationException;
 import net.auctionapp.server.exceptions.NotFoundException;
 import net.auctionapp.server.services.AuthService;
 import net.auctionapp.server.services.AuctionService;
-import net.auctionapp.server.services.NotificationService;
-import net.auctionapp.server.services.UserService;
-import net.auctionapp.server.services.WalletService;
-import net.auctionapp.server.services.WatchListService;
 import net.auctionapp.server.managers.SessionManager;
 import net.auctionapp.server.messages.MessageRouter;
 import org.slf4j.Logger;
@@ -24,6 +20,7 @@ import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.PrintWriter;
 import java.net.Socket;
+import java.util.Objects;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 public class ClientHandler implements Runnable {
@@ -40,19 +37,12 @@ public class ClientHandler implements Runnable {
     private volatile String authenticatedUserId;
     private volatile UserRole authenticatedRole;
 
-    public ClientHandler(Socket socket) {
+    public ClientHandler(Socket socket, MessageRouter messageRouter) {
         this.socket = socket;
         this.auctionService = AuctionService.getInstance();
         this.authService = AuthService.getInstance();
         this.sessionManager = SessionManager.getInstance();
-        this.messageRouter = new MessageRouter(
-                authService,
-                auctionService,
-                UserService.getInstance(),
-                NotificationService.getInstance(),
-                WalletService.getInstance(),
-                WatchListService.getInstance()
-        );
+        this.messageRouter = Objects.requireNonNull(messageRouter, "messageRouter must not be null");
     }
 
     @Override

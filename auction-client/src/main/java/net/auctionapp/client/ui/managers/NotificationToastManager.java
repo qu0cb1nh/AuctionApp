@@ -104,7 +104,7 @@ public final class NotificationToastManager {
             playNotificationSound();
         }
         if (toastData.auctionId() != null && !toastData.auctionId().isBlank()) {
-            notificationNode.setStyle(notificationNode.getStyle() + " -fx-cursor: hand;");
+            notificationNode.getStyleClass().add("openable");
             notificationNode.setOnMouseClicked(event -> SceneManager.switchToAuctionDetails(toastData.auctionId()));
         }
         host.getChildren().addFirst(notificationNode);

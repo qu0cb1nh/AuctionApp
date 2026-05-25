@@ -15,7 +15,7 @@
 <?import javafx.scene.layout.Region?>
 <?import javafx.scene.layout.VBox?>
 
-<BorderPane prefHeight="888.0" prefWidth="967.0" style="-fx-background-color: #f4f4f4;" xmlns="http://javafx.com/javafx/25" xmlns:fx="http://javafx.com/fxml/1" fx:controller="net.auctionapp.client.ui.controllers.CreateAuctionMenuController">
+<BorderPane prefHeight="888.0" prefWidth="967.0" style="-fx-background-color: #f4f4f4;" stylesheets="@../styles/ui-states.css" xmlns="http://javafx.com/javafx/25" xmlns:fx="http://javafx.com/fxml/1" fx:controller="net.auctionapp.client.ui.controllers.CreateAuctionMenuController">
 
     <top>
         <fx:include fx:id="appHeader" source="components/Header.fxml" />
@@ -37,7 +37,7 @@
                     <children>
                         <ImageView fx:id="previewImageView" fitHeight="360.0" fitWidth="300.0" pickOnBounds="true" preserveRatio="true" />
                         <Button mnemonicParsing="false" onAction="#handleChooseImage" prefWidth="200.0" style="-fx-background-color: #3bb3c3; -fx-text-fill: white; -fx-background-radius: 20px; -fx-padding: 10px 20px; -fx-font-weight: bold; -fx-cursor: hand;" text="Choose Image" />
-                        <Label fx:id="imageStatusLabel" style="-fx-font-size: 13px; -fx-text-fill: #888888;" text="Upload your image" wrapText="true" />
+                        <Label fx:id="imageStatusLabel" styleClass="image-status" text="Upload your image" wrapText="true" />
                     </children>
                 </VBox>
 
@@ -159,7 +159,7 @@
                         <Label style="-fx-font-size: 15px; -fx-font-weight: bold; -fx-text-fill: #333333;" text="Description" />
                         <TextArea fx:id="descriptionArea" prefHeight="120.0" promptText="Describe the product condition, warranty, and included accessories..." wrapText="true" />
 
-                        <Label fx:id="statusLabel" style="-fx-font-size: 13px; -fx-text-fill: #666666;" wrapText="true" />
+                        <Label fx:id="statusLabel" styleClass="create-status" wrapText="true" />
 
                         <Region VBox.vgrow="ALWAYS" />
 

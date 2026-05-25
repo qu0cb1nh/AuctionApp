@@ -7,6 +7,7 @@ import net.auctionapp.client.ui.controllers.components.HeaderController;
 import javafx.fxml.FXML;
 import javafx.fxml.FXMLLoader;
 import javafx.fxml.Initializable;
+import javafx.css.PseudoClass;
 import javafx.scene.control.Label;
 import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.Pane;
@@ -38,14 +39,8 @@ public class NotificationsMenuController implements Initializable {
     private static final Logger LOGGER = LoggerFactory.getLogger(NotificationsMenuController.class);
     private static final DateTimeFormatter CARD_TIME_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
 
-    private static final String LABEL_ACTIVE =
-            "-fx-text-fill: #3bb3d1; -fx-font-weight: bold; -fx-cursor: hand;";
-    private static final String LABEL_INACTIVE =
-            "-fx-text-fill: #6b7280; -fx-font-weight: normal; -fx-cursor: hand;";
-    private static final String UNDERLINE_ACTIVE =
-            "-fx-background-color: #2f80ed; -fx-pref-height: 2;";
-    private static final String UNDERLINE_INACTIVE =
-            "-fx-background-color: transparent; -fx-pref-height: 2;";
+    private static final PseudoClass ACTIVE_STATE = PseudoClass.getPseudoClass("active");
+    private static final PseudoClass ERROR_STATE = PseudoClass.getPseudoClass("error");
     @FXML
     private HeaderController appHeaderController;
 
@@ -131,8 +126,8 @@ public class NotificationsMenuController implements Initializable {
         activeFilterIndex = index;
         for (int i = 0; i < filterLabels.length; i++) {
             boolean active = i == index;
-            filterLabels[i].setStyle(active ? LABEL_ACTIVE : LABEL_INACTIVE);
-            filterUnderlines[i].setStyle(active ? UNDERLINE_ACTIVE : UNDERLINE_INACTIVE);
+            filterLabels[i].pseudoClassStateChanged(ACTIVE_STATE, active);
+            filterUnderlines[i].pseudoClassStateChanged(ACTIVE_STATE, active);
         }
         if (filterStatusLabel != null) {
             filterStatusLabel.setText("Showing: " + nameForStatus);
@@ -200,7 +195,7 @@ public class NotificationsMenuController implements Initializable {
 
         if (filteredNotifications.isEmpty()) {
             Label emptyLabel = new Label("No notifications yet.");
-            emptyLabel.setStyle("-fx-text-fill: #6b7280; -fx-font-size: 13px;");
+            emptyLabel.getStyleClass().add("notification-empty");
             notificationCardsContainer.getChildren().add(emptyLabel);
             return;
         }
@@ -297,8 +292,6 @@ public class NotificationsMenuController implements Initializable {
             return;
         }
         filterStatusLabel.setText(text);
-        filterStatusLabel.setStyle(isError
-                ? "-fx-text-fill: #d9534f; -fx-font-size: 12;"
-                : "-fx-text-fill: #6b7280; -fx-font-size: 12;");
+        filterStatusLabel.pseudoClassStateChanged(ERROR_STATE, isError);
     }
 }

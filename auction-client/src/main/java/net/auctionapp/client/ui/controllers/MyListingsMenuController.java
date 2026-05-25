@@ -1,6 +1,7 @@
 package net.auctionapp.client.ui.controllers;
 
 import javafx.event.ActionEvent;
+import javafx.css.PseudoClass;
 import javafx.fxml.FXML;
 import javafx.fxml.FXMLLoader;
 import javafx.fxml.Initializable;
@@ -21,8 +22,8 @@ import net.auctionapp.common.auction.AuctionStatus;
 import net.auctionapp.common.items.ItemType;
 import net.auctionapp.common.messages.Message;
 import net.auctionapp.common.messages.MessageType;
+import net.auctionapp.common.messages.auction.AuctionDetailsListResponseMessage;
 import net.auctionapp.common.messages.auction.AuctionDetailsResponseMessage;
-import net.auctionapp.common.messages.auction.AuctionListResponseMessage;
 import net.auctionapp.common.messages.system.ErrorResponseMessage;
 import net.auctionapp.common.messages.watchlist.WatchListChangedResponseMessage;
 import net.auctionapp.common.messages.watchlist.WatchListResponseMessage;
@@ -42,9 +43,9 @@ import java.util.Optional;
 import java.util.ResourceBundle;
 import java.util.Set;
 
-public class PurchasesMenuController implements Initializable {
+public class MyListingsMenuController implements Initializable {
     private static final DateTimeFormatter CARD_TIME_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm");
-    private static final String STATUS_TEXT_STYLE = "-fx-text-fill: #666666;";
+    private static final PseudoClass ERROR_STATE = PseudoClass.getPseudoClass("error");
     private static final String STATUS_ACTIVE = "Active";
     private static final String STATUS_SOLD = "Sold";
     private static final String STATUS_CANCELED = "Canceled";
@@ -63,10 +64,9 @@ public class PurchasesMenuController implements Initializable {
     private Label summaryLabel;
 
     private final List<ListingCard> allListings = new ArrayList<>();
-    private final List<ListingCard> loadedListings = new ArrayList<>();
-    private final Set<String> pendingAuctionIds = new HashSet<>();
     private final Set<String> watchedAuctionIds = new HashSet<>();
     private boolean watchListLoaded;
+    private boolean listingsLoading;
 
     @Override
     public void initialize(URL location, ResourceBundle resources) {
@@ -91,24 +91,35 @@ public class PurchasesMenuController implements Initializable {
     }
 
     private void loadListings() {
-        pendingAuctionIds.clear();
+        listingsLoading = true;
         allListings.clear();
-        loadedListings.clear();
         renderListingCards(List.of(), false);
-        showStatus("Loading your listings...", STATUS_TEXT_STYLE);
-        AuctionService.getInstance().requestAuctionList(this::handleAuctionListRequestResult);
+        showStatus("Loading your listings...", false);
+        AuctionService.getInstance().requestMyListings(this::handleListingsRequestResult);
     }
 
-    private void handleAuctionListRequestResult(Message message) {
+    private void handleListingsRequestResult(Message message) {
+        listingsLoading = false;
         if (message instanceof ErrorResponseMessage errorMessage) {
             handleErrorResponse(errorMessage);
             return;
         }
-        if (!(message instanceof AuctionListResponseMessage response)) {
-            showStatus("Unexpected response from server.", "-fx-text-fill: #d9534f; -fx-font-size: 12px; -fx-font-weight: bold;");
+        if (!(message instanceof AuctionDetailsListResponseMessage response)) {
+            showStatus("Unexpected response from server.", true);
             return;
         }
-        handleAuctionListResponse(response);
+        String currentUserId = resolveCurrentUserId();
+        allListings.clear();
+        allListings.addAll(
+                response.getAuctions().stream()
+                        .map(auction -> toListingCard(auction, currentUserId))
+                        .flatMap(Optional::stream)
+                        .sorted(Comparator.<ListingCard>comparingInt(card -> statusPriority(card.status()))
+                                .thenComparing(ListingCard::endTime, Comparator.nullsLast(LocalDateTime::compareTo))
+                                .thenComparing(ListingCard::title, String.CASE_INSENSITIVE_ORDER))
+                        .toList()
+        );
+        applyFilters();
     }
 
     private void requestWatchList() {
@@ -127,86 +138,8 @@ public class PurchasesMenuController implements Initializable {
         applyFilters();
     }
 
-    private void handleAuctionListResponse(AuctionListResponseMessage response) {
-        pendingAuctionIds.clear();
-        loadedListings.clear();
-
-        List<String> auctionIds = response.getAuctions() == null ? List.of()
-                : response.getAuctions().stream()
-                .map(summary -> summary == null ? null : summary.getAuctionId())
-                .filter(id -> id != null && !id.isBlank())
-                .toList();
-
-        if (auctionIds.isEmpty()) {
-            allListings.clear();
-            renderListingCards(List.of(), false);
-            showStatus("No auctions available yet.", STATUS_TEXT_STYLE);
-            updateSummary();
-            return;
-        }
-
-        pendingAuctionIds.addAll(auctionIds);
-        showStatus("Loading auction details...", STATUS_TEXT_STYLE);
-        for (String auctionId : auctionIds) {
-            AuctionService.getInstance().requestAuctionDetails(
-                    auctionId,
-                    detailResponse -> handleAuctionDetailsRequestResult(auctionId, detailResponse)
-            );
-        }
-    }
-
-    private void handleAuctionDetailsRequestResult(String auctionId, Message message) {
-        if (message instanceof ErrorResponseMessage errorMessage) {
-            completeLoadingAfterDetailFailure(auctionId, errorMessage.getErrorMessage());
-            return;
-        }
-        handleAuctionDetailsResponse(message);
-    }
-
-    private void handleAuctionDetailsResponse(Message message) {
-        if (!(message instanceof AuctionDetailsResponseMessage response)) {
-            return;
-        }
-        if (!pendingAuctionIds.remove(response.getAuctionId())) {
-            return;
-        }
-
-        toListingCard(response, resolveCurrentUserId()).ifPresent(loadedListings::add);
-        if (!pendingAuctionIds.isEmpty()) {
-            showStatus("Loading auction details...", STATUS_TEXT_STYLE);
-            return;
-        }
-        finalizeLoadedListings();
-    }
-
-    private void completeLoadingAfterDetailFailure(String auctionId, String errorMessage) {
-        if (auctionId != null) {
-            pendingAuctionIds.remove(auctionId);
-        }
-        if (errorMessage != null && !errorMessage.isBlank()) {
-            showStatus(errorMessage, "-fx-text-fill: #d9534f; -fx-font-size: 12px; -fx-font-weight: bold;");
-        }
-        if (!pendingAuctionIds.isEmpty()) {
-            showStatus("Loading auction details...", STATUS_TEXT_STYLE);
-            return;
-        }
-        finalizeLoadedListings();
-    }
-
-    private void finalizeLoadedListings() {
-        allListings.clear();
-        allListings.addAll(
-                loadedListings.stream()
-                        .sorted(Comparator.<ListingCard>comparingInt(card -> statusPriority(card.status()))
-                                .thenComparing(ListingCard::endTime, Comparator.nullsLast(LocalDateTime::compareTo))
-                                .thenComparing(ListingCard::title, String.CASE_INSENSITIVE_ORDER))
-                        .toList()
-        );
-        applyFilters();
-    }
-
     private void handleErrorResponse(ErrorResponseMessage errorMessage) {
-        showStatus(errorMessage.getErrorMessage(), "-fx-text-fill: #d9534f; -fx-font-size: 12px; -fx-font-weight: bold;");
+        showStatus(errorMessage.getErrorMessage(), true);
     }
 
     private void applyFilters() {
@@ -224,7 +157,7 @@ public class PurchasesMenuController implements Initializable {
 
         renderListingCards(filtered, !allListings.isEmpty());
         updateSummary();
-        if (pendingAuctionIds.isEmpty()) {
+        if (!listingsLoading) {
             hideStatus();
         }
     }
@@ -239,7 +172,7 @@ public class PurchasesMenuController implements Initializable {
             Label emptyLabel = new Label(hasAnyListings
                     ? "No " + statusText + " listings match your current filters."
                     : "You have not created any listings yet.");
-            emptyLabel.setStyle("-fx-font-size: 14px; -fx-font-weight: bold; -fx-text-fill: #4a5f73;");
+            emptyLabel.getStyleClass().add("empty-state");
             listingFlowPane.getChildren().add(emptyLabel);
             return;
         }
@@ -257,19 +190,19 @@ public class PurchasesMenuController implements Initializable {
                 listing.itemType(),
                 listing.title(),
                 "Owner: " + formatOwner(listing.sellerUsername()),
-                "#4a5f73",
+                AuctionCardController.TextTone.MUTED,
                 "Auction state: " + listing.auctionStatus().name(),
                 "Starting price: " + formatMoney(listing.startingPrice()),
                 formatTimingLabel(listing.endTime(), listing.auctionStatus()),
                 active ? "Current Price" : "Final Price",
                 formatMoney(listing.currentPrice()),
-                active ? "#0057ff" : "#1f2933",
+                active ? AuctionCardController.TextTone.PRIMARY : AuctionCardController.TextTone.DEFAULT,
                 "Ends At",
                 formatDateTime(listing.endTime()),
-                "#1f2933",
+                AuctionCardController.TextTone.DEFAULT,
                 bidderCaption(listing),
                 bidderValue(listing),
-                "#1f2933",
+                AuctionCardController.TextTone.DEFAULT,
                 "View auction",
                 () -> {
             statusLabel.setText("Opening listing: " + listing.title());
@@ -296,7 +229,7 @@ public class PurchasesMenuController implements Initializable {
             return card;
         } catch (IOException | RuntimeException e) {
             Label fallback = new Label("Failed to load listing card.");
-            fallback.setStyle("-fx-text-fill: #d9534f;");
+            fallback.getStyleClass().add("load-error");
             return new HBox(fallback);
         }
     }
@@ -512,14 +445,14 @@ public class PurchasesMenuController implements Initializable {
         statusLabel.setVisible(false);
     }
 
-    private void showStatus(String text, String style) {
+    private void showStatus(String text, boolean error) {
         if (text == null || text.isBlank()) {
             hideStatus();
             return;
         }
         statusLabel.setManaged(true);
         statusLabel.setVisible(true);
-        statusLabel.setStyle(style);
+        statusLabel.pseudoClassStateChanged(ERROR_STATE, error);
         statusLabel.setText(text);
     }
 

@@ -6,7 +6,7 @@
 <?import javafx.scene.layout.HBox?>
 <?import javafx.scene.layout.VBox?>
 
-<HBox fx:id="cardRoot" alignment="CENTER_LEFT" onMouseClicked="#handleOpenAuction" onMouseEntered="#handleCardEntered" onMouseExited="#handleCardExited" spacing="10.0" style="-fx-background-color: white; -fx-border-color: #d6e4f0; -fx-border-width: 1; -fx-border-radius: 12; -fx-background-radius: 12; -fx-padding: 14;" xmlns="http://javafx.com/javafx/25" xmlns:fx="http://javafx.com/fxml/1" fx:controller="net.auctionapp.client.ui.controllers.components.NotificationCardController">
+<HBox fx:id="cardRoot" alignment="CENTER_LEFT" onMouseClicked="#handleOpenAuction" onMouseEntered="#handleCardEntered" onMouseExited="#handleCardExited" spacing="10.0" styleClass="notification-card" stylesheets="@../../styles/ui-states.css" xmlns="http://javafx.com/javafx/25" xmlns:fx="http://javafx.com/fxml/1" fx:controller="net.auctionapp.client.ui.controllers.components.NotificationCardController">
     <children>
         <VBox spacing="6.0" HBox.hgrow="ALWAYS">
             <children>
@@ -20,6 +20,6 @@
             </children>
         </VBox>
         <Label fx:id="timeLabel" style="-fx-text-fill: #9ca3af; -fx-font-size: 11px;" text="Unknown time" />
-        <Button fx:id="clearButton" mnemonicParsing="false" onAction="#handleClear" onMouseEntered="#handleClearEntered" onMouseExited="#handleClearExited" style="-fx-background-color: #f3f4f6; -fx-border-color: #d1d5db; -fx-border-radius: 6; -fx-background-radius: 6; -fx-padding: 5 12; -fx-text-fill: #374151; -fx-font-weight: bold; -fx-cursor: hand;" text="Clear" />
+        <Button fx:id="clearButton" mnemonicParsing="false" onAction="#handleClear" onMouseEntered="#handleClearEntered" onMouseExited="#handleClearExited" styleClass="notification-clear-button" text="Clear" />
     </children>
 </HBox>

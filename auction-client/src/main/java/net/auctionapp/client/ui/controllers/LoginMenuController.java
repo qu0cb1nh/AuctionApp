@@ -47,7 +47,7 @@ public class LoginMenuController implements Initializable {
         try {
             CredentialUtil.validateLogin(username, password);
         } catch (ValidationException e) {
-            assistantPanelController.speak(e.getMessage(), "#e67e22");
+            assistantPanelController.speak(e.getMessage(), AssistantPanelController.Tone.WARNING);
             return;
         }
 
@@ -56,23 +56,23 @@ public class LoginMenuController implements Initializable {
 
     private void handleServerResponse(Message message) {
         if (message instanceof ErrorResponseMessage errorMessage) {
-            assistantPanelController.speak(errorMessage.getErrorMessage(), "#e74c3c");
+            assistantPanelController.speak(errorMessage.getErrorMessage(), AssistantPanelController.Tone.ERROR);
             return;
         }
         if (!(message instanceof LoginResponseMessage result)) {
-            assistantPanelController.speak("Unexpected response from server.", "#e74c3c");
+            assistantPanelController.speak("Unexpected response from server.", AssistantPanelController.Tone.ERROR);
             return;
         }
 
         if (message.getType() == MessageType.LOGIN_SUCCESS) {
-            assistantPanelController.speak(result.getMessage(), "#27ae60");
+            assistantPanelController.speak(result.getMessage(), AssistantPanelController.Tone.SUCCESS);
 
             passwordField.clear();
             ClientSession.getInstance().login(result.getUserId(), result.getUsername(), result.getRole());
             SceneManager.resetAndSwitchSceneWithDelay("DashboardMenu.fxml", 1500);
 
         } else if (message.getType() == MessageType.LOGIN_FAILURE) {
-            assistantPanelController.speak(result.getMessage(), "#e74c3c");
+            assistantPanelController.speak(result.getMessage(), AssistantPanelController.Tone.ERROR);
         }
     }
 

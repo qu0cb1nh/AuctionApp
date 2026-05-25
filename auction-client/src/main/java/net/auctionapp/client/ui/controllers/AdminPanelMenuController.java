@@ -4,6 +4,7 @@ import net.auctionapp.client.ui.controllers.components.HeaderController;
 
 import javafx.beans.property.SimpleBooleanProperty;
 import javafx.beans.property.SimpleStringProperty;
+import javafx.css.PseudoClass;
 import javafx.event.ActionEvent;
 import javafx.fxml.FXML;
 import javafx.fxml.Initializable;
@@ -36,6 +37,9 @@ import java.util.ResourceBundle;
 
 public class AdminPanelMenuController implements Initializable {
     private static final DateTimeFormatter DATE_TIME_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm");
+    private static final PseudoClass ACTIVE_STATE = PseudoClass.getPseudoClass("active");
+    private static final PseudoClass ERROR_STATE = PseudoClass.getPseudoClass("error");
+    private static final PseudoClass SUCCESS_STATE = PseudoClass.getPseudoClass("success");
 
     @FXML
     private HeaderController appHeaderController;
@@ -93,6 +97,7 @@ public class AdminPanelMenuController implements Initializable {
     public void initialize(URL location, ResourceBundle resources) {
         appHeaderController.setupHeader("Admin Panel");
         configureTables();
+        updateSectionSelection(AdminSection.USER_MANAGEMENT);
         boolean isAdmin = ClientSession.getInstance().isAdmin();
         if (!isAdmin) {
             setErrorStatus("Admin privileges are required to view this page.");
@@ -277,13 +282,13 @@ public class AdminPanelMenuController implements Initializable {
         userManagementPage.setManaged(userSectionActive);
         auctionManagementPage.setVisible(!userSectionActive);
         auctionManagementPage.setManaged(!userSectionActive);
+        updateSectionSelection(section);
+    }
 
-        userManagementNavLabel.setStyle(userSectionActive
-                ? "-fx-font-size: 15px; -fx-font-weight: bold; -fx-underline: true; -fx-text-fill: #153e5c; -fx-cursor: hand; -fx-padding: 6 10 6 10;"
-                : "-fx-font-size: 15px; -fx-text-fill: #53677a; -fx-cursor: hand; -fx-padding: 6 10 6 10;");
-        auctionManagementNavLabel.setStyle(userSectionActive
-                ? "-fx-font-size: 15px; -fx-text-fill: #53677a; -fx-cursor: hand; -fx-padding: 6 10 6 10;"
-                : "-fx-font-size: 15px; -fx-font-weight: bold; -fx-underline: true; -fx-text-fill: #153e5c; -fx-cursor: hand; -fx-padding: 6 10 6 10;");
+    private void updateSectionSelection(AdminSection section) {
+        boolean userSectionActive = section == AdminSection.USER_MANAGEMENT;
+        userManagementNavLabel.pseudoClassStateChanged(ACTIVE_STATE, userSectionActive);
+        auctionManagementNavLabel.pseudoClassStateChanged(ACTIVE_STATE, !userSectionActive);
     }
 
     private String deriveDisplayStatus(AuctionStatus status, LocalDateTime endTime, String leadingBidderId) {
@@ -314,15 +319,15 @@ public class AdminPanelMenuController implements Initializable {
     }
 
     private void setErrorStatus(String text) {
-        setStatus(text, "-fx-text-fill: #c13c21;");
+        setStatus(text, ERROR_STATE);
     }
 
     private void setSuccessStatus(String text) {
-        setStatus(text, "-fx-text-fill: #1f8f4c;");
+        setStatus(text, SUCCESS_STATE);
     }
 
     private void setNeutralStatus(String text) {
-        setStatus(text, "-fx-text-fill: #3f5569;");
+        setStatus(text, null);
     }
 
     private void clearStatus() {
@@ -331,14 +336,15 @@ public class AdminPanelMenuController implements Initializable {
         statusLabel.setVisible(false);
     }
 
-    private void setStatus(String text, String style) {
+    private void setStatus(String text, PseudoClass state) {
         if (text == null || text.isBlank()) {
             clearStatus();
             return;
         }
         statusLabel.setManaged(true);
         statusLabel.setVisible(true);
-        statusLabel.setStyle(style);
+        statusLabel.pseudoClassStateChanged(ERROR_STATE, state == ERROR_STATE);
+        statusLabel.pseudoClassStateChanged(SUCCESS_STATE, state == SUCCESS_STATE);
         statusLabel.setText(text);
     }
 

@@ -6,7 +6,6 @@ import net.auctionapp.common.messages.wallet.GetWalletRequestMessage;
 import net.auctionapp.common.messages.wallet.WithdrawRequestMessage;
 
 import java.math.BigDecimal;
-import java.util.function.Consumer;
 
 public final class WalletService {
     private static final WalletService INSTANCE = new WalletService();
@@ -18,17 +17,17 @@ public final class WalletService {
     private WalletService() {
     }
 
-    public void requestWallet(MessageListener<Message> callback, Consumer<Throwable> onError) {
-        NetworkService.getInstance().sendRequest(new GetWalletRequestMessage(), callback, onError);
+    public void requestWallet(MessageListener<Message> callback) {
+        NetworkService.getInstance().sendRequest(new GetWalletRequestMessage(), callback);
     }
 
-    public void deposit(BigDecimal amount, MessageListener<Message> callback, Consumer<Throwable> onError) {
+    public void deposit(BigDecimal amount, MessageListener<Message> callback) {
         DepositRequestMessage request = new DepositRequestMessage(amount);
-        NetworkService.getInstance().sendRequest(request, callback, onError);
+        NetworkService.getInstance().sendRequest(request, callback);
     }
 
-    public void withdraw(BigDecimal amount, MessageListener<Message> callback, Consumer<Throwable> onError) {
+    public void withdraw(BigDecimal amount, MessageListener<Message> callback) {
         WithdrawRequestMessage request = new WithdrawRequestMessage(amount);
-        NetworkService.getInstance().sendRequest(request, callback, onError);
+        NetworkService.getInstance().sendRequest(request, callback);
     }
 }

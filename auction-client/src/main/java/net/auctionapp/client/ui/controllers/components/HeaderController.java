@@ -62,8 +62,8 @@ public class HeaderController {
     }
 
     @FXML
-    public void handleOpenPurchases() {
-        SceneManager.switchScene("PurchasesMenu.fxml");
+    public void handleOpenMyListings() {
+        SceneManager.switchScene("MyListingsMenu.fxml");
     }
 
     @FXML

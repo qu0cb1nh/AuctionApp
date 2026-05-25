@@ -54,7 +54,7 @@ public class RegisterMenuController implements Initializable {
         try {
             CredentialUtil.validateRegistration(username, password, confirmPassword);
         } catch (ValidationException e) {
-            assistantPanelController.speak(e.getMessage(), "#e67e22");
+            assistantPanelController.speak(e.getMessage(), AssistantPanelController.Tone.WARNING);
             return;
         }
         authService.register(username, password, this::handleServerResponse);
@@ -62,19 +62,19 @@ public class RegisterMenuController implements Initializable {
 
     private void handleServerResponse(Message message) {
         if (message instanceof ErrorResponseMessage errorMessage) {
-            assistantPanelController.speak(errorMessage.getErrorMessage(), "#e74c3c");
+            assistantPanelController.speak(errorMessage.getErrorMessage(), AssistantPanelController.Tone.ERROR);
             return;
         }
         if (!(message instanceof RegisterResponseMessage result)) {
-            assistantPanelController.speak("Unexpected response from server.", "#e74c3c");
+            assistantPanelController.speak("Unexpected response from server.", AssistantPanelController.Tone.ERROR);
             return;
         }
 
         if (message.getType() == MessageType.REGISTER_SUCCESS) {
-            assistantPanelController.speak(result.getMessage(), "#27ae60");
+            assistantPanelController.speak(result.getMessage(), AssistantPanelController.Tone.SUCCESS);
             SceneManager.resetAndSwitchSceneWithDelay("LoginMenu.fxml", 1500);
         } else if (message.getType() == MessageType.REGISTER_FAILURE) {
-            assistantPanelController.speak(result.getMessage(), "#e74c3c");
+            assistantPanelController.speak(result.getMessage(), AssistantPanelController.Tone.ERROR);
         }
     }
 

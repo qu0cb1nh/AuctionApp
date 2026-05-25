@@ -7,6 +7,8 @@ import net.auctionapp.common.messages.auction.CloseAuctionRequestMessage;
 import net.auctionapp.common.messages.auction.CreateItemRequestMessage;
 import net.auctionapp.common.messages.auction.GetAuctionDetailsRequestMessage;
 import net.auctionapp.common.messages.auction.GetAuctionListRequestMessage;
+import net.auctionapp.common.messages.auction.GetMyActivityRequestMessage;
+import net.auctionapp.common.messages.auction.GetMyListingsRequestMessage;
 import net.auctionapp.common.messages.auction.ObserveAuctionRequestMessage;
 import net.auctionapp.common.messages.auction.UpdateAuctionRequestMessage;
 
@@ -28,6 +30,14 @@ public final class AuctionService {
 
     public void requestAuctionDetails(String auctionId, MessageListener<Message> callback) {
         NetworkService.getInstance().sendRequest(new GetAuctionDetailsRequestMessage(auctionId), callback);
+    }
+
+    public void requestMyActivity(MessageListener<Message> callback) {
+        NetworkService.getInstance().sendRequest(new GetMyActivityRequestMessage(), callback);
+    }
+
+    public void requestMyListings(MessageListener<Message> callback) {
+        NetworkService.getInstance().sendRequest(new GetMyListingsRequestMessage(), callback);
     }
 
     public void createAuction(CreateItemRequestMessage request, MessageListener<Message> callback) {

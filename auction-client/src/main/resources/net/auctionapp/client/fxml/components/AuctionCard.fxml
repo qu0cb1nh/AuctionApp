@@ -8,13 +8,13 @@
 <?import javafx.scene.layout.Region?>
 <?import javafx.scene.layout.VBox?>
 
-<HBox alignment="CENTER_LEFT" maxWidth="Infinity" minHeight="126.0" spacing="16.0" style="-fx-background-color: white; -fx-background-radius: 8; -fx-border-color: #d4e1ee; -fx-border-width: 1; -fx-border-radius: 8; -fx-effect: dropshadow(three-pass-box, rgba(0,0,0,0.08), 6, 0, 0, 1); -fx-padding: 10;" xmlns="http://javafx.com/javafx/25" xmlns:fx="http://javafx.com/fxml/1" fx:controller="net.auctionapp.client.ui.controllers.components.AuctionCardController">
+<HBox alignment="CENTER_LEFT" maxWidth="Infinity" minHeight="126.0" spacing="16.0" style="-fx-background-color: white; -fx-background-radius: 8; -fx-border-color: #d4e1ee; -fx-border-width: 1; -fx-border-radius: 8; -fx-effect: dropshadow(three-pass-box, rgba(0,0,0,0.08), 6, 0, 0, 1); -fx-padding: 10;" stylesheets="@../../styles/ui-states.css" xmlns="http://javafx.com/javafx/25" xmlns:fx="http://javafx.com/fxml/1" fx:controller="net.auctionapp.client.ui.controllers.components.AuctionCardController">
     <children>
         <ImageView fx:id="thumbnailImageView" fitHeight="104.0" fitWidth="120.0" pickOnBounds="true" preserveRatio="false" />
         <VBox minWidth="220.0" spacing="4.0" HBox.hgrow="ALWAYS">
             <children>
                 <Label fx:id="titleLabel" style="-fx-font-weight: bold; -fx-font-size: 13px;" text="Auction title" wrapText="true" />
-                <Label fx:id="statusLabel" style="-fx-font-weight: bold; -fx-font-size: 12px;" text="Status" wrapText="true" />
+                <Label fx:id="statusLabel" styleClass="auction-card-status" text="Status" wrapText="true" />
                 <Label fx:id="detailOneLabel" style="-fx-font-size: 11px; -fx-text-fill: #4a5f73;" text="Detail one" wrapText="true" />
                 <Label fx:id="detailTwoLabel" style="-fx-font-size: 11px; -fx-text-fill: #4a5f73;" text="Detail two" wrapText="true" />
                 <Label fx:id="detailThreeLabel" style="-fx-font-size: 11px; -fx-text-fill: #6b7280;" text="Detail three" wrapText="true" />
@@ -25,19 +25,19 @@
                 <VBox fx:id="metricOneBox" alignment="CENTER_LEFT" prefWidth="95.0" spacing="2.0">
                     <children>
                         <Label fx:id="metricOneCaptionLabel" style="-fx-font-size: 10px; -fx-text-fill: #53677a;" text="Metric" />
-                        <Label fx:id="metricOneValueLabel" style="-fx-font-size: 13px; -fx-font-weight: bold; -fx-text-fill: #0057ff;" text="\$0" wrapText="true" />
+                        <Label fx:id="metricOneValueLabel" styleClass="auction-card-metric-value" text="\$0" wrapText="true" />
                     </children>
                 </VBox>
                 <VBox fx:id="metricTwoBox" alignment="CENTER_LEFT" prefWidth="95.0" spacing="2.0">
                     <children>
                         <Label fx:id="metricTwoCaptionLabel" style="-fx-font-size: 10px; -fx-text-fill: #53677a;" text="Metric" />
-                        <Label fx:id="metricTwoValueLabel" style="-fx-font-size: 13px; -fx-font-weight: bold; -fx-text-fill: #e03621;" text="0h" wrapText="true" />
+                        <Label fx:id="metricTwoValueLabel" styleClass="auction-card-metric-value" text="0h" wrapText="true" />
                     </children>
                 </VBox>
                 <VBox fx:id="metricThreeBox" alignment="CENTER_LEFT" prefWidth="115.0" spacing="2.0">
                     <children>
                         <Label fx:id="metricThreeCaptionLabel" style="-fx-font-size: 10px; -fx-text-fill: #53677a;" text="Metric" />
-                        <Label fx:id="metricThreeValueLabel" style="-fx-font-size: 13px; -fx-font-weight: bold; -fx-text-fill: #1f2933;" text="Value" wrapText="true" />
+                        <Label fx:id="metricThreeValueLabel" styleClass="auction-card-metric-value" text="Value" wrapText="true" />
                     </children>
                 </VBox>
             </children>
@@ -45,7 +45,7 @@
         <VBox prefWidth="130.0" spacing="8.0">
             <children>
                 <Region VBox.vgrow="ALWAYS" />
-                <Button fx:id="watchListButton" maxWidth="Infinity" mnemonicParsing="false" onAction="#handleWatchListAction" style="-fx-background-color: #e7f8fb; -fx-text-fill: #217b93; -fx-background-radius: 6; -fx-font-weight: bold; -fx-cursor: hand;" text="Add to watchlist" />
+                <Button fx:id="watchListButton" maxWidth="Infinity" mnemonicParsing="false" onAction="#handleWatchListAction" styleClass="auction-card-watch-button" text="Add to watchlist" />
                 <Button fx:id="primaryButton" maxWidth="Infinity" mnemonicParsing="false" onAction="#handlePrimaryAction" style="-fx-background-color: #0057ff; -fx-text-fill: white; -fx-background-radius: 6; -fx-font-weight: bold; -fx-cursor: hand;" text="View" />
                 <Button fx:id="secondaryButton" maxWidth="Infinity" mnemonicParsing="false" onAction="#handleSecondaryAction" style="-fx-background-color: #153e5c; -fx-text-fill: white; -fx-background-radius: 6; -fx-font-weight: bold; -fx-cursor: hand;" text="Manage" />
                 <Region VBox.vgrow="ALWAYS" />
