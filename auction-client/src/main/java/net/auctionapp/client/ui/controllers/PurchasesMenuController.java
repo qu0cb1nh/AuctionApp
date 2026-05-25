@@ -21,11 +21,11 @@ import net.auctionapp.common.auction.AuctionStatus;
 import net.auctionapp.common.items.ItemType;
 import net.auctionapp.common.messages.Message;
 import net.auctionapp.common.messages.MessageType;
-import net.auctionapp.common.messages.types.AuctionDetailsResponseMessage;
-import net.auctionapp.common.messages.types.AuctionListResponseMessage;
-import net.auctionapp.common.messages.types.ErrorMessage;
-import net.auctionapp.common.messages.types.WatchListChangedMessage;
-import net.auctionapp.common.messages.types.WatchListResponseMessage;
+import net.auctionapp.common.messages.auction.AuctionDetailsResponseMessage;
+import net.auctionapp.common.messages.auction.AuctionListResponseMessage;
+import net.auctionapp.common.messages.system.ErrorResponseMessage;
+import net.auctionapp.common.messages.watchlist.WatchListChangedResponseMessage;
+import net.auctionapp.common.messages.watchlist.WatchListResponseMessage;
 
 import java.io.IOException;
 import java.math.BigDecimal;
@@ -100,7 +100,7 @@ public class PurchasesMenuController implements Initializable {
     }
 
     private void handleAuctionListRequestResult(Message message) {
-        if (message instanceof ErrorMessage errorMessage) {
+        if (message instanceof ErrorResponseMessage errorMessage) {
             handleErrorResponse(errorMessage);
             return;
         }
@@ -156,7 +156,7 @@ public class PurchasesMenuController implements Initializable {
     }
 
     private void handleAuctionDetailsRequestResult(String auctionId, Message message) {
-        if (message instanceof ErrorMessage errorMessage) {
+        if (message instanceof ErrorResponseMessage errorMessage) {
             completeLoadingAfterDetailFailure(auctionId, errorMessage.getErrorMessage());
             return;
         }
@@ -205,7 +205,7 @@ public class PurchasesMenuController implements Initializable {
         applyFilters();
     }
 
-    private void handleErrorResponse(ErrorMessage errorMessage) {
+    private void handleErrorResponse(ErrorResponseMessage errorMessage) {
         showStatus(errorMessage.getErrorMessage(), "-fx-text-fill: #d9534f; -fx-font-size: 12px; -fx-font-weight: bold;");
     }
 
@@ -460,16 +460,16 @@ public class PurchasesMenuController implements Initializable {
     }
 
     private void handleWatchListUpdateResponse(Message message) {
-        if (message instanceof ErrorMessage errorMessage) {
+        if (message instanceof ErrorResponseMessage errorMessage) {
             handleErrorResponse(errorMessage);
             return;
         }
-        if (message instanceof WatchListChangedMessage changed) {
+        if (message instanceof WatchListChangedResponseMessage changed) {
             handleWatchListChanged(changed);
         }
     }
 
-    private void handleWatchListChanged(WatchListChangedMessage changed) {
+    private void handleWatchListChanged(WatchListChangedResponseMessage changed) {
         if (changed == null || changed.getAuctionId() == null) {
             return;
         }

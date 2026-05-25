@@ -1,20 +1,22 @@
 package net.auctionapp.server.services;
 
 import net.auctionapp.common.auction.AuctionStatus;
+import net.auctionapp.common.exceptions.ValidationException;
 import net.auctionapp.common.messages.MessageType;
-import net.auctionapp.common.messages.types.DepositRequestMessage;
-import net.auctionapp.common.messages.types.ErrorMessage;
-import net.auctionapp.common.messages.types.GetWalletRequestMessage;
-import net.auctionapp.common.messages.types.WalletResponseMessage;
-import net.auctionapp.common.messages.types.WithdrawRequestMessage;
+import net.auctionapp.common.messages.system.ErrorResponseMessage;
+import net.auctionapp.common.messages.wallet.DepositRequestMessage;
+import net.auctionapp.common.messages.wallet.GetWalletRequestMessage;
+import net.auctionapp.common.messages.wallet.WalletResponseMessage;
+import net.auctionapp.common.messages.wallet.WithdrawRequestMessage;
 import net.auctionapp.common.utils.MoneyUtil;
 import net.auctionapp.common.utils.StringUtil;
 import net.auctionapp.server.ClientHandler;
 import net.auctionapp.server.dao.AuctionDao;
 import net.auctionapp.server.dao.UserDao;
-import net.auctionapp.server.exceptions.AuctionAppException;
+import net.auctionapp.server.exceptions.AuthenticationException;
 import net.auctionapp.server.exceptions.DatabaseException;
-import net.auctionapp.server.exceptions.ValidationException;
+import net.auctionapp.server.exceptions.InsufficientFundsException;
+import net.auctionapp.server.exceptions.NotFoundException;
 import net.auctionapp.server.managers.SessionManager;
 import net.auctionapp.server.models.auction.Auction;
 import net.auctionapp.server.models.auction.BidTransaction;
@@ -59,14 +61,15 @@ public final class WalletService {
             User user = deposit(clientHandler.getAuthenticatedId(), amount);
             clientHandler.sendResponse(walletResponse(user, "Deposit successful."), request);
             LOGGER.info("User '{}' deposited ${}.", user.getUsername(), amount);
-        } catch (IllegalArgumentException e) {
+        } catch (ValidationException | InsufficientFundsException
+                 | AuthenticationException | NotFoundException e) {
             sendError(clientHandler, request, e.getMessage());
-        } catch (AuctionAppException e) {
-            sendError(clientHandler, request, e.getMessage());
-            LOGGER.warn("Deposit failed: {}", e.getMessage());
+        } catch (DatabaseException e) {
+            sendError(clientHandler, request, "Unable to process deposit.");
+            LOGGER.warn("Deposit persistence failed: {}", e.getMessage(), e);
         } catch (RuntimeException e) {
-            sendError(clientHandler, request, e.getMessage());
-            LOGGER.warn("Deposit failed: {}", e.getMessage());
+            sendError(clientHandler, request, "Unable to process deposit.");
+            LOGGER.warn("Deposit failed unexpectedly: {}", e.getMessage(), e);
         }
     }
 
@@ -79,14 +82,15 @@ public final class WalletService {
             User user = withdraw(clientHandler.getAuthenticatedId(), amount);
             clientHandler.sendResponse(walletResponse(user, "Withdrawal successful."), request);
             LOGGER.info("User '{}' withdrew ${}.", user.getUsername(), amount);
-        } catch (IllegalArgumentException e) {
+        } catch (ValidationException | InsufficientFundsException
+                 | AuthenticationException | NotFoundException e) {
             sendError(clientHandler, request, e.getMessage());
-        } catch (AuctionAppException e) {
-            sendError(clientHandler, request, e.getMessage());
-            LOGGER.warn("Withdrawal failed: {}", e.getMessage());
+        } catch (DatabaseException e) {
+            sendError(clientHandler, request, "Unable to process withdrawal.");
+            LOGGER.warn("Withdrawal persistence failed: {}", e.getMessage(), e);
         } catch (RuntimeException e) {
-            sendError(clientHandler, request, e.getMessage());
-            LOGGER.warn("Withdrawal failed: {}", e.getMessage());
+            sendError(clientHandler, request, "Unable to process withdrawal.");
+            LOGGER.warn("Withdrawal failed unexpectedly: {}", e.getMessage(), e);
         }
     }
 
@@ -95,12 +99,14 @@ public final class WalletService {
             clientHandler.ensureAuthenticated();
             User user = authService.requireActiveUserById(clientHandler.getAuthenticatedId());
             clientHandler.sendResponse(walletResponse(user, "Wallet loaded."), request);
-        } catch (AuctionAppException e) {
+        } catch (AuthenticationException | NotFoundException e) {
             sendError(clientHandler, request, e.getMessage());
-            LOGGER.warn("Wallet request failed: {}", e.getMessage());
+        } catch (DatabaseException e) {
+            sendError(clientHandler, request, "Unable to load wallet.");
+            LOGGER.warn("Wallet persistence request failed: {}", e.getMessage(), e);
         } catch (RuntimeException e) {
-            sendError(clientHandler, request, e.getMessage());
-            LOGGER.warn("Wallet request failed: {}", e.getMessage());
+            sendError(clientHandler, request, "Unable to load wallet.");
+            LOGGER.warn("Wallet request failed unexpectedly: {}", e.getMessage(), e);
         }
     }
 
@@ -191,7 +197,7 @@ public final class WalletService {
             pushWalletUpdate(user);
             return user;
         }
-        throw new ValidationException("Insufficient liquid balance for withdrawal.");
+        throw new InsufficientFundsException("Insufficient liquid balance for withdrawal.");
     }
 
     private void persistAuctionState(Auction auction, Map<String, BigDecimal> committedAmountsByBidder) {
@@ -204,9 +210,9 @@ public final class WalletService {
                 return;
             }
         } catch (DatabaseException e) {
-            throw new AuctionAppException("Failed to persist auction state.");
+            throw new DatabaseException("Failed to persist auction state.", e);
         }
-        throw new AuctionAppException("Auction state could not be persisted.");
+        throw new DatabaseException("Auction state could not be persisted.");
     }
 
     public Map<String, BigDecimal> getCommittedAmountsByBidder(Auction auction) {
@@ -261,20 +267,20 @@ public final class WalletService {
 
     private UserDao requireUserDao() {
         if (userDao == null) {
-            throw new IllegalStateException("User DAO has not been configured.");
+            throw new DatabaseException("User persistence is not configured.");
         }
         return userDao;
     }
 
     private void sendError(ClientHandler clientHandler, DepositRequestMessage request, String message) {
-        clientHandler.sendResponse(new ErrorMessage(message), request);
+        clientHandler.sendResponse(new ErrorResponseMessage(message), request);
     }
 
     private void sendError(ClientHandler clientHandler, WithdrawRequestMessage request, String message) {
-        clientHandler.sendResponse(new ErrorMessage(message), request);
+        clientHandler.sendResponse(new ErrorResponseMessage(message), request);
     }
 
     private void sendError(ClientHandler clientHandler, GetWalletRequestMessage request, String message) {
-        clientHandler.sendResponse(new ErrorMessage(message), request);
+        clientHandler.sendResponse(new ErrorResponseMessage(message), request);
     }
 }

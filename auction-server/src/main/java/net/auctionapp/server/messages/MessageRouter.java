@@ -2,27 +2,27 @@ package net.auctionapp.server.messages;
 
 import net.auctionapp.common.messages.Message;
 import net.auctionapp.common.messages.MessageType;
-import net.auctionapp.common.messages.types.AdminGetUsersRequestMessage;
-import net.auctionapp.common.messages.types.AdminSetUserBanRequestMessage;
-import net.auctionapp.common.messages.types.BidRequestMessage;
-import net.auctionapp.common.messages.types.CancelAuctionRequestMessage;
-import net.auctionapp.common.messages.types.ClearNotificationsRequestMessage;
-import net.auctionapp.common.messages.types.CloseAuctionRequestMessage;
-import net.auctionapp.common.messages.types.CreateItemRequestMessage;
-import net.auctionapp.common.messages.types.DepositRequestMessage;
-import net.auctionapp.common.messages.types.ErrorMessage;
-import net.auctionapp.common.messages.types.GetAuctionDetailsRequestMessage;
-import net.auctionapp.common.messages.types.GetAuctionListRequestMessage;
-import net.auctionapp.common.messages.types.GetNotificationsRequestMessage;
-import net.auctionapp.common.messages.types.GetWatchListRequestMessage;
-import net.auctionapp.common.messages.types.GetWalletRequestMessage;
-import net.auctionapp.common.messages.types.LoginRequestMessage;
-import net.auctionapp.common.messages.types.PongMessage;
-import net.auctionapp.common.messages.types.RegisterRequestMessage;
-import net.auctionapp.common.messages.types.ObserverAuctionMessage;
-import net.auctionapp.common.messages.types.UpdateAuctionRequestMessage;
-import net.auctionapp.common.messages.types.UpdateWatchListRequestMessage;
-import net.auctionapp.common.messages.types.WithdrawRequestMessage;
+import net.auctionapp.common.messages.admin.AdminGetUsersRequestMessage;
+import net.auctionapp.common.messages.admin.AdminSetUserBanRequestMessage;
+import net.auctionapp.common.messages.auction.BidRequestMessage;
+import net.auctionapp.common.messages.auction.CancelAuctionRequestMessage;
+import net.auctionapp.common.messages.auction.CloseAuctionRequestMessage;
+import net.auctionapp.common.messages.auction.CreateItemRequestMessage;
+import net.auctionapp.common.messages.auction.GetAuctionDetailsRequestMessage;
+import net.auctionapp.common.messages.auction.GetAuctionListRequestMessage;
+import net.auctionapp.common.messages.auction.ObserveAuctionRequestMessage;
+import net.auctionapp.common.messages.auction.UpdateAuctionRequestMessage;
+import net.auctionapp.common.messages.auth.LoginRequestMessage;
+import net.auctionapp.common.messages.auth.RegisterRequestMessage;
+import net.auctionapp.common.messages.notification.ClearNotificationsRequestMessage;
+import net.auctionapp.common.messages.notification.GetNotificationsRequestMessage;
+import net.auctionapp.common.messages.system.ErrorResponseMessage;
+import net.auctionapp.common.messages.system.PongResponseMessage;
+import net.auctionapp.common.messages.wallet.DepositRequestMessage;
+import net.auctionapp.common.messages.wallet.GetWalletRequestMessage;
+import net.auctionapp.common.messages.wallet.WithdrawRequestMessage;
+import net.auctionapp.common.messages.watchlist.GetWatchListRequestMessage;
+import net.auctionapp.common.messages.watchlist.UpdateWatchListRequestMessage;
 import net.auctionapp.server.ClientHandler;
 import net.auctionapp.server.services.AuctionService;
 import net.auctionapp.server.services.AuthService;
@@ -51,14 +51,14 @@ public final class MessageRouter {
             WatchListService watchListService
     ) {
         register(MessageType.PING, Message.class,
-                (message, clientHandler) -> clientHandler.sendResponse(new PongMessage(), message));
+                (message, clientHandler) -> clientHandler.sendResponse(new PongResponseMessage(), message));
         register(MessageType.LOGIN_REQUEST, LoginRequestMessage.class, authService::handleLogin);
         register(MessageType.REGISTER_REQUEST, RegisterRequestMessage.class, authService::handleRegister);
         register(MessageType.GET_AUCTION_LIST_REQUEST, GetAuctionListRequestMessage.class,
                 auctionService::handleGetAuctionList);
         register(MessageType.GET_AUCTION_DETAILS_REQUEST, GetAuctionDetailsRequestMessage.class,
                 auctionService::handleGetAuctionDetails);
-        register(MessageType.OBSERVE_AUCTION_REQUEST, ObserverAuctionMessage.class,
+        register(MessageType.OBSERVE_AUCTION_REQUEST, ObserveAuctionRequestMessage.class,
                 auctionService::handleObserveAuction);
         register(MessageType.GET_NOTIFICATIONS_REQUEST, GetNotificationsRequestMessage.class,
                 notificationService::handleGetNotifications);
@@ -88,7 +88,7 @@ public final class MessageRouter {
         RegisteredCommand<? extends Message> route = routes.get(message.getType());
         if (route == null) {
             LOGGER.warn("Received unsupported message type: {}", message.getType());
-            clientHandler.sendResponse(new ErrorMessage("Unsupported message type."), message);
+            clientHandler.sendResponse(new ErrorResponseMessage("Unsupported message type."), message);
             return;
         }
         route.execute(message, clientHandler);

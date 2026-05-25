@@ -3,6 +3,7 @@ package net.auctionapp.server.services;
 import com.zaxxer.hikari.HikariConfig;
 import com.zaxxer.hikari.HikariDataSource;
 import net.auctionapp.common.utils.ConfigUtil;
+import net.auctionapp.server.exceptions.DatabaseException;
 
 import java.sql.Connection;
 import java.sql.SQLException;
@@ -31,8 +32,7 @@ public class DatabaseService {
             config.setPoolName("AuctionAppHikariPool");
             dataSource = new HikariDataSource(config);
         } catch (Exception e) {
-            System.err.println("Failed to initialize database connection pool: " + e.getMessage());
-            throw new ExceptionInInitializerError(e);
+            throw new DatabaseException("Failed to initialize database connection pool.", e);
         }
     }
 
@@ -49,4 +49,3 @@ public class DatabaseService {
         }
     }
 }
-

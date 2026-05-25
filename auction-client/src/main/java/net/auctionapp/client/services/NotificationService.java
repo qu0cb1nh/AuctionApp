@@ -1,8 +1,8 @@
 package net.auctionapp.client.services;
 
 import net.auctionapp.common.messages.Message;
-import net.auctionapp.common.messages.types.ClearNotificationsRequestMessage;
-import net.auctionapp.common.messages.types.GetNotificationsRequestMessage;
+import net.auctionapp.common.messages.notification.ClearNotificationsRequestMessage;
+import net.auctionapp.common.messages.notification.GetNotificationsRequestMessage;
 
 public final class NotificationService {
     private static final NotificationService INSTANCE = new NotificationService();

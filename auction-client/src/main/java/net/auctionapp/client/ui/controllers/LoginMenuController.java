@@ -15,8 +15,8 @@ import net.auctionapp.client.ClientSession;
 import net.auctionapp.common.exceptions.ValidationException;
 import net.auctionapp.common.messages.Message;
 import net.auctionapp.common.messages.MessageType;
-import net.auctionapp.common.messages.types.ErrorMessage;
-import net.auctionapp.common.messages.types.LoginResultMessage;
+import net.auctionapp.common.messages.auth.LoginResponseMessage;
+import net.auctionapp.common.messages.system.ErrorResponseMessage;
 import net.auctionapp.common.utils.CredentialUtil;
 
 import java.net.URL;
@@ -55,11 +55,11 @@ public class LoginMenuController implements Initializable {
     }
 
     private void handleServerResponse(Message message) {
-        if (message instanceof ErrorMessage errorMessage) {
+        if (message instanceof ErrorResponseMessage errorMessage) {
             assistantPanelController.speak(errorMessage.getErrorMessage(), "#e74c3c");
             return;
         }
-        if (!(message instanceof LoginResultMessage result)) {
+        if (!(message instanceof LoginResponseMessage result)) {
             assistantPanelController.speak("Unexpected response from server.", "#e74c3c");
             return;
         }

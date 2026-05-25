@@ -2,8 +2,8 @@ package net.auctionapp.client.services;
 
 import net.auctionapp.client.ClientSession;
 import net.auctionapp.common.messages.Message;
-import net.auctionapp.common.messages.types.LoginRequestMessage;
-import net.auctionapp.common.messages.types.RegisterRequestMessage;
+import net.auctionapp.common.messages.auth.LoginRequestMessage;
+import net.auctionapp.common.messages.auth.RegisterRequestMessage;
 
 public final class AuthService {
     private static final AuthService INSTANCE = new AuthService();

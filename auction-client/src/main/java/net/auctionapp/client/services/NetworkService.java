@@ -1,10 +1,11 @@
 package net.auctionapp.client.services;
 
 import javafx.application.Platform;
+import net.auctionapp.client.exceptions.NetworkException;
 import net.auctionapp.common.messages.Message;
 import net.auctionapp.common.messages.MessageType;
-import net.auctionapp.common.messages.types.ErrorMessage;
-import net.auctionapp.common.messages.types.PingMessage;
+import net.auctionapp.common.messages.system.ErrorResponseMessage;
+import net.auctionapp.common.messages.system.PingRequestMessage;
 import net.auctionapp.common.utils.JsonUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -86,7 +87,7 @@ public final class NetworkService {
 
         heartbeatScheduler = Executors.newSingleThreadScheduledExecutor(daemonThreadFactory);
         heartbeatScheduler.scheduleAtFixedRate(() -> {
-            sendRequest(new PingMessage(), HEARTBEAT_TIMEOUT)
+            sendRequest(new PingRequestMessage(), HEARTBEAT_TIMEOUT)
                     .thenAccept(response -> {
                         if (response == null || response.getType() != MessageType.PONG) {
                             LOGGER.warn("Invalid heartbeat response from server.");
@@ -151,7 +152,7 @@ public final class NetworkService {
             }
             Throwable failure = unwrapCompletionException(throwable);
             logRequestFailure(failure);
-            callback.onMessage(new ErrorMessage(toUserFacingErrorMessage(failure)));
+            callback.onMessage(toErrorResponse(failure));
         }));
     }
 
@@ -167,7 +168,7 @@ public final class NetworkService {
             return CompletableFuture.failedFuture(new IllegalArgumentException("Timeout must be greater than zero."));
         }
         if (!isConnected()) {
-            return CompletableFuture.failedFuture(new IllegalStateException(CLIENT_NOT_CONNECTED_MESSAGE));
+            return CompletableFuture.failedFuture(networkFailure(CLIENT_NOT_CONNECTED_MESSAGE));
         }
 
         String requestId = request.getMessageId();
@@ -184,16 +185,30 @@ public final class NetworkService {
         }
 
         final String finalRequestId = requestId;
-        future.orTimeout(timeout.toMillis(), TimeUnit.MILLISECONDS)
-                .whenComplete((message, throwable) -> pendingRequests.remove(finalRequestId));
+        CompletableFuture<Message> result = future.orTimeout(timeout.toMillis(), TimeUnit.MILLISECONDS)
+                .handle((message, throwable) -> {
+                    if (throwable == null) {
+                        return CompletableFuture.completedFuture(message);
+                    }
+                    Throwable failure = unwrapCompletionException(throwable);
+                    if (failure instanceof TimeoutException) {
+                        return CompletableFuture.<Message>failedFuture(new NetworkException(
+                                "The server did not respond in time.",
+                                failure
+                        ));
+                    }
+                    return CompletableFuture.<Message>failedFuture(failure);
+                })
+                .thenCompose(response -> response);
+        result.whenComplete((message, throwable) -> pendingRequests.remove(finalRequestId));
 
         if (!sendJson(JsonUtil.toJson(request))) {
             pendingRequests.remove(requestId);
             closeResourcesQuietly();
-            future.completeExceptionally(new IllegalStateException(CLIENT_NOT_CONNECTED_MESSAGE));
+            future.completeExceptionally(networkFailure(CLIENT_NOT_CONNECTED_MESSAGE));
         }
 
-        return future;
+        return result;
     }
 
     public <T extends Message> void addMessageListener(MessageType type, MessageListener<T> listener) {
@@ -284,7 +299,7 @@ public final class NetworkService {
     }
 
     private void failPendingRequests(String reason) {
-        IllegalStateException exception = new IllegalStateException(reason);
+        NetworkException exception = networkFailure(reason);
         for (CompletableFuture<Message> future : pendingRequests.values()) {
             future.completeExceptionally(exception);
         }
@@ -364,7 +379,7 @@ public final class NetworkService {
     }
 
     private boolean isDisconnectedFailure(Throwable throwable) {
-        if (!(throwable instanceof IllegalStateException) || throwable.getMessage() == null) {
+        if (!(throwable instanceof NetworkException) || throwable.getMessage() == null) {
             return false;
         }
         String message = throwable.getMessage();
@@ -374,13 +389,18 @@ public final class NetworkService {
     }
 
     private String toUserFacingErrorMessage(Throwable throwable) {
-        if (isDisconnectedFailure(throwable)) {
-            return CLIENT_NOT_CONNECTED_MESSAGE;
-        }
-        if (throwable instanceof TimeoutException) {
-            return "The server did not respond in time.";
+        if (throwable instanceof NetworkException networkException) {
+            return networkException.getMessage();
         }
         String message = throwable.getMessage();
         return message == null || message.isBlank() ? "Network request failed." : message;
+    }
+
+    private ErrorResponseMessage toErrorResponse(Throwable throwable) {
+        return new ErrorResponseMessage(toUserFacingErrorMessage(throwable));
+    }
+
+    private NetworkException networkFailure(String message) {
+        return new NetworkException(message);
     }
 }

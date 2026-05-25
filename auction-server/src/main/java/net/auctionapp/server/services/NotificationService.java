@@ -1,19 +1,22 @@
 package net.auctionapp.server.services;
 
-import net.auctionapp.common.messages.types.ClearNotificationsRequestMessage;
-import net.auctionapp.common.messages.types.ErrorMessage;
-import net.auctionapp.common.messages.types.GetNotificationsRequestMessage;
-import net.auctionapp.common.messages.types.NotificationMessage;
+import net.auctionapp.common.exceptions.ValidationException;
+import net.auctionapp.common.messages.notification.ClearNotificationsRequestMessage;
+import net.auctionapp.common.messages.notification.GetNotificationsRequestMessage;
+import net.auctionapp.common.messages.notification.NotificationResponseMessage;
 import net.auctionapp.common.notifications.NotificationType;
-import net.auctionapp.common.messages.types.NotificationsResponseMessage;
+import net.auctionapp.common.messages.notification.NotificationsResponseMessage;
+import net.auctionapp.common.messages.system.ErrorResponseMessage;
 import net.auctionapp.common.notifications.Notification;
 import net.auctionapp.common.utils.StringUtil;
 import net.auctionapp.server.ClientHandler;
 import net.auctionapp.server.dao.NotificationDao;
-import net.auctionapp.server.exceptions.AuctionAppException;
+import net.auctionapp.server.exceptions.AuthenticationException;
+import net.auctionapp.server.exceptions.DatabaseException;
 import net.auctionapp.server.exceptions.NotFoundException;
-import net.auctionapp.server.exceptions.ValidationException;
 import net.auctionapp.server.managers.SessionManager;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
@@ -23,6 +26,7 @@ import java.util.Set;
 
 public final class NotificationService {
     private static final NotificationService INSTANCE = new NotificationService();
+    private static final Logger LOGGER = LoggerFactory.getLogger(NotificationService.class);
     private static final DateTimeFormatter END_TIME_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm");
 
     private final SessionManager sessionManager;
@@ -47,8 +51,11 @@ public final class NotificationService {
             handler.ensureAuthenticated();
             String userId = requireAuthenticatedUserId(handler);
             handler.sendResponse(new NotificationsResponseMessage(requireNotificationDao().findByUserId(userId)), request);
-        } catch (AuctionAppException e) {
-            handler.sendResponse(new ErrorMessage(e.getMessage()), request);
+        } catch (AuthenticationException | NotFoundException | ValidationException e) {
+            handler.sendResponse(new ErrorResponseMessage(e.getMessage()), request);
+        } catch (DatabaseException e) {
+            LOGGER.warn("Notification inbox request failed: {}", e.getMessage(), e);
+            handler.sendResponse(new ErrorResponseMessage("Unable to load notifications."), request);
         }
     }
 
@@ -62,8 +69,11 @@ public final class NotificationService {
                 throw new NotFoundException("Notification not found.");
             }
             sendCurrentInbox(userId, request, handler);
-        } catch (AuctionAppException e) {
-            handler.sendResponse(new ErrorMessage(e.getMessage()), request);
+        } catch (AuthenticationException | NotFoundException | ValidationException e) {
+            handler.sendResponse(new ErrorResponseMessage(e.getMessage()), request);
+        } catch (DatabaseException e) {
+            LOGGER.warn("Notification clear request failed: {}", e.getMessage(), e);
+            handler.sendResponse(new ErrorResponseMessage("Unable to update notifications."), request);
         }
     }
 
@@ -205,7 +215,7 @@ public final class NotificationService {
             return;
         }
         String normalizedTargetUserId = StringUtil.normalizeString(userId);
-        NotificationMessage pushMessage = new NotificationMessage(normalizedTargetUserId, notification);
+        NotificationResponseMessage pushMessage = new NotificationResponseMessage(normalizedTargetUserId, notification);
         for (ClientHandler clientHandler : clients) {
             String authenticatedUserId = StringUtil.normalizeString(clientHandler.getAuthenticatedId());
             if (!normalizedTargetUserId.equals(authenticatedUserId)) {
@@ -240,7 +250,7 @@ public final class NotificationService {
 
     private NotificationDao requireNotificationDao() {
         if (notificationDao == null) {
-            throw new AuctionAppException("Notification persistence is not configured.");
+            throw new DatabaseException("Notification persistence is not configured.");
         }
         return notificationDao;
     }
@@ -248,7 +258,7 @@ public final class NotificationService {
     private String displayUsername(String userId) {
         try {
             return authService.requireUserById(userId).getUsername();
-        } catch (RuntimeException e) {
+        } catch (NotFoundException | DatabaseException e) {
             return userId;
         }
     }

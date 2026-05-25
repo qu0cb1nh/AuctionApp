@@ -1,18 +1,19 @@
 package net.auctionapp.server.services;
 
-import net.auctionapp.common.messages.types.ErrorMessage;
-import net.auctionapp.common.messages.types.GetWatchListRequestMessage;
-import net.auctionapp.common.messages.types.UpdateWatchListRequestMessage;
-import net.auctionapp.common.messages.types.WatchListChangedMessage;
-import net.auctionapp.common.messages.types.WatchListResponseMessage;
-import net.auctionapp.common.messages.types.AuctionSummary;
+import net.auctionapp.common.exceptions.ValidationException;
+import net.auctionapp.common.dto.AuctionSummary;
+import net.auctionapp.common.messages.system.ErrorResponseMessage;
+import net.auctionapp.common.messages.watchlist.GetWatchListRequestMessage;
+import net.auctionapp.common.messages.watchlist.UpdateWatchListRequestMessage;
+import net.auctionapp.common.messages.watchlist.WatchListChangedResponseMessage;
+import net.auctionapp.common.messages.watchlist.WatchListResponseMessage;
 import net.auctionapp.common.auction.AuctionStatus;
 import net.auctionapp.common.utils.StringUtil;
 import net.auctionapp.server.ClientHandler;
 import net.auctionapp.server.dao.WatchListDao;
-import net.auctionapp.server.exceptions.AuctionAppException;
+import net.auctionapp.server.exceptions.AuthenticationException;
+import net.auctionapp.server.exceptions.DatabaseException;
 import net.auctionapp.server.exceptions.NotFoundException;
-import net.auctionapp.server.exceptions.ValidationException;
 import net.auctionapp.server.managers.SessionManager;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -52,8 +53,11 @@ public final class WatchListService {
                     new WatchListResponseMessage(AuctionService.getInstance().getAuctionSummaries(auctionIds)),
                     request
             );
-        } catch (AuctionAppException e) {
-            handler.sendResponse(new ErrorMessage(e.getMessage()), request);
+        } catch (AuthenticationException | NotFoundException | ValidationException e) {
+            handler.sendResponse(new ErrorResponseMessage(e.getMessage()), request);
+        } catch (DatabaseException e) {
+            LOGGER.warn("Watch list request failed: {}", e.getMessage(), e);
+            handler.sendResponse(new ErrorResponseMessage("Unable to load watch list."), request);
         }
     }
 
@@ -68,10 +72,13 @@ public final class WatchListService {
 
             boolean watched = request.isWatched();
             requireWatchListDao().setWatched(userId, auctionId, watched);
-            handler.sendResponse(new WatchListChangedMessage(auctionId, watched), request);
+            handler.sendResponse(new WatchListChangedResponseMessage(auctionId, watched), request);
             pushStateChanged(userId, auctionId, watched);
-        } catch (AuctionAppException e) {
-            handler.sendResponse(new ErrorMessage(e.getMessage()), request);
+        } catch (AuthenticationException | NotFoundException | ValidationException e) {
+            handler.sendResponse(new ErrorResponseMessage(e.getMessage()), request);
+        } catch (DatabaseException e) {
+            LOGGER.warn("Watch list update failed: {}", e.getMessage(), e);
+            handler.sendResponse(new ErrorResponseMessage("Unable to update watch list."), request);
         }
     }
 
@@ -88,7 +95,7 @@ public final class WatchListService {
                         auction.getTitle(),
                         auction.getEndTime()
                 );
-            } catch (AuctionAppException e) {
+            } catch (DatabaseException e) {
                 LOGGER.warn(
                         "Failed to send watch list ending reminder for auction {} to user {}: {}",
                         auction.getAuctionId(),
@@ -109,7 +116,7 @@ public final class WatchListService {
 
     private void pushStateChanged(String userId, String auctionId, boolean watched) {
         for (ClientHandler client : sessionManager.getClientsByUserId(userId)) {
-            client.sendMessage(new WatchListChangedMessage(auctionId, watched));
+            client.sendMessage(new WatchListChangedResponseMessage(auctionId, watched));
         }
     }
 
@@ -131,7 +138,7 @@ public final class WatchListService {
 
     private WatchListDao requireWatchListDao() {
         if (watchListDao == null) {
-            throw new AuctionAppException("Watch list persistence is not configured.");
+            throw new DatabaseException("Watch list persistence is not configured.");
         }
         return watchListDao;
     }

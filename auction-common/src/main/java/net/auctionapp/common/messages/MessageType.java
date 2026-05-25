@@ -116,6 +116,11 @@ public enum MessageType {
     LOGIN_FAILURE,
 
     /**
+     * (Push) Informs an authenticated client that the server has terminated its session.
+     */
+    FORCED_LOGOUT,
+
+    /**
      * Response for a successful registration.
      */
     REGISTER_SUCCESS,

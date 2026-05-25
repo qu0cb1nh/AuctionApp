@@ -13,8 +13,8 @@ import net.auctionapp.client.services.AuthService;
 import net.auctionapp.common.exceptions.ValidationException;
 import net.auctionapp.common.messages.Message;
 import net.auctionapp.common.messages.MessageType;
-import net.auctionapp.common.messages.types.ErrorMessage;
-import net.auctionapp.common.messages.types.RegisterResultMessage;
+import net.auctionapp.common.messages.auth.RegisterResponseMessage;
+import net.auctionapp.common.messages.system.ErrorResponseMessage;
 import net.auctionapp.common.utils.CredentialUtil;
 
 import java.net.URL;
@@ -61,11 +61,11 @@ public class RegisterMenuController implements Initializable {
     }
 
     private void handleServerResponse(Message message) {
-        if (message instanceof ErrorMessage errorMessage) {
+        if (message instanceof ErrorResponseMessage errorMessage) {
             assistantPanelController.speak(errorMessage.getErrorMessage(), "#e74c3c");
             return;
         }
-        if (!(message instanceof RegisterResultMessage result)) {
+        if (!(message instanceof RegisterResponseMessage result)) {
             assistantPanelController.speak("Unexpected response from server.", "#e74c3c");
             return;
         }

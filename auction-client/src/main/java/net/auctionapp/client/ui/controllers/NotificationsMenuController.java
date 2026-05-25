@@ -17,10 +17,10 @@ import net.auctionapp.client.ui.managers.SceneManager;
 import net.auctionapp.client.utils.ResourcesUtil;
 import net.auctionapp.common.messages.Message;
 import net.auctionapp.common.messages.MessageType;
-import net.auctionapp.common.messages.types.ErrorMessage;
-import net.auctionapp.common.messages.types.NotificationMessage;
+import net.auctionapp.common.messages.notification.NotificationResponseMessage;
 import net.auctionapp.common.notifications.NotificationType;
-import net.auctionapp.common.messages.types.NotificationsResponseMessage;
+import net.auctionapp.common.messages.notification.NotificationsResponseMessage;
+import net.auctionapp.common.messages.system.ErrorResponseMessage;
 import net.auctionapp.common.notifications.Notification;
 
 import java.io.IOException;
@@ -149,7 +149,7 @@ public class NotificationsMenuController implements Initializable {
     }
 
     private void handleNotificationsResponse(Message message) {
-        if (message instanceof ErrorMessage errorMessage) {
+        if (message instanceof ErrorResponseMessage errorMessage) {
             setStatusText(errorMessage.getErrorMessage(), true);
             return;
         }
@@ -160,7 +160,7 @@ public class NotificationsMenuController implements Initializable {
         updateNotifications(response.getNotifications());
     }
 
-    private void handleNotificationPush(NotificationMessage notificationMessage) {
+    private void handleNotificationPush(NotificationResponseMessage notificationMessage) {
         Notification pushedNotification = notificationMessage.getNotification();
         if (pushedNotification == null) {
             return;

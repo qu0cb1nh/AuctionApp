@@ -15,10 +15,10 @@ import net.auctionapp.client.ui.managers.SceneManager;
 import net.auctionapp.client.utils.ResourcesUtil;
 import net.auctionapp.common.messages.Message;
 import net.auctionapp.common.messages.MessageType;
-import net.auctionapp.common.messages.types.AuctionSummary;
-import net.auctionapp.common.messages.types.ErrorMessage;
-import net.auctionapp.common.messages.types.WatchListChangedMessage;
-import net.auctionapp.common.messages.types.WatchListResponseMessage;
+import net.auctionapp.common.dto.AuctionSummary;
+import net.auctionapp.common.messages.system.ErrorResponseMessage;
+import net.auctionapp.common.messages.watchlist.WatchListChangedResponseMessage;
+import net.auctionapp.common.messages.watchlist.WatchListResponseMessage;
 
 import java.io.IOException;
 import java.math.BigDecimal;
@@ -59,7 +59,7 @@ public class WatchListMenuController implements Initializable {
     }
 
     private void handleWatchListResponse(Message message) {
-        if (message instanceof ErrorMessage errorMessage) {
+        if (message instanceof ErrorResponseMessage errorMessage) {
             showListStatus(errorMessage.getErrorMessage(), "-fx-text-fill: #d9534f;");
             return;
         }
@@ -72,7 +72,7 @@ public class WatchListMenuController implements Initializable {
         renderAuctionCards();
     }
 
-    private void handleWatchListChanged(WatchListChangedMessage changed) {
+    private void handleWatchListChanged(WatchListChangedResponseMessage changed) {
         if (changed == null || changed.getAuctionId() == null) {
             return;
         }
@@ -141,11 +141,11 @@ public class WatchListMenuController implements Initializable {
     }
 
     private void handleUpdateResponse(Message message) {
-        if (message instanceof ErrorMessage errorMessage) {
+        if (message instanceof ErrorResponseMessage errorMessage) {
             showListStatus(errorMessage.getErrorMessage(), "-fx-text-fill: #d9534f;");
             return;
         }
-        if (message instanceof WatchListChangedMessage changed) {
+        if (message instanceof WatchListChangedResponseMessage changed) {
             handleWatchListChanged(changed);
             return;
         }

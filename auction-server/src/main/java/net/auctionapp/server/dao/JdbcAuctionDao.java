@@ -547,7 +547,7 @@ public class JdbcAuctionDao implements AuctionDao {
     private BidTransaction mapBidTransaction(ResultSet resultSet) throws SQLException {
         Timestamp bidTimestamp = resultSet.getTimestamp("bid_time");
         if (bidTimestamp == null) {
-            throw new DatabaseException("Bid timestamp cannot be null.", new IllegalStateException());
+            throw new DatabaseException("Bid timestamp cannot be null.");
         }
         return new BidTransaction(
                 resultSet.getString("id"),
@@ -561,7 +561,7 @@ public class JdbcAuctionDao implements AuctionDao {
 
     private LocalDateTime toLocalDateTime(Timestamp timestamp) {
         if (timestamp == null) {
-            throw new DatabaseException("Auction timestamp cannot be null.", new IllegalStateException());
+            throw new DatabaseException("Auction timestamp cannot be null.");
         }
         return timestamp.toLocalDateTime();
     }

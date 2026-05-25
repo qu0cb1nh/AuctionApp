@@ -13,10 +13,10 @@ import net.auctionapp.client.services.AuctionService;
 import net.auctionapp.client.ClientSession;
 import net.auctionapp.client.ui.managers.SceneManager;
 import net.auctionapp.common.messages.Message;
-import net.auctionapp.common.messages.types.AuctionActionResultMessage;
-import net.auctionapp.common.messages.types.AuctionDetailsResponseMessage;
-import net.auctionapp.common.messages.types.ErrorMessage;
-import net.auctionapp.common.messages.types.UpdateAuctionRequestMessage;
+import net.auctionapp.common.messages.auction.AuctionActionResponseMessage;
+import net.auctionapp.common.messages.auction.AuctionDetailsResponseMessage;
+import net.auctionapp.common.messages.auction.UpdateAuctionRequestMessage;
+import net.auctionapp.common.messages.system.ErrorResponseMessage;
 import net.auctionapp.common.auction.AuctionStatus;
 
 import java.math.BigDecimal;
@@ -103,7 +103,7 @@ public class ManageAuctionMenuController implements Initializable, AuctionContex
     }
 
     private void handleAuctionDetailsResponse(Message message) {
-        if (message instanceof ErrorMessage errorMessage) {
+        if (message instanceof ErrorResponseMessage errorMessage) {
             setErrorStatus(errorMessage.getErrorMessage());
             return;
         }
@@ -136,11 +136,11 @@ public class ManageAuctionMenuController implements Initializable, AuctionContex
     }
 
     private void handleActionResponse(Message message) {
-        if (message instanceof ErrorMessage errorMessage) {
+        if (message instanceof ErrorResponseMessage errorMessage) {
             setErrorStatus(errorMessage.getErrorMessage());
             return;
         }
-        if (!(message instanceof AuctionActionResultMessage result)) {
+        if (!(message instanceof AuctionActionResponseMessage result)) {
             setErrorStatus("Unexpected response from server.");
             return;
         }

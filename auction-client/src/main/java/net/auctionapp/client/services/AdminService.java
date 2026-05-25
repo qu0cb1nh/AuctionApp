@@ -1,8 +1,8 @@
 package net.auctionapp.client.services;
 
 import net.auctionapp.common.messages.Message;
-import net.auctionapp.common.messages.types.AdminGetUsersRequestMessage;
-import net.auctionapp.common.messages.types.AdminSetUserBanRequestMessage;
+import net.auctionapp.common.messages.admin.AdminGetUsersRequestMessage;
+import net.auctionapp.common.messages.admin.AdminSetUserBanRequestMessage;
 
 public final class AdminService {
     private static final AdminService INSTANCE = new AdminService();

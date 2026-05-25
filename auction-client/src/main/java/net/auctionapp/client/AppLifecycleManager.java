@@ -8,8 +8,9 @@ import net.auctionapp.client.config.ClientConfig;
 import net.auctionapp.client.ui.managers.SceneManager;
 import net.auctionapp.client.ui.managers.NotificationToastManager;
 import net.auctionapp.common.messages.MessageType;
-import net.auctionapp.common.messages.types.ErrorMessage;
-import net.auctionapp.common.messages.types.NotificationMessage;
+import net.auctionapp.common.messages.auth.ForcedLogoutResponseMessage;
+import net.auctionapp.common.messages.notification.NotificationResponseMessage;
+import net.auctionapp.common.messages.system.ErrorResponseMessage;
 import net.auctionapp.common.notifications.Notification;
 import net.auctionapp.common.notifications.NotificationType;
 import org.slf4j.Logger;
@@ -25,8 +26,9 @@ public final class AppLifecycleManager {
     private static final long CONNECTION_CHECK_INTERVAL_SECONDS = 1;
 
     private final NetworkService networkService = NetworkService.getInstance();
-    private MessageListener<NotificationMessage> notificationPushListener;
-    private MessageListener<ErrorMessage> errorListener;
+    private MessageListener<NotificationResponseMessage> notificationPushListener;
+    private MessageListener<ErrorResponseMessage> errorListener;
+    private MessageListener<ForcedLogoutResponseMessage> forcedLogoutListener;
     private ScheduledExecutorService connectionMonitor;
     private boolean connectionInitialized;
     private boolean lastConnected;
@@ -54,6 +56,10 @@ public final class AppLifecycleManager {
         if (errorListener != null) {
             networkService.removeMessageListener(MessageType.ERROR, errorListener);
             errorListener = null;
+        }
+        if (forcedLogoutListener != null) {
+            networkService.removeMessageListener(MessageType.FORCED_LOGOUT, forcedLogoutListener);
+            forcedLogoutListener = null;
         }
         networkService.shutdown();
 
@@ -84,9 +90,11 @@ public final class AppLifecycleManager {
         networkService.addMessageListener(MessageType.NOTIFICATION, notificationPushListener);
         errorListener = this::handleGlobalErrorMessage;
         networkService.addMessageListener(MessageType.ERROR, errorListener);
+        forcedLogoutListener = this::handleForcedLogout;
+        networkService.addMessageListener(MessageType.FORCED_LOGOUT, forcedLogoutListener);
     }
 
-    private void handleGlobalNotificationPush(NotificationMessage notificationMessage) {
+    private void handleGlobalNotificationPush(NotificationResponseMessage notificationMessage) {
         Notification notification = notificationMessage.getNotification();
         if (notification == null) {
             return;
@@ -99,16 +107,21 @@ public final class AppLifecycleManager {
         ));
     }
 
-    private void handleGlobalErrorMessage(ErrorMessage errorMessage) {
+    private void handleGlobalErrorMessage(ErrorResponseMessage errorMessage) {
         if (errorMessage == null || errorMessage.getErrorMessage() == null) {
             return;
         }
-        String text = errorMessage.getErrorMessage().toLowerCase();
-        if (!text.contains("banned")) {
-            NotificationToastManager.showError(errorMessage.getErrorMessage());
+        NotificationToastManager.showError(errorMessage.getErrorMessage());
+    }
+
+    private void handleForcedLogout(ForcedLogoutResponseMessage message) {
+        if (message == null) {
             return;
         }
         AuthService.getInstance().logout();
+        if (message.getReason() != null && !message.getReason().isBlank()) {
+            NotificationToastManager.showError(message.getReason());
+        }
         Platform.runLater(() -> SceneManager.resetAndSwitchScene("LoginMenu.fxml"));
     }
 

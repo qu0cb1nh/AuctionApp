@@ -7,6 +7,7 @@ module net.auctionapp.client {
 
     exports net.auctionapp.client;
     exports net.auctionapp.client.config;
+    exports net.auctionapp.client.exceptions;
     opens net.auctionapp.client to javafx.fxml;
     opens net.auctionapp.client.ui.controllers to javafx.fxml;
     opens net.auctionapp.client.ui.controllers.components to javafx.fxml;

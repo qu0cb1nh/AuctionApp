@@ -1,8 +1,8 @@
 package net.auctionapp.client.services;
 
 import net.auctionapp.common.messages.Message;
-import net.auctionapp.common.messages.types.GetWatchListRequestMessage;
-import net.auctionapp.common.messages.types.UpdateWatchListRequestMessage;
+import net.auctionapp.common.messages.watchlist.GetWatchListRequestMessage;
+import net.auctionapp.common.messages.watchlist.UpdateWatchListRequestMessage;
 
 public final class WatchListService {
     private static final WatchListService INSTANCE = new WatchListService();
