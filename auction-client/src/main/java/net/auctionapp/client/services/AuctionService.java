@@ -1,5 +1,6 @@
 package net.auctionapp.client.services;
 
+import net.auctionapp.client.messages.MessageListener;
 import net.auctionapp.common.messages.Message;
 import net.auctionapp.common.messages.auction.BidRequestMessage;
 import net.auctionapp.common.messages.auction.CancelAuctionRequestMessage;

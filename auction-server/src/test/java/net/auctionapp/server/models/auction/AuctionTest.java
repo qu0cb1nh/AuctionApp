@@ -1,12 +1,20 @@
 package net.auctionapp.server.models.auction;
 
+import net.auctionapp.common.auction.AuctionStatus;
+import net.auctionapp.common.exceptions.ValidationException;
+import net.auctionapp.server.exceptions.InvalidAuctionStateException;
 import net.auctionapp.server.models.items.Electronics;
 import org.junit.jupiter.api.Test;
 
 import java.math.BigDecimal;
+import java.time.Clock;
+import java.time.Instant;
 import java.time.LocalDateTime;
+import java.time.ZoneId;
+import java.time.ZoneOffset;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class AuctionTest {
@@ -14,14 +22,12 @@ class AuctionTest {
     void placeBidExtendsEndTimeWhenBidArrivesInsideAntiSnipeWindow() {
         LocalDateTime startTime = LocalDateTime.of(2026, 5, 22, 10, 0);
         LocalDateTime endTime = startTime.plusMinutes(1);
-        Auction auction = newAuction(startTime, endTime);
+        Auction auction = newAuction(startTime, endTime, endTime.minusSeconds(5));
 
-        boolean accepted = auction.placeBid(
-                new BidTransaction("bid-1", new BigDecimal("110.00"), endTime.minusSeconds(5), "bidder-1", "auction-1"),
-                endTime.minusSeconds(5)
+        auction.placeBid(
+                new BidTransaction("bid-1", new BigDecimal("110.00"), endTime.minusSeconds(5), "bidder-1", "auction-1")
         );
 
-        assertTrue(accepted);
         assertEquals(endTime.plusSeconds(60), auction.getEndTime());
     }
 
@@ -29,47 +35,61 @@ class AuctionTest {
     void placeBidKeepsEndTimeWhenBidArrivesOutsideAntiSnipeWindow() {
         LocalDateTime startTime = LocalDateTime.of(2026, 5, 22, 10, 0);
         LocalDateTime endTime = startTime.plusMinutes(1);
-        Auction auction = newAuction(startTime, endTime);
+        Auction auction = newAuction(startTime, endTime, endTime.minusSeconds(31));
 
-        boolean accepted = auction.placeBid(
-                new BidTransaction("bid-1", new BigDecimal("110.00"), endTime.minusSeconds(31), "bidder-1", "auction-1"),
-                endTime.minusSeconds(31)
+        auction.placeBid(
+                new BidTransaction("bid-1", new BigDecimal("110.00"), endTime.minusSeconds(31), "bidder-1", "auction-1")
         );
 
-        assertTrue(accepted);
         assertEquals(endTime, auction.getEndTime());
     }
 
     @Test
-    void applySnapshotMakesCandidateListingChangesVisibleOnlyAfterCommit() {
+    void placeBidRejectsPriceBelowMinimumIncrement() {
+        LocalDateTime startTime = LocalDateTime.of(2026, 5, 22, 10, 0);
+        Auction auction = newAuction(startTime, startTime.plusMinutes(10), startTime.plusMinutes(1));
+
+        assertThrows(ValidationException.class, () -> auction.placeBid(
+                new BidTransaction("bid-1", new BigDecimal("109.00"), startTime.plusMinutes(1), "bidder-1", "auction-1")
+        ));
+    }
+
+    @Test
+    void placeBidRejectsBidAfterAuctionEnds() {
+        LocalDateTime startTime = LocalDateTime.of(2026, 5, 22, 10, 0);
+        LocalDateTime endTime = startTime.plusMinutes(10);
+        Auction auction = newAuction(startTime, endTime, endTime);
+
+        assertThrows(InvalidAuctionStateException.class, () -> auction.placeBid(
+                new BidTransaction("bid-1", new BigDecimal("110.00"), endTime, "bidder-1", "auction-1")
+        ));
+    }
+
+    @Test
+    void applySnapshotMakesCandidateManagedChangesVisibleOnlyAfterCommit() {
         LocalDateTime startTime = LocalDateTime.of(2026, 5, 25, 10, 0);
-        Auction auction = newAuction(startTime, startTime.plusMinutes(10));
+        Auction auction = newAuction(startTime, startTime.plusMinutes(10), startTime.minusMinutes(1));
         Auction candidate = auction.snapshotCopy();
 
-        boolean updated = candidate.updateListingDetails(
+        candidate.updateManagedListingDetails(
                 "Updated laptop",
                 "Updated description",
-                new BigDecimal("120.00"),
-                new BigDecimal("15.00"),
-                startTime.plusMinutes(1),
-                startTime.plusMinutes(12),
-                startTime.minusMinutes(1)
+                startTime.plusMinutes(12)
         );
 
-        assertTrue(updated);
         assertEquals("Laptop", auction.getItem().getTitle());
 
         auction.applySnapshot(candidate);
 
         assertEquals("Updated laptop", auction.getItem().getTitle());
-        assertEquals(new BigDecimal("120.00"), auction.getStartingPrice());
-        assertEquals(new BigDecimal("15.00"), auction.getMinimumBidIncrement());
+        assertEquals(new BigDecimal("100.00"), auction.getStartingPrice());
+        assertEquals(new BigDecimal("10.00"), auction.getMinimumBidIncrement());
     }
 
     @Test
     void itemCopiesKeepConcreteElectronicsAttributes() {
         LocalDateTime startTime = LocalDateTime.of(2026, 5, 25, 10, 0);
-        Auction auction = newAuction(startTime, startTime.plusMinutes(10));
+        Auction auction = newAuction(startTime, startTime.plusMinutes(10), startTime);
 
         Electronics copiedItem = (Electronics) auction.getItem();
 
@@ -78,7 +98,41 @@ class AuctionTest {
         assertEquals(12, copiedItem.getWarrantyMonths());
     }
 
-    private Auction newAuction(LocalDateTime startTime, LocalDateTime endTime) {
+    @Test
+    void managedListingUpdateRejectsBlankTitle() {
+        LocalDateTime startTime = LocalDateTime.of(2026, 5, 25, 10, 0);
+        Auction auction = newAuction(startTime, startTime.plusMinutes(10), startTime.plusMinutes(1));
+
+        assertThrows(ValidationException.class, () -> auction.updateManagedListingDetails(
+                "",
+                "Updated description",
+                startTime.plusMinutes(12)
+        ));
+    }
+
+    @Test
+    void closeIfEndedDeterminesWinnerFromLeadingBidder() {
+        LocalDateTime startTime = LocalDateTime.of(2026, 5, 22, 10, 0);
+        LocalDateTime endTime = startTime.plusMinutes(10);
+        AdjustableClock clock = new AdjustableClock(startTime.plusMinutes(1));
+        Auction auction = newAuction(startTime, endTime, clock);
+        auction.placeBid(
+                new BidTransaction("bid-1", new BigDecimal("110.00"), startTime.plusMinutes(1), "bidder-1", "auction-1")
+        );
+        clock.setTime(endTime);
+
+        boolean closed = auction.closeIfEnded();
+
+        assertTrue(closed);
+        assertEquals(AuctionStatus.PAID, auction.getStatus());
+        assertEquals("bidder-1", auction.getWinnerBidderId());
+    }
+
+    private Auction newAuction(LocalDateTime startTime, LocalDateTime endTime, LocalDateTime now) {
+        return newAuction(startTime, endTime, Clock.fixed(now.toInstant(ZoneOffset.UTC), ZoneOffset.UTC));
+    }
+
+    private Auction newAuction(LocalDateTime startTime, LocalDateTime endTime, Clock clock) {
         return new Auction(
                 "auction-1",
                 "seller-1",
@@ -94,7 +148,35 @@ class AuctionTest {
                         12
                 ),
                 new BigDecimal("100.00"),
-                new BigDecimal("10.00")
+                new BigDecimal("10.00"),
+                clock
         );
+    }
+
+    private static final class AdjustableClock extends Clock {
+        private LocalDateTime time;
+
+        private AdjustableClock(LocalDateTime time) {
+            this.time = time;
+        }
+
+        private void setTime(LocalDateTime time) {
+            this.time = time;
+        }
+
+        @Override
+        public ZoneId getZone() {
+            return ZoneOffset.UTC;
+        }
+
+        @Override
+        public Clock withZone(ZoneId zone) {
+            return Clock.fixed(instant(), zone);
+        }
+
+        @Override
+        public Instant instant() {
+            return time.toInstant(ZoneOffset.UTC);
+        }
     }
 }

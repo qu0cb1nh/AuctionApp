@@ -204,6 +204,20 @@
     -fx-cursor: hand;
 }
 
+.notification-toast-close-button {
+    -fx-background-color: transparent;
+    -fx-background-radius: 10px;
+    -fx-padding: 0 4px 2px 4px;
+    -fx-font-size: 14px;
+    -fx-font-weight: bold;
+    -fx-text-fill: #ffffff;
+    -fx-cursor: hand;
+}
+
+.notification-toast-close-button:hover {
+    -fx-background-color: rgba(255, 255, 255, 0.18);
+}
+
 .assistant-bubble:warning {
     -fx-text-fill: #e67e22;
 }

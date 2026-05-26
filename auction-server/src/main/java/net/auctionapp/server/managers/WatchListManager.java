@@ -1,4 +1,4 @@
-package net.auctionapp.server.services;
+package net.auctionapp.server.managers;
 
 import net.auctionapp.common.exceptions.ValidationException;
 import net.auctionapp.common.dto.AuctionSummary;
@@ -14,7 +14,6 @@ import net.auctionapp.server.dao.WatchListDao;
 import net.auctionapp.server.exceptions.AuthenticationException;
 import net.auctionapp.server.exceptions.DatabaseException;
 import net.auctionapp.server.exceptions.NotFoundException;
-import net.auctionapp.server.managers.SessionManager;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -22,21 +21,21 @@ import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.List;
 
-public final class WatchListService {
-    private static final WatchListService INSTANCE = new WatchListService();
-    private static final Logger LOGGER = LoggerFactory.getLogger(WatchListService.class);
+public final class WatchListManager {
+    private static final WatchListManager INSTANCE = new WatchListManager();
+    private static final Logger LOGGER = LoggerFactory.getLogger(WatchListManager.class);
     private static final Duration ENDING_SOON_WINDOW = Duration.ofMinutes(5);
 
     private final SessionManager sessionManager;
-    private final NotificationService notificationService;
+    private final NotificationManager notificationManager;
     private volatile WatchListDao watchListDao;
 
-    private WatchListService() {
+    private WatchListManager() {
         sessionManager = SessionManager.getInstance();
-        notificationService = NotificationService.getInstance();
+        notificationManager = NotificationManager.getInstance();
     }
 
-    public static WatchListService getInstance() {
+    public static WatchListManager getInstance() {
         return INSTANCE;
     }
 
@@ -50,7 +49,7 @@ public final class WatchListService {
             String userId = requireAuthenticatedUserId(handler);
             List<String> auctionIds = requireWatchListDao().findAuctionIdsByUserId(userId);
             handler.sendResponse(
-                    new WatchListResponseMessage(AuctionService.getInstance().getAuctionSummaries(auctionIds)),
+                    new WatchListResponseMessage(AuctionManager.getInstance().getAuctionSummaries(auctionIds)),
                     request
             );
         } catch (AuthenticationException | NotFoundException | ValidationException e) {
@@ -65,8 +64,8 @@ public final class WatchListService {
         try {
             handler.ensureAuthenticated();
             String userId = requireAuthenticatedUserId(handler);
-            String auctionId = requireAuctionId(request == null ? null : request.getAuctionId());
-            if (!AuctionService.getInstance().hasAuction(auctionId)) {
+            String auctionId = requireAuctionId(request.getAuctionId());
+            if (!AuctionManager.getInstance().hasAuction(auctionId)) {
                 throw new NotFoundException("Auction not found.");
             }
 
@@ -89,7 +88,7 @@ public final class WatchListService {
         List<String> recipientIds = requireWatchListDao().claimEndingSoonReminderRecipients(auction.getAuctionId());
         for (String recipientId : recipientIds) {
             try {
-                notificationService.sendWatchListEndingSoonNotification(
+                notificationManager.sendWatchListEndingSoonNotification(
                         recipientId,
                         auction.getAuctionId(),
                         auction.getTitle(),

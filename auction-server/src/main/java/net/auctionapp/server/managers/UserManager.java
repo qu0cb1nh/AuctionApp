@@ -1,4 +1,4 @@
-package net.auctionapp.server.services;
+package net.auctionapp.server.managers;
 
 import net.auctionapp.common.exceptions.ValidationException;
 import net.auctionapp.common.messages.Message;
@@ -14,7 +14,6 @@ import net.auctionapp.server.exceptions.AuthenticationException;
 import net.auctionapp.server.exceptions.AuthorizationException;
 import net.auctionapp.server.exceptions.DatabaseException;
 import net.auctionapp.server.exceptions.NotFoundException;
-import net.auctionapp.server.managers.SessionManager;
 import net.auctionapp.server.models.users.User;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -22,21 +21,21 @@ import org.slf4j.LoggerFactory;
 import java.util.ArrayList;
 import java.util.List;
 
-public final class UserService {
-    private static final UserService INSTANCE = new UserService();
-    private static final Logger LOGGER = LoggerFactory.getLogger(UserService.class);
+public final class UserManager {
+    private static final UserManager INSTANCE = new UserManager();
+    private static final Logger LOGGER = LoggerFactory.getLogger(UserManager.class);
 
-    private final AuthService authService;
-    private final AuctionService auctionService;
+    private final AuthManager authManager;
+    private final AuctionManager auctionManager;
     private final SessionManager sessionManager;
 
-    private UserService() {
-        this.authService = AuthService.getInstance();
-        this.auctionService = AuctionService.getInstance();
+    private UserManager() {
+        this.authManager = AuthManager.getInstance();
+        this.auctionManager = AuctionManager.getInstance();
         this.sessionManager = SessionManager.getInstance();
     }
 
-    public static UserService getInstance() {
+    public static UserManager getInstance() {
         return INSTANCE;
     }
 
@@ -44,7 +43,7 @@ public final class UserService {
         try {
             handler.ensureAuthenticated();
             String actorId = StringUtil.normalizeString(handler.getAuthenticatedId());
-            List<User> users = authService.getAllUsers(actorId);
+            List<User> users = authManager.getAllUsers(actorId);
             List<AdminUserView> userViews = new ArrayList<>();
             for (User user : users) {
                 userViews.add(new AdminUserView(
@@ -73,11 +72,11 @@ public final class UserService {
             String actorId = StringUtil.normalizeString(handler.getAuthenticatedId());
             User updatedUser;
             if (request.isBanned()) {
-                User targetUser = authService.validateUserBanStatusUpdate(actorId, request.getUserId(), true);
-                auctionService.applyUserBanEffects(targetUser.getId());
+                User targetUser = authManager.validateUserBan(actorId, request.getUserId());
+                auctionManager.applyUserBanEffects(targetUser.getId());
                 updatedUser = targetUser;
             } else {
-                updatedUser = authService.updateUserBanStatus(actorId, request.getUserId(), false);
+                updatedUser = authManager.unbanUser(actorId, request.getUserId());
             }
             String action = updatedUser.isBanned() ? "banned" : "unbanned";
             handler.sendResponse(

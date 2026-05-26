@@ -15,10 +15,10 @@ public class AuctionListResponseMessage extends Message {
 
     public AuctionListResponseMessage(List<AuctionSummary> auctions) {
         super(MessageType.AUCTION_LIST_RESPONSE);
-        this.auctions = auctions;
+        this.auctions = auctions == null ? List.of() : List.copyOf(auctions);
     }
 
     public List<AuctionSummary> getAuctions() {
-        return auctions;
+        return auctions == null ? List.of() : List.copyOf(auctions);
     }
 }

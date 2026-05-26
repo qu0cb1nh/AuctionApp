@@ -94,10 +94,6 @@ public final class JsonUtil {
                 case DEPOSIT_REQUEST -> GSON.fromJson(json, DepositRequestMessage.class);
                 case WITHDRAW_REQUEST -> GSON.fromJson(json, WithdrawRequestMessage.class);
                 case WALLET_RESPONSE, BALANCE_UPDATE -> GSON.fromJson(json, WalletResponseMessage.class);
-                default -> {
-                    LOGGER.warn("Invalid JSON or unhandled message type: {}", json);
-                    yield null;
-                }
             };
         } catch (Exception e) {
             LOGGER.error("Error while parsing JSON object", e);

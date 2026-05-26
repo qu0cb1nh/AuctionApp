@@ -1,0 +1,85 @@
+package net.auctionapp.server.managers.auction;
+
+import net.auctionapp.server.dao.AuctionDao;
+import net.auctionapp.server.exceptions.DatabaseException;
+import net.auctionapp.server.exceptions.InsufficientFundsException;
+import net.auctionapp.server.models.auction.Auction;
+import net.auctionapp.server.models.auction.BidTransaction;
+import net.auctionapp.server.managers.WalletManager;
+
+import java.math.BigDecimal;
+import java.util.List;
+import java.util.Map;
+import java.util.Objects;
+import java.util.concurrent.ConcurrentMap;
+import java.util.function.Consumer;
+
+public final class AuctionPersistence {
+    private final ConcurrentMap<String, Auction> auctions;
+    private final WalletManager walletManager;
+    private volatile AuctionDao auctionDao;
+
+    public AuctionPersistence(ConcurrentMap<String, Auction> auctions, WalletManager walletManager) {
+        this.auctions = auctions;
+        this.walletManager = walletManager;
+    }
+
+    public synchronized void setAuctionDao(AuctionDao auctionDao) {
+        this.auctionDao = Objects.requireNonNull(auctionDao, "Auction DAO is required.");
+        List<Auction> persistedAuctions = auctionDao.findAllAuctions();
+        auctions.clear();
+        for (Auction auction : persistedAuctions) {
+            auctions.put(auction.getId(), auction);
+        }
+    }
+
+    public void persistAuction(Auction auction) {
+        executeDaoAction(dao -> requireSuccess(dao.createAuction(auction), "Auction could not be persisted."));
+    }
+
+    public void persistAuctionState(Auction auction) {
+        walletManager.closeAuctionWallets(auction);
+    }
+
+    public void persistAcceptedBid(Auction auction, BidTransaction bid, BigDecimal amountToLock) {
+        executeDaoAction(dao -> {
+            if (!dao.recordBid(auction, bid, amountToLock)) {
+                throw new InsufficientFundsException("Insufficient balance. Please check your wallet.");
+            }
+        });
+    }
+
+    public void persistAuctionDetails(Auction auction) {
+        executeDaoAction(dao -> requireSuccess(dao.updateAuction(auction), "Auction details could not be persisted."));
+    }
+
+    public void persistUserBanEffects(
+            String bannedUserId,
+            List<Auction> changedAuctions,
+            List<BidTransaction> invalidatedBids,
+            Map<String, BigDecimal> fundsToRelease
+    ) {
+        executeDaoAction(dao -> requireSuccess(
+                dao.applyUserBanEffects(bannedUserId, changedAuctions, invalidatedBids, fundsToRelease),
+                "User ban effects could not be persisted."
+        ));
+    }
+
+    private void executeDaoAction(Consumer<AuctionDao> action) {
+        AuctionDao dao = auctionDao;
+        if (dao == null) {
+            throw new DatabaseException("Auction persistence is not configured.");
+        }
+        try {
+            action.accept(dao);
+        } catch (DatabaseException e) {
+            throw new DatabaseException("Auction persistence operation failed.", e);
+        }
+    }
+
+    private void requireSuccess(boolean successful, String errorMessage) {
+        if (!successful) {
+            throw new DatabaseException(errorMessage);
+        }
+    }
+}

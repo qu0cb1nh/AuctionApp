@@ -1,4 +1,4 @@
-package net.auctionapp.server.services;
+package net.auctionapp.server.managers;
 
 import net.auctionapp.common.messages.MessageType;
 import net.auctionapp.common.messages.auth.ForcedLogoutResponseMessage;
@@ -7,7 +7,6 @@ import net.auctionapp.common.messages.auth.LoginResponseMessage;
 import net.auctionapp.common.messages.auth.RegisterRequestMessage;
 import net.auctionapp.common.messages.auth.RegisterResponseMessage;
 import net.auctionapp.common.exceptions.ValidationException;
-import net.auctionapp.server.managers.SessionManager;
 import net.auctionapp.server.models.users.User;
 import net.auctionapp.common.users.UserRole;
 import net.auctionapp.common.utils.CredentialUtil;
@@ -30,19 +29,19 @@ import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 
-public class AuthService {
-    private static final Logger LOGGER = LoggerFactory.getLogger(AuthService.class);
-    private static final AuthService INSTANCE = new AuthService();
+public class AuthManager {
+    private static final Logger LOGGER = LoggerFactory.getLogger(AuthManager.class);
+    private static final AuthManager INSTANCE = new AuthManager();
     private static final String INVALID_LOGIN_MESSAGE = "Invalid username or password.";
 
     private volatile UserDao userDao;
     private final ConcurrentMap<String, User> usersById = new ConcurrentHashMap<>();
     private final SessionManager sessionManager = SessionManager.getInstance();
 
-    private AuthService() {
+    private AuthManager() {
     }
 
-    public static AuthService getInstance() {
+    public static AuthManager getInstance() {
         return INSTANCE;
     }
 
@@ -212,25 +211,22 @@ public class AuthService {
         return users;
     }
 
-    public User updateUserBanStatus(String actorId, String targetUserId, boolean banned) {
-        User target = validateUserBanStatusUpdate(actorId, targetUserId, banned);
-        if (!requireUserDao().updateBanStatus(target.getId(), banned)) {
+    public User unbanUser(String actorId, String targetUserId) {
+        requireAdminUser(actorId);
+        User target = requireUserById(targetUserId);
+        if (!requireUserDao().clearBan(target.getId())) {
             throw new NotFoundException("User not found.");
         }
-        return applyPersistedUserBanStatus(target, banned);
+        return applyPersistedUserBanStatus(target, false);
     }
 
-    public User validateUserBanStatusUpdate(String actorId, String targetUserId, boolean banned) {
+    public User validateUserBan(String actorId, String targetUserId) {
         User actor = requireAdminUser(actorId);
-        String normalizedTargetUserId = StringUtil.normalizeString(targetUserId);
-        if (normalizedTargetUserId.isEmpty()) {
-            throw new NotFoundException("User not found.");
-        }
-        if (actor.getId().equals(normalizedTargetUserId) && banned) {
+        User target = requireUserById(targetUserId);
+        if (actor.getId().equals(target.getId())) {
             throw new AuthorizationException("Admin cannot ban own account.");
         }
-
-        return requireUserById(normalizedTargetUserId);
+        return target;
     }
 
     public User applyPersistedUserBanStatus(User target, boolean banned) {

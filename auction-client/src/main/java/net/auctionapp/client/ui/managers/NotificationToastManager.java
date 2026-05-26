@@ -56,10 +56,6 @@ public final class NotificationToastManager {
         return wrapper;
     }
 
-    public static void show(String title, String message) {
-        show(title, message, false);
-    }
-
     public static void show(String title, String message, boolean playSound) {
         show(title, message, playSound, null);
     }
@@ -83,13 +79,6 @@ public final class NotificationToastManager {
     }
 
     private static void showNow(ToastData toastData) {
-        Stage stage = ClientApp.getPrimaryStage();
-        if (stage == null || !stage.isShowing()) {
-            return;
-        }
-        if (stage.getScene() == null) {
-            return;
-        }
         HBox notificationNode = buildContent(toastData.title(), toastData.message());
         if (notificationNode == null) {
             return;
@@ -132,10 +121,6 @@ public final class NotificationToastManager {
         showStatus("Info", message, playSound);
     }
 
-    public static void showWarning(String message) {
-        showWarning(message, false);
-    }
-
     public static void showWarning(String message, boolean playSound) {
         showStatus("Warning", message, playSound);
     }
@@ -160,10 +145,6 @@ public final class NotificationToastManager {
     }
 
     private static void flushPendingToasts() {
-        if (!Platform.isFxApplicationThread()) {
-            Platform.runLater(NotificationToastManager::flushPendingToasts);
-            return;
-        }
         if (!canShowToast()) {
             return;
         }

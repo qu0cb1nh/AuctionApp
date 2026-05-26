@@ -1,4 +1,4 @@
-package net.auctionapp.server.services;
+package net.auctionapp.server.managers;
 
 import net.auctionapp.common.auction.AuctionStatus;
 import net.auctionapp.common.dto.AuctionSummary;
@@ -10,12 +10,12 @@ import java.time.LocalDateTime;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-class WatchListServiceTest {
+class WatchListManagerTest {
     private static final LocalDateTime NOW = LocalDateTime.of(2026, 5, 24, 16, 0);
 
     @Test
     void sendsReminderAtFiveMinuteBoundary() {
-        assertTrue(WatchListService.isEndingSoonReminderDue(
+        assertTrue(WatchListManager.isEndingSoonReminderDue(
                 auctionEndingAt(NOW.plusMinutes(5), AuctionStatus.RUNNING),
                 NOW
         ));
@@ -23,7 +23,7 @@ class WatchListServiceTest {
 
     @Test
     void doesNotSendReminderBeforeFiveMinuteWindow() {
-        assertFalse(WatchListService.isEndingSoonReminderDue(
+        assertFalse(WatchListManager.isEndingSoonReminderDue(
                 auctionEndingAt(NOW.plusMinutes(5).plusSeconds(1), AuctionStatus.RUNNING),
                 NOW
         ));
@@ -31,11 +31,11 @@ class WatchListServiceTest {
 
     @Test
     void doesNotSendReminderForEndedOrCanceledAuction() {
-        assertFalse(WatchListService.isEndingSoonReminderDue(
+        assertFalse(WatchListManager.isEndingSoonReminderDue(
                 auctionEndingAt(NOW.minusSeconds(1), AuctionStatus.RUNNING),
                 NOW
         ));
-        assertFalse(WatchListService.isEndingSoonReminderDue(
+        assertFalse(WatchListManager.isEndingSoonReminderDue(
                 auctionEndingAt(NOW.plusMinutes(2), AuctionStatus.CANCELED),
                 NOW
         ));

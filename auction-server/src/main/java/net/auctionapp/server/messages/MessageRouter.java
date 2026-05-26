@@ -26,12 +26,12 @@ import net.auctionapp.common.messages.wallet.WithdrawRequestMessage;
 import net.auctionapp.common.messages.watchlist.GetWatchListRequestMessage;
 import net.auctionapp.common.messages.watchlist.UpdateWatchListRequestMessage;
 import net.auctionapp.server.ClientHandler;
-import net.auctionapp.server.services.AuctionService;
-import net.auctionapp.server.services.AuthService;
-import net.auctionapp.server.services.NotificationService;
-import net.auctionapp.server.services.UserService;
-import net.auctionapp.server.services.WalletService;
-import net.auctionapp.server.services.WatchListService;
+import net.auctionapp.server.managers.AuctionManager;
+import net.auctionapp.server.managers.AuthManager;
+import net.auctionapp.server.managers.NotificationManager;
+import net.auctionapp.server.managers.UserManager;
+import net.auctionapp.server.managers.WalletManager;
+import net.auctionapp.server.managers.WatchListManager;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -45,46 +45,46 @@ public final class MessageRouter {
             new EnumMap<>(MessageType.class);
 
     public MessageRouter(
-            AuthService authService,
-            AuctionService auctionService,
-            UserService userService,
-            NotificationService notificationService,
-            WalletService walletService,
-            WatchListService watchListService
+            AuthManager authManager,
+            AuctionManager auctionManager,
+            UserManager userManager,
+            NotificationManager notificationManager,
+            WalletManager walletManager,
+            WatchListManager watchListManager
     ) {
         register(MessageType.PING, Message.class,
                 (message, clientHandler) -> clientHandler.sendResponse(new PongResponseMessage(), message));
-        register(MessageType.LOGIN_REQUEST, LoginRequestMessage.class, authService::handleLogin);
-        register(MessageType.REGISTER_REQUEST, RegisterRequestMessage.class, authService::handleRegister);
+        register(MessageType.LOGIN_REQUEST, LoginRequestMessage.class, authManager::handleLogin);
+        register(MessageType.REGISTER_REQUEST, RegisterRequestMessage.class, authManager::handleRegister);
         register(MessageType.GET_AUCTION_LIST_REQUEST, GetAuctionListRequestMessage.class,
-                auctionService::handleGetAuctionList);
+                auctionManager::handleGetAuctionList);
         register(MessageType.GET_AUCTION_DETAILS_REQUEST, GetAuctionDetailsRequestMessage.class,
-                auctionService::handleGetAuctionDetails);
+                auctionManager::handleGetAuctionDetails);
         register(MessageType.GET_MY_ACTIVITY_REQUEST, GetMyActivityRequestMessage.class,
-                auctionService::handleGetMyActivity);
+                auctionManager::handleGetMyActivity);
         register(MessageType.GET_MY_LISTINGS_REQUEST, GetMyListingsRequestMessage.class,
-                auctionService::handleGetMyListings);
+                auctionManager::handleGetMyListings);
         register(MessageType.OBSERVE_AUCTION_REQUEST, ObserveAuctionRequestMessage.class,
-                auctionService::handleObserveAuction);
+                auctionManager::handleObserveAuction);
         register(MessageType.GET_NOTIFICATIONS_REQUEST, GetNotificationsRequestMessage.class,
-                notificationService::handleGetNotifications);
-        register(MessageType.CREATE_ITEM_REQUEST, CreateItemRequestMessage.class, auctionService::handleCreateItem);
-        register(MessageType.BID_REQUEST, BidRequestMessage.class, auctionService::handleBidRequest);
+                notificationManager::handleGetNotifications);
+        register(MessageType.CREATE_ITEM_REQUEST, CreateItemRequestMessage.class, auctionManager::handleCreateItem);
+        register(MessageType.BID_REQUEST, BidRequestMessage.class, auctionManager::handleBidRequest);
         register(MessageType.CLEAR_NOTIFICATIONS_REQUEST, ClearNotificationsRequestMessage.class,
-                notificationService::handleClearNotifications);
-        register(MessageType.ADMIN_GET_USERS_REQUEST, AdminGetUsersRequestMessage.class, userService::handleGetUsers);
+                notificationManager::handleClearNotifications);
+        register(MessageType.ADMIN_GET_USERS_REQUEST, AdminGetUsersRequestMessage.class, userManager::handleGetUsers);
         register(MessageType.ADMIN_SET_USER_BAN_REQUEST, AdminSetUserBanRequestMessage.class,
-                userService::handleSetUserBan);
-        register(MessageType.UPDATE_AUCTION_REQUEST, UpdateAuctionRequestMessage.class, auctionService::handleUpdateAuction);
-        register(MessageType.CANCEL_AUCTION_REQUEST, CancelAuctionRequestMessage.class, auctionService::handleCancelAuction);
-        register(MessageType.CLOSE_AUCTION_REQUEST, CloseAuctionRequestMessage.class, auctionService::handleCloseAuction);
-        register(MessageType.DEPOSIT_REQUEST, DepositRequestMessage.class, walletService::handleDeposit);
-        register(MessageType.WITHDRAW_REQUEST, WithdrawRequestMessage.class, walletService::handleWithdraw);
-        register(MessageType.GET_WALLET_REQUEST, GetWalletRequestMessage.class, walletService::handleGetWallet);
+                userManager::handleSetUserBan);
+        register(MessageType.UPDATE_AUCTION_REQUEST, UpdateAuctionRequestMessage.class, auctionManager::handleUpdateAuction);
+        register(MessageType.CANCEL_AUCTION_REQUEST, CancelAuctionRequestMessage.class, auctionManager::handleCancelAuction);
+        register(MessageType.CLOSE_AUCTION_REQUEST, CloseAuctionRequestMessage.class, auctionManager::handleCloseAuction);
+        register(MessageType.DEPOSIT_REQUEST, DepositRequestMessage.class, walletManager::handleDeposit);
+        register(MessageType.WITHDRAW_REQUEST, WithdrawRequestMessage.class, walletManager::handleWithdraw);
+        register(MessageType.GET_WALLET_REQUEST, GetWalletRequestMessage.class, walletManager::handleGetWallet);
         register(MessageType.GET_WATCH_LIST_REQUEST, GetWatchListRequestMessage.class,
-                watchListService::handleGetWatchList);
+                watchListManager::handleGetWatchList);
         register(MessageType.UPDATE_WATCH_LIST_REQUEST, UpdateWatchListRequestMessage.class,
-                watchListService::handleUpdateWatchList);
+                watchListManager::handleUpdateWatchList);
     }
 
     public void dispatch(Message message, ClientHandler clientHandler) {

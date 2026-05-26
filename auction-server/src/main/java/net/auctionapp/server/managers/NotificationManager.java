@@ -1,4 +1,4 @@
-package net.auctionapp.server.services;
+package net.auctionapp.server.managers;
 
 import net.auctionapp.common.exceptions.ValidationException;
 import net.auctionapp.common.messages.notification.ClearNotificationsRequestMessage;
@@ -14,31 +14,29 @@ import net.auctionapp.server.dao.NotificationDao;
 import net.auctionapp.server.exceptions.AuthenticationException;
 import net.auctionapp.server.exceptions.DatabaseException;
 import net.auctionapp.server.exceptions.NotFoundException;
-import net.auctionapp.server.managers.SessionManager;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
-import java.util.List;
 import java.util.Set;
 
-public final class NotificationService {
-    private static final NotificationService INSTANCE = new NotificationService();
-    private static final Logger LOGGER = LoggerFactory.getLogger(NotificationService.class);
+public final class NotificationManager {
+    private static final NotificationManager INSTANCE = new NotificationManager();
+    private static final Logger LOGGER = LoggerFactory.getLogger(NotificationManager.class);
     private static final DateTimeFormatter END_TIME_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm");
 
     private final SessionManager sessionManager;
-    private final AuthService authService;
+    private final AuthManager authManager;
     private volatile NotificationDao notificationDao;
 
-    private NotificationService() {
+    private NotificationManager() {
         this.sessionManager = SessionManager.getInstance();
-        this.authService = AuthService.getInstance();
+        this.authManager = AuthManager.getInstance();
     }
 
-    public static NotificationService getInstance() {
+    public static NotificationManager getInstance() {
         return INSTANCE;
     }
 
@@ -63,12 +61,15 @@ public final class NotificationService {
         try {
             handler.ensureAuthenticated();
             String userId = requireAuthenticatedUserId(handler);
-            String notificationId = requireNotificationId(request == null ? null : request.getNotificationId());
+            String notificationId = requireNotificationId(request.getNotificationId());
             boolean cleared = requireNotificationDao().clearById(userId, notificationId);
             if (!cleared) {
                 throw new NotFoundException("Notification not found.");
             }
-            sendCurrentInbox(userId, request, handler);
+            handler.sendResponse(
+                    new NotificationsResponseMessage(requireNotificationDao().findByUserId(userId)),
+                    request
+            );
         } catch (AuthenticationException | NotFoundException | ValidationException e) {
             handler.sendResponse(new ErrorResponseMessage(e.getMessage()), request);
         } catch (DatabaseException e) {
@@ -90,17 +91,15 @@ public final class NotificationService {
             return;
         }
 
-        String safeTitle = auctionTitle == null || auctionTitle.isBlank() ? "an auction" : "\"" + auctionTitle + "\"";
-        String priceText = newPrice == null ? "N/A" : "$" + newPrice.stripTrailingZeros().toPlainString();
-        Notification notification = requireNotificationDao().createNotification(
+        String safeTitle = formatAuctionTitle(auctionTitle);
+        String priceText = formatPrice(newPrice);
+        createAndPush(
                 targetUserId,
                 NotificationType.OUTBID,
                 "You were outbid",
                 "A higher bid was placed on " + safeTitle + ". Current price: " + priceText + ".",
-                auctionId,
-                LocalDateTime.now()
+                auctionId
         );
-        pushToOnlineClients(targetUserId, notification);
     }
 
     public void sendAuctionEndedNotifications(
@@ -112,19 +111,17 @@ public final class NotificationService {
     ) {
         String normalizedSellerId = StringUtil.normalizeString(sellerId);
         String normalizedWinnerId = StringUtil.normalizeString(winnerBidderId);
-        String safeTitle = auctionTitle == null || auctionTitle.isBlank() ? "an auction" : "\"" + auctionTitle + "\"";
-        String priceText = finalPrice == null ? "N/A" : "$" + finalPrice.stripTrailingZeros().toPlainString();
+        String safeTitle = formatAuctionTitle(auctionTitle);
+        String priceText = formatPrice(finalPrice);
 
         if (!normalizedWinnerId.isEmpty()) {
-            Notification winnerNotification = requireNotificationDao().createNotification(
+            createAndPush(
                     normalizedWinnerId,
                     NotificationType.AUCTION_WON,
                     "You won an auction",
                     "You won " + safeTitle + ". Final price: " + priceText + ".",
-                    auctionId,
-                    LocalDateTime.now()
+                    auctionId
             );
-            pushToOnlineClients(normalizedWinnerId, winnerNotification);
         }
 
         if (normalizedSellerId.isEmpty()) {
@@ -135,15 +132,13 @@ public final class NotificationService {
                 ? "Your auction " + safeTitle + " ended with no bids."
                 : "Your auction " + safeTitle + " ended. Winner: " + displayUsername(normalizedWinnerId)
                 + ". Final price: " + priceText + ".";
-        Notification sellerNotification = requireNotificationDao().createNotification(
+        createAndPush(
                 normalizedSellerId,
                 NotificationType.AUCTION_SELLER_RESULT,
                 "Your auction ended",
                 sellerBody,
-                auctionId,
-                LocalDateTime.now()
+                auctionId
         );
-        pushToOnlineClients(normalizedSellerId, sellerNotification);
     }
 
     public void sendBidRemovalNotifications(
@@ -152,33 +147,29 @@ public final class NotificationService {
             String sellerId,
             String leadingBidderId
     ) {
-        String safeTitle = auctionTitle == null || auctionTitle.isBlank() ? "an auction" : "\"" + auctionTitle + "\"";
+        String safeTitle = formatAuctionTitle(auctionTitle);
         String normalizedLeaderId = StringUtil.normalizeString(leadingBidderId);
         if (!normalizedLeaderId.isEmpty()) {
-            Notification leaderNotification = requireNotificationDao().createNotification(
+            createAndPush(
                     normalizedLeaderId,
                     NotificationType.OUTBID,
                     "You are now the leading bidder",
                     "A higher bid was removed from " + safeTitle + ", so you are now the leading bidder.",
-                    auctionId,
-                    LocalDateTime.now()
+                    auctionId
             );
-            pushToOnlineClients(normalizedLeaderId, leaderNotification);
         }
 
         String normalizedSellerId = StringUtil.normalizeString(sellerId);
         if (normalizedSellerId.isEmpty()) {
             return;
         }
-        Notification sellerNotification = requireNotificationDao().createNotification(
+        createAndPush(
                 normalizedSellerId,
                 NotificationType.AUCTION_SELLER_RESULT,
                 "The leading bid changed",
                 "The leading bid on " + safeTitle + " changed because a bid was removed.",
-                auctionId,
-                LocalDateTime.now()
+                auctionId
         );
-        pushToOnlineClients(normalizedSellerId, sellerNotification);
     }
 
     public void sendWatchListEndingSoonNotification(
@@ -191,22 +182,15 @@ public final class NotificationService {
         if (targetUserId.isEmpty()) {
             return;
         }
-        String safeTitle = auctionTitle == null || auctionTitle.isBlank() ? "an auction" : "\"" + auctionTitle + "\"";
+        String safeTitle = formatAuctionTitle(auctionTitle);
         String endTimeText = endTime == null ? "soon" : endTime.format(END_TIME_FORMATTER);
-        Notification notification = requireNotificationDao().createNotification(
+        createAndPush(
                 targetUserId,
                 NotificationType.WATCH_LIST_ENDING_SOON,
                 "Saved auction ending soon",
                 "Your saved auction " + safeTitle + " ends at " + endTimeText + ".",
-                auctionId,
-                LocalDateTime.now()
+                auctionId
         );
-        pushToOnlineClients(targetUserId, notification);
-    }
-
-    private void sendCurrentInbox(String userId, net.auctionapp.common.messages.Message request, ClientHandler handler) {
-        List<Notification> notifications = requireNotificationDao().findByUserId(userId);
-        handler.sendResponse(new NotificationsResponseMessage(notifications), request);
     }
 
     private void pushToOnlineClients(String userId, Notification notification) {
@@ -230,6 +214,32 @@ public final class NotificationService {
             }
             clientHandler.sendMessage(pushMessage);
         }
+    }
+
+    private void createAndPush(
+            String userId,
+            NotificationType type,
+            String title,
+            String body,
+            String auctionId
+    ) {
+        Notification notification = requireNotificationDao().createNotification(
+                userId,
+                type,
+                title,
+                body,
+                auctionId,
+                LocalDateTime.now()
+        );
+        pushToOnlineClients(userId, notification);
+    }
+
+    private String formatAuctionTitle(String auctionTitle) {
+        return auctionTitle == null || auctionTitle.isBlank() ? "an auction" : "\"" + auctionTitle + "\"";
+    }
+
+    private String formatPrice(BigDecimal price) {
+        return price == null ? "N/A" : "$" + price.stripTrailingZeros().toPlainString();
     }
 
     private String requireAuthenticatedUserId(ClientHandler handler) {
@@ -257,7 +267,7 @@ public final class NotificationService {
 
     private String displayUsername(String userId) {
         try {
-            return authService.requireUserById(userId).getUsername();
+            return authManager.requireUserById(userId).getUsername();
         } catch (NotFoundException | DatabaseException e) {
             return userId;
         }

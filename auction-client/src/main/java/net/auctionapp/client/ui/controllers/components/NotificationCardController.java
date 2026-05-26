@@ -1,6 +1,5 @@
 package net.auctionapp.client.ui.controllers.components;
 
-import javafx.event.ActionEvent;
 import javafx.css.PseudoClass;
 import javafx.fxml.FXML;
 import javafx.scene.Node;
@@ -67,7 +66,7 @@ public final class NotificationCardController {
     }
 
     @FXML
-    public void handleClear(ActionEvent event) {
+    public void handleClear() {
         if (clearAction == null) {
             return;
         }
@@ -83,23 +82,23 @@ public final class NotificationCardController {
     }
 
     @FXML
-    public void handleCardEntered(MouseEvent event) {
+    public void handleCardEntered() {
         updateCardStyle();
     }
 
     @FXML
-    public void handleCardExited(MouseEvent event) {
+    public void handleCardExited() {
         cardRoot.pseudoClassStateChanged(CARD_HOVER_STATE, false);
     }
 
     @FXML
-    public void handleClearEntered(MouseEvent event) {
+    public void handleClearEntered() {
         clearHovered = true;
         updateCardStyle();
     }
 
     @FXML
-    public void handleClearExited(MouseEvent event) {
+    public void handleClearExited() {
         clearHovered = false;
         updateCardStyle();
     }

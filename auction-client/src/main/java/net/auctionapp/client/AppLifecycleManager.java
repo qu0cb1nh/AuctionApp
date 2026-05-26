@@ -1,8 +1,9 @@
 package net.auctionapp.client;
 
 import javafx.application.Platform;
+import net.auctionapp.client.exceptions.NetworkException;
 import net.auctionapp.client.services.AuthService;
-import net.auctionapp.client.services.MessageListener;
+import net.auctionapp.client.messages.MessageListener;
 import net.auctionapp.client.services.NetworkService;
 import net.auctionapp.client.config.ClientConfig;
 import net.auctionapp.client.ui.managers.SceneManager;
@@ -71,13 +72,18 @@ public final class AppLifecycleManager {
     private void connectToServer() {
         String host = ClientConfig.getServerHost();
         int port = ClientConfig.getServerPort();
-        networkService.connect(host, port);
+        try {
+            networkService.connect(host, port);
+        } catch (NetworkException e) {
+            LOGGER.debug("Connection attempt failed: {}", e.getMessage());
+        }
     }
 
     public void retryConnection() {
         connectToServer();
-        handleConnectionStatus(networkService.isConnected());
-        if (!networkService.isConnected()) {
+        boolean connected = networkService.isConnected();
+        handleConnectionStatus(connected);
+        if (!connected) {
             NotificationToastManager.showWarning("Unable to connect to the server.", false);
         }
     }
@@ -108,16 +114,13 @@ public final class AppLifecycleManager {
     }
 
     private void handleGlobalErrorMessage(ErrorResponseMessage errorMessage) {
-        if (errorMessage == null || errorMessage.getErrorMessage() == null) {
+        if (errorMessage.getErrorMessage() == null) {
             return;
         }
         NotificationToastManager.showError(errorMessage.getErrorMessage());
     }
 
     private void handleForcedLogout(ForcedLogoutResponseMessage message) {
-        if (message == null) {
-            return;
-        }
         AuthService.getInstance().logout();
         if (message.getReason() != null && !message.getReason().isBlank()) {
             NotificationToastManager.showError(message.getReason());

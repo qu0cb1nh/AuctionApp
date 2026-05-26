@@ -1,251 +1,54 @@
 package net.auctionapp.common.messages;
 
-/**
- * Enum defining the types of messages sent back and forth between the Client and Server.
- */
 public enum MessageType {
-
-    // === Client -> Server Messages ===
-
-    /**
-     * Request to log in with a username/password.
-     */
+    // Client to server
     LOGIN_REQUEST,
-
-    /**
-     * Request to register a new account.
-     */
     REGISTER_REQUEST,
-
-    /**
-     * Request for the list of auction sessions.
-     */
     GET_AUCTION_LIST_REQUEST,
-
-    /**
-     * Request for detailed information about a specific auction session.
-     */
     GET_AUCTION_DETAILS_REQUEST,
-
-    /**
-     * Request for auctions where the authenticated user has participated as a bidder.
-     */
     GET_MY_ACTIVITY_REQUEST,
-
-    /**
-     * Request for auctions created by the authenticated user.
-     */
     GET_MY_LISTINGS_REQUEST,
-
-    /**
-     * Starts or stops receiving live updates for one auction detail view.
-     */
     OBSERVE_AUCTION_REQUEST,
-
-    /**
-     * Request for the current user's notifications inbox.
-     */
     GET_NOTIFICATIONS_REQUEST,
-
-    /**
-     * Sends a bid for an item.
-     */
     BID_REQUEST,
-
-    /**
-     * (Seller) Request to create a new item for auction.
-     */
     CREATE_ITEM_REQUEST,
-
-    /**
-     * Clear one notification.
-     */
     CLEAR_NOTIFICATIONS_REQUEST,
-
-    /**
-     * (Admin) Request to load all users.
-     */
     ADMIN_GET_USERS_REQUEST,
-
-    /**
-     * (Admin) Request to update banned state of a user.
-     */
     ADMIN_SET_USER_BAN_REQUEST,
-
-    /**
-     * Request to edit auction information.
-     */
     UPDATE_AUCTION_REQUEST,
-
-    /**
-     * Request to cancel an auction.
-     */
     CANCEL_AUCTION_REQUEST,
-
-    /**
-     * Request to close an auction early.
-     */
     CLOSE_AUCTION_REQUEST,
-
-    /**
-     * Request to deposit funds.
-     */
     DEPOSIT_REQUEST,
-
-    /**
-     * Request to withdraw funds.
-     */
     WITHDRAW_REQUEST,
-
-    /**
-     * Request for the current user's wallet balance.
-     */
     GET_WALLET_REQUEST,
-
-    /**
-     * Request for the current user's watchlist auctions.
-     */
     GET_WATCH_LIST_REQUEST,
-
-    /**
-     * Adds or removes one auction from the current user's watchlist.
-     */
     UPDATE_WATCH_LIST_REQUEST,
-
-
-    // === Server -> Client Messages ===
-
-    /**
-     * Response for a successful login, can include user information.
-     */
-    LOGIN_SUCCESS,
-
-    /**
-     * Response for a failed login, includes the reason.
-     */
-    LOGIN_FAILURE,
-
-    /**
-     * (Push) Informs an authenticated client that the server has terminated its session.
-     */
-    FORCED_LOGOUT,
-
-    /**
-     * Response for a successful registration.
-     */
-    REGISTER_SUCCESS,
-
-    /**
-     * Response for a failed registration, includes the reason (e.g., username already exists).
-     */
-    REGISTER_FAILURE,
-
-    /**
-     * Response containing the list of auction sessions.
-     */
-    AUCTION_LIST_RESPONSE,
-
-    /**
-     * Response containing detailed information about an auction session.
-     */
-    AUCTION_DETAILS_RESPONSE,
-
-    /**
-     * Response containing filtered detailed auction entries for one user-specific list.
-     */
-    AUCTION_DETAILS_LIST_RESPONSE,
-
-    /**
-     * Response containing notifications for the authenticated user.
-     */
-    NOTIFICATIONS_RESPONSE,
-
-    /**
-     * Response after creating a new auction successfully.
-     */
-    CREATE_ITEM_SUCCESS,
-
-    /**
-     * (Admin) Response containing all users with moderation metadata.
-     */
-    ADMIN_GET_USERS_RESPONSE,
-
-    /**
-     * (Admin) Generic success response for mutating actions.
-     */
-    ADMIN_ACTION_SUCCESS,
-
-    /**
-     * Generic success response for auction mutating actions.
-     */
-    AUCTION_ACTION_SUCCESS,
-
-    /**
-     * (Push) Notifies clients that auction management changed an auction.
-     */
-    AUCTION_UPDATED,
-
-    /**
-     * Response to the bidding client that their bid was accepted.
-     */
-    BID_ACCEPTED,
-
-    /**
-     * Response to the bidding client that their bid was rejected (e.g., lower than the current price).
-     */
-    BID_REJECTED,
-
-    /**
-     * (Push) Notifies subscribed clients of the new price and the leading bidder.
-     */
-    PRICE_UPDATE,
-
-    /**
-     * (Push) Announces to subscribed clients that an auction has ended, includes the winner.
-     */
-    AUCTION_ENDED,
-
-    /**
-     * Sends a general error message to a specific client.
-     */
-    ERROR,
-
-    /**
-     * Sends a simple text-based notification message.
-     */
-    NOTIFICATION,
-
-    /**
-     * Response containing wallet balance info.
-     */
-    WALLET_RESPONSE,
-
-    /**
-     * Response containing the current user's watchlist auctions.
-     */
-    WATCH_LIST_RESPONSE,
-
-    /**
-     * Response or push event announcing one watchlist state change.
-     */
-    WATCH_LIST_CHANGED,
-
-    /**
-     * (Push) Notifies client of real-time balance change.
-     */
-    BALANCE_UPDATE,
-
-    /**
-     * Sent by the Client to the Server at regular intervals (e.g., every 30 seconds).
-     * The Server should reset its idle timeout counter and immediately
-     * reply with a PONG message.
-     */
     PING,
 
-    /**
-     * Sent by the Server to the Client in direct response to a PING message.
-     * The Client can use this to verify the connection is healthy, no further reply is needed.
-     */
-    PONG,
-
+    // Server to client
+    LOGIN_SUCCESS,
+    LOGIN_FAILURE,
+    FORCED_LOGOUT,
+    REGISTER_SUCCESS,
+    REGISTER_FAILURE,
+    AUCTION_LIST_RESPONSE,
+    AUCTION_DETAILS_RESPONSE,
+    AUCTION_DETAILS_LIST_RESPONSE,
+    NOTIFICATIONS_RESPONSE,
+    CREATE_ITEM_SUCCESS,
+    ADMIN_GET_USERS_RESPONSE,
+    ADMIN_ACTION_SUCCESS,
+    AUCTION_ACTION_SUCCESS,
+    AUCTION_UPDATED,
+    BID_ACCEPTED,
+    BID_REJECTED,
+    PRICE_UPDATE,
+    AUCTION_ENDED,
+    ERROR,
+    NOTIFICATION,
+    WALLET_RESPONSE,
+    WATCH_LIST_RESPONSE,
+    WATCH_LIST_CHANGED,
+    BALANCE_UPDATE,
+    PONG
 }

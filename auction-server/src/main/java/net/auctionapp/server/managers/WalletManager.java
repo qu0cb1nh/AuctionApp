@@ -1,7 +1,8 @@
-package net.auctionapp.server.services;
+package net.auctionapp.server.managers;
 
 import net.auctionapp.common.auction.AuctionStatus;
 import net.auctionapp.common.exceptions.ValidationException;
+import net.auctionapp.common.messages.Message;
 import net.auctionapp.common.messages.MessageType;
 import net.auctionapp.common.messages.system.ErrorResponseMessage;
 import net.auctionapp.common.messages.wallet.DepositRequestMessage;
@@ -12,12 +13,11 @@ import net.auctionapp.common.utils.MoneyUtil;
 import net.auctionapp.common.utils.StringUtil;
 import net.auctionapp.server.ClientHandler;
 import net.auctionapp.server.dao.AuctionDao;
-import net.auctionapp.server.dao.UserDao;
+import net.auctionapp.server.dao.BalanceDao;
 import net.auctionapp.server.exceptions.AuthenticationException;
 import net.auctionapp.server.exceptions.DatabaseException;
 import net.auctionapp.server.exceptions.InsufficientFundsException;
 import net.auctionapp.server.exceptions.NotFoundException;
-import net.auctionapp.server.managers.SessionManager;
 import net.auctionapp.server.models.auction.Auction;
 import net.auctionapp.server.models.auction.BidTransaction;
 import net.auctionapp.server.models.users.User;
@@ -28,24 +28,24 @@ import java.math.BigDecimal;
 import java.util.HashMap;
 import java.util.Map;
 
-public final class WalletService {
-    private static final Logger LOGGER = LoggerFactory.getLogger(WalletService.class);
-    private static final WalletService INSTANCE = new WalletService();
+public final class WalletManager {
+    private static final Logger LOGGER = LoggerFactory.getLogger(WalletManager.class);
+    private static final WalletManager INSTANCE = new WalletManager();
 
-    private final AuthService authService = AuthService.getInstance();
+    private final AuthManager authManager = AuthManager.getInstance();
     private final SessionManager sessionManager = SessionManager.getInstance();
-    private volatile UserDao userDao;
+    private volatile BalanceDao balanceDao;
     private volatile AuctionDao auctionDao;
 
-    private WalletService() {
+    private WalletManager() {
     }
 
-    public static WalletService getInstance() {
+    public static WalletManager getInstance() {
         return INSTANCE;
     }
 
-    public void setUserDao(UserDao userDao) {
-        this.userDao = userDao;
+    public void setBalanceDao(BalanceDao balanceDao) {
+        this.balanceDao = balanceDao;
     }
 
     public void setAuctionDao(AuctionDao auctionDao) {
@@ -97,7 +97,7 @@ public final class WalletService {
     public void handleGetWallet(GetWalletRequestMessage request, ClientHandler clientHandler) {
         try {
             clientHandler.ensureAuthenticated();
-            User user = authService.requireActiveUserById(clientHandler.getAuthenticatedId());
+            User user = authManager.requireActiveUserById(clientHandler.getAuthenticatedId());
             clientHandler.sendResponse(walletResponse(user, "Wallet loaded."), request);
         } catch (AuthenticationException | NotFoundException e) {
             sendError(clientHandler, request, e.getMessage());
@@ -113,7 +113,7 @@ public final class WalletService {
     public void applyLockedBidFunds(String bidderId, BigDecimal amount) {
         MoneyUtil.requirePositiveMoney(amount, "Bid amount");
         String normalizedBidderId = StringUtil.normalizeString(bidderId);
-        User bidder = authService.requireUserById(normalizedBidderId);
+        User bidder = authManager.requireUserById(normalizedBidderId);
         updateCachedWallet(bidder, amount.negate(), amount);
         pushWalletUpdate(bidder);
     }
@@ -134,7 +134,7 @@ public final class WalletService {
             if (amount == null || amount.signum() <= 0) {
                 continue;
             }
-            User bidder = authService.requireUserById(StringUtil.normalizeString(entry.getKey()));
+            User bidder = authManager.requireUserById(StringUtil.normalizeString(entry.getKey()));
             updateCachedWallet(bidder, amount, amount.negate());
             pushWalletUpdate(bidder);
         }
@@ -148,15 +148,15 @@ public final class WalletService {
         String winnerId = StringUtil.normalizeString(auction.getWinnerBidderId());
         BigDecimal winningAmount = auction.getCurrentPrice();
         boolean hasWinner = !winnerId.isEmpty() && auction.getStatus() == AuctionStatus.PAID;
-        User winner = hasWinner ? authService.requireUserById(winnerId) : null;
-        User seller = hasWinner ? authService.requireUserById(StringUtil.normalizeString(auction.getSellerId())) : null;
+        User winner = hasWinner ? authManager.requireUserById(winnerId) : null;
+        User seller = hasWinner ? authManager.requireUserById(StringUtil.normalizeString(auction.getSellerId())) : null;
         Map<String, User> biddersToRelease = new HashMap<>();
         for (Map.Entry<String, BigDecimal> entry : committedAmountsByBidder.entrySet()) {
             String bidderId = entry.getKey();
             if (hasWinner && bidderId.equalsIgnoreCase(winnerId)) {
                 continue;
             }
-            biddersToRelease.put(bidderId, authService.requireUserById(bidderId));
+            biddersToRelease.put(bidderId, authManager.requireUserById(bidderId));
         }
 
         persistAuctionState(auction, committedAmountsByBidder);
@@ -180,8 +180,8 @@ public final class WalletService {
 
     private User deposit(String userId, BigDecimal amount) {
         String normalizedUserId = StringUtil.normalizeString(userId);
-        User user = authService.requireUserById(normalizedUserId);
-        if (requireUserDao().increaseBalance(normalizedUserId, amount)) {
+        User user = authManager.requireUserById(normalizedUserId);
+        if (requireBalanceDao().increaseBalance(normalizedUserId, amount)) {
             updateCachedWallet(user, amount, BigDecimal.ZERO);
             pushWalletUpdate(user);
             return user;
@@ -191,8 +191,8 @@ public final class WalletService {
 
     private User withdraw(String userId, BigDecimal amount) {
         String normalizedUserId = StringUtil.normalizeString(userId);
-        User user = authService.requireUserById(normalizedUserId);
-        if (requireUserDao().tryDecreaseBalance(normalizedUserId, amount)) {
+        User user = authManager.requireUserById(normalizedUserId);
+        if (requireBalanceDao().tryDecreaseBalance(normalizedUserId, amount)) {
             updateCachedWallet(user, amount.negate(), BigDecimal.ZERO);
             pushWalletUpdate(user);
             return user;
@@ -234,9 +234,6 @@ public final class WalletService {
     }
 
     private void updateCachedWallet(User user, BigDecimal balanceDelta, BigDecimal pendingDelta) {
-        if (user == null) {
-            return;
-        }
         user.addBalance(balanceDelta);
         user.addPendingBalance(pendingDelta);
     }
@@ -251,9 +248,6 @@ public final class WalletService {
     }
 
     private void pushWalletUpdate(User user) {
-        if (user == null) {
-            return;
-        }
         WalletResponseMessage update = new WalletResponseMessage(
                 MessageType.BALANCE_UPDATE,
                 user.getBalance(),
@@ -265,22 +259,14 @@ public final class WalletService {
         }
     }
 
-    private UserDao requireUserDao() {
-        if (userDao == null) {
-            throw new DatabaseException("User persistence is not configured.");
+    private BalanceDao requireBalanceDao() {
+        if (balanceDao == null) {
+            throw new DatabaseException("Balance persistence is not configured.");
         }
-        return userDao;
+        return balanceDao;
     }
 
-    private void sendError(ClientHandler clientHandler, DepositRequestMessage request, String message) {
-        clientHandler.sendResponse(new ErrorResponseMessage(message), request);
-    }
-
-    private void sendError(ClientHandler clientHandler, WithdrawRequestMessage request, String message) {
-        clientHandler.sendResponse(new ErrorResponseMessage(message), request);
-    }
-
-    private void sendError(ClientHandler clientHandler, GetWalletRequestMessage request, String message) {
+    private void sendError(ClientHandler clientHandler, Message request, String message) {
         clientHandler.sendResponse(new ErrorResponseMessage(message), request);
     }
 }

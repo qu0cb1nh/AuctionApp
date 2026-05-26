@@ -29,7 +29,4 @@ public class ObserveAuctionRequestMessage extends Message {
         return observing;
     }
 
-    public void setObserving(boolean observing) {
-        this.observing = observing;
-    }
 }

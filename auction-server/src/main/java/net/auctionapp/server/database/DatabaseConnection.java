@@ -1,20 +1,20 @@
-package net.auctionapp.server.services;
+package net.auctionapp.server.database;
 
 import com.zaxxer.hikari.HikariConfig;
 import com.zaxxer.hikari.HikariDataSource;
-import net.auctionapp.common.utils.ConfigUtil;
 import net.auctionapp.server.exceptions.DatabaseException;
+import net.auctionapp.server.utils.EnvUtil;
 
 import java.sql.Connection;
 import java.sql.SQLException;
 
-public class DatabaseService {
-    private static final DatabaseService INSTANCE = new DatabaseService();
+public class DatabaseConnection {
+    private static final DatabaseConnection INSTANCE = new DatabaseConnection();
     private HikariDataSource dataSource;
 
-    private DatabaseService() { }
+    private DatabaseConnection() { }
 
-    public static DatabaseService getInstance() {
+    public static DatabaseConnection getInstance() {
         return INSTANCE;
     }
 
@@ -24,9 +24,9 @@ public class DatabaseService {
         }
         try {
             HikariConfig config = new HikariConfig();
-            config.setJdbcUrl(ConfigUtil.getDatabaseUrl());
-            config.setUsername(ConfigUtil.getDatabaseUser());
-            config.setPassword(ConfigUtil.getDatabasePassword());
+            config.setJdbcUrl(EnvUtil.getDatabaseUrl());
+            config.setUsername(EnvUtil.getDatabaseUser());
+            config.setPassword(EnvUtil.getDatabasePassword());
             config.setMaximumPoolSize(10);
             config.setMinimumIdle(2);
             config.setPoolName("AuctionAppHikariPool");

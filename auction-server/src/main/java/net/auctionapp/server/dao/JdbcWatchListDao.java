@@ -1,13 +1,13 @@
 package net.auctionapp.server.dao;
 
 import net.auctionapp.server.exceptions.DatabaseException;
-import net.auctionapp.server.services.DatabaseService;
+import net.auctionapp.server.database.DatabaseConnection;
+import net.auctionapp.server.utils.JdbcUtil;
 
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
-import java.sql.Statement;
 import java.sql.Timestamp;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
@@ -58,22 +58,22 @@ public class JdbcWatchListDao implements WatchListDao {
             VALUES (?, ?, 'ENDING_SOON', ?)
             """;
 
-    private final DatabaseService databaseService;
+    private final DatabaseConnection databaseConnection;
 
     public JdbcWatchListDao() {
-        this(DatabaseService.getInstance());
+        this(DatabaseConnection.getInstance());
     }
 
-    public JdbcWatchListDao(DatabaseService databaseService) {
-        this.databaseService = databaseService;
-        ensureWatchListTable();
-        ensureWatchListRemindersTable();
+    public JdbcWatchListDao(DatabaseConnection databaseConnection) {
+        this.databaseConnection = databaseConnection;
+        JdbcUtil.ensureTable(databaseConnection, CREATE_WATCH_LIST_TABLE_QUERY, "watch list");
+        JdbcUtil.ensureTable(databaseConnection, CREATE_WATCH_LIST_REMINDERS_TABLE_QUERY, "watch list reminders");
     }
 
     @Override
     public List<String> findAuctionIdsByUserId(String userId) {
         List<String> auctionIds = new ArrayList<>();
-        try (Connection connection = databaseService.getConnection();
+        try (Connection connection = databaseConnection.getConnection();
              PreparedStatement statement = connection.prepareStatement(FIND_BY_USER_ID_QUERY)) {
             statement.setString(1, userId);
             try (ResultSet resultSet = statement.executeQuery()) {
@@ -89,7 +89,7 @@ public class JdbcWatchListDao implements WatchListDao {
 
     @Override
     public List<String> claimEndingSoonReminderRecipients(String auctionId) {
-        try (Connection connection = databaseService.getConnection()) {
+        try (Connection connection = databaseConnection.getConnection()) {
             boolean previousAutoCommit = connection.getAutoCommit();
             connection.setAutoCommit(false);
             try {
@@ -111,7 +111,7 @@ public class JdbcWatchListDao implements WatchListDao {
     @Override
     public void setWatched(String userId, String auctionId, boolean watched) {
         String query = watched ? ADD_TO_WATCH_LIST_QUERY : REMOVE_FROM_WATCH_LIST_QUERY;
-        try (Connection connection = databaseService.getConnection();
+        try (Connection connection = databaseConnection.getConnection();
              PreparedStatement statement = connection.prepareStatement(query)) {
             statement.setString(1, userId);
             statement.setString(2, auctionId);
@@ -121,24 +121,6 @@ public class JdbcWatchListDao implements WatchListDao {
             statement.executeUpdate();
         } catch (SQLException e) {
             throw new DatabaseException("Failed to update watch list.", e);
-        }
-    }
-
-    private void ensureWatchListTable() {
-        try (Connection connection = databaseService.getConnection();
-             Statement statement = connection.createStatement()) {
-            statement.executeUpdate(CREATE_WATCH_LIST_TABLE_QUERY);
-        } catch (SQLException e) {
-            throw new DatabaseException("Failed to create watch list table.", e);
-        }
-    }
-
-    private void ensureWatchListRemindersTable() {
-        try (Connection connection = databaseService.getConnection();
-             Statement statement = connection.createStatement()) {
-            statement.executeUpdate(CREATE_WATCH_LIST_REMINDERS_TABLE_QUERY);
-        } catch (SQLException e) {
-            throw new DatabaseException("Failed to create watch list reminders table.", e);
         }
     }
 

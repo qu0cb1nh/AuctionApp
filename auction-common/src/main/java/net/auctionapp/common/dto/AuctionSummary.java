@@ -31,35 +31,6 @@ public class AuctionSummary {
             LocalDateTime startTime,
             LocalDateTime endTime
     ) {
-        this(auctionId, title, currentPrice, minimumNextBid, status, leadingBidderId, startTime, endTime, null, null);
-    }
-
-    public AuctionSummary(
-            String auctionId,
-            String title,
-            BigDecimal currentPrice,
-            BigDecimal minimumNextBid,
-            AuctionStatus status,
-            String leadingBidderId,
-            LocalDateTime startTime,
-            LocalDateTime endTime,
-            String imageUrl
-    ) {
-        this(auctionId, title, currentPrice, minimumNextBid, status, leadingBidderId, startTime, endTime, imageUrl, null);
-    }
-
-    public AuctionSummary(
-            String auctionId,
-            String title,
-            BigDecimal currentPrice,
-            BigDecimal minimumNextBid,
-            AuctionStatus status,
-            String leadingBidderId,
-            LocalDateTime startTime,
-            LocalDateTime endTime,
-            String imageUrl,
-            ItemType itemType
-    ) {
         this(
                 auctionId,
                 title,
@@ -69,37 +40,9 @@ public class AuctionSummary {
                 leadingBidderId,
                 startTime,
                 endTime,
-                imageUrl,
-                itemType,
-                leadingBidderId
-        );
-    }
-
-    public AuctionSummary(
-            String auctionId,
-            String title,
-            BigDecimal currentPrice,
-            BigDecimal minimumNextBid,
-            AuctionStatus status,
-            String leadingBidderId,
-            LocalDateTime startTime,
-            LocalDateTime endTime,
-            String imageUrl,
-            ItemType itemType,
-            String leadingBidderUsername
-    ) {
-        this(
-                auctionId,
-                title,
-                currentPrice,
-                minimumNextBid,
-                status,
+                null,
+                null,
                 leadingBidderId,
-                startTime,
-                endTime,
-                imageUrl,
-                itemType,
-                leadingBidderUsername,
                 null,
                 null
         );

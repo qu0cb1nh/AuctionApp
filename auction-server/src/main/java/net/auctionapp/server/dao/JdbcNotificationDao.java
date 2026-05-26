@@ -3,13 +3,13 @@ package net.auctionapp.server.dao;
 import net.auctionapp.common.notifications.NotificationType;
 import net.auctionapp.common.notifications.Notification;
 import net.auctionapp.server.exceptions.DatabaseException;
-import net.auctionapp.server.services.DatabaseService;
+import net.auctionapp.server.database.DatabaseConnection;
+import net.auctionapp.server.utils.JdbcUtil;
 
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
-import java.sql.Statement;
 import java.sql.Timestamp;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
@@ -43,15 +43,15 @@ public class JdbcNotificationDao implements NotificationDao {
             WHERE id = ? AND user_id = ?
             """;
 
-    private final DatabaseService databaseService;
+    private final DatabaseConnection databaseConnection;
 
     public JdbcNotificationDao() {
-        this(DatabaseService.getInstance());
+        this(DatabaseConnection.getInstance());
     }
 
-    public JdbcNotificationDao(DatabaseService databaseService) {
-        this.databaseService = databaseService;
-        ensureNotificationsTable();
+    public JdbcNotificationDao(DatabaseConnection databaseConnection) {
+        this.databaseConnection = databaseConnection;
+        JdbcUtil.ensureTable(databaseConnection, CREATE_NOTIFICATIONS_TABLE_QUERY, "notifications");
     }
 
     @Override
@@ -65,14 +65,14 @@ public class JdbcNotificationDao implements NotificationDao {
     ) {
         String id = UUID.randomUUID().toString();
         LocalDateTime timestamp = createdAt == null ? LocalDateTime.now() : createdAt;
-        try (Connection connection = databaseService.getConnection();
+        try (Connection connection = databaseConnection.getConnection();
              PreparedStatement statement = connection.prepareStatement(INSERT_NOTIFICATION_QUERY)) {
             statement.setString(1, id);
             statement.setString(2, userId);
             statement.setString(3, type.name());
             statement.setString(4, title);
             statement.setString(5, body);
-            setNullableString(statement, 6, auctionId);
+            JdbcUtil.setNullableString(statement, 6, auctionId);
             statement.setTimestamp(7, Timestamp.valueOf(timestamp));
             int updatedRows = statement.executeUpdate();
             if (updatedRows != 1) {
@@ -87,7 +87,7 @@ public class JdbcNotificationDao implements NotificationDao {
     @Override
     public List<Notification> findByUserId(String userId) {
         List<Notification> notifications = new ArrayList<>();
-        try (Connection connection = databaseService.getConnection();
+        try (Connection connection = databaseConnection.getConnection();
              PreparedStatement statement = connection.prepareStatement(FIND_BY_USER_ID_QUERY)) {
             statement.setString(1, userId);
             try (ResultSet resultSet = statement.executeQuery()) {
@@ -103,22 +103,13 @@ public class JdbcNotificationDao implements NotificationDao {
 
     @Override
     public boolean clearById(String userId, String notificationId) {
-        try (Connection connection = databaseService.getConnection();
+        try (Connection connection = databaseConnection.getConnection();
              PreparedStatement statement = connection.prepareStatement(CLEAR_BY_ID_QUERY)) {
             statement.setString(1, notificationId);
             statement.setString(2, userId);
             return statement.executeUpdate() == 1;
         } catch (SQLException e) {
             throw new DatabaseException("Failed to clear notification.", e);
-        }
-    }
-
-    private void ensureNotificationsTable() {
-        try (Connection connection = databaseService.getConnection();
-             Statement statement = connection.createStatement()) {
-            statement.executeUpdate(CREATE_NOTIFICATIONS_TABLE_QUERY);
-        } catch (SQLException e) {
-            throw new DatabaseException("Failed to create notifications table.", e);
         }
     }
 
@@ -138,11 +129,4 @@ public class JdbcNotificationDao implements NotificationDao {
         );
     }
 
-    private void setNullableString(PreparedStatement statement, int parameterIndex, String value) throws SQLException {
-        if (value == null || value.isBlank()) {
-            statement.setNull(parameterIndex, java.sql.Types.VARCHAR);
-            return;
-        }
-        statement.setString(parameterIndex, value);
-    }
 }

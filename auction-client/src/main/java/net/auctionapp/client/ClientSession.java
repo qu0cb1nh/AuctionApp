@@ -5,12 +5,10 @@ import net.auctionapp.common.utils.StringUtil;
 
 public final class ClientSession {
     private static final ClientSession INSTANCE = new ClientSession();
-    private static final String GUEST_USERNAME = "Guest";
 
     private String userId;
-    private String username = GUEST_USERNAME;
+    private String username = "Guest";
     private UserRole role = UserRole.USER;
-    private boolean authenticated;
 
     private ClientSession() {
     }
@@ -28,18 +26,16 @@ public final class ClientSession {
         this.userId = normalizedUserId;
         this.username = username == null || username.isBlank() ? normalizedUserId : username.trim();
         this.role = role == null ? UserRole.USER : role;
-        authenticated = true;
     }
 
     public synchronized void logout() {
         userId = null;
-        username = GUEST_USERNAME;
+        username = "Guest";
         role = UserRole.USER;
-        authenticated = false;
     }
 
     public synchronized boolean isAuthenticated() {
-        return authenticated && userId != null && !userId.isBlank();
+        return userId != null;
     }
 
     public synchronized String getUserId() {
