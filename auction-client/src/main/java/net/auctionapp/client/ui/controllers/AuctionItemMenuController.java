@@ -24,7 +24,9 @@ import javafx.util.StringConverter;
 import net.auctionapp.client.services.AuctionService;
 import net.auctionapp.client.services.WatchListService;
 import net.auctionapp.client.ClientSession;
+import net.auctionapp.client.ui.managers.NotificationToastManager;
 import net.auctionapp.client.ui.managers.SceneManager;
+import net.auctionapp.client.utils.DurationFormatUtil;
 import net.auctionapp.client.utils.ResourcesUtil;
 import net.auctionapp.common.exceptions.ValidationException;
 import net.auctionapp.common.messages.Message;
@@ -32,6 +34,7 @@ import net.auctionapp.common.messages.MessageType;
 import net.auctionapp.common.dto.BidView;
 import net.auctionapp.common.messages.auction.AuctionDetailsResponseMessage;
 import net.auctionapp.common.messages.auction.AuctionEndedResponseMessage;
+import net.auctionapp.common.messages.auction.AuctionUpdatedResponseMessage;
 import net.auctionapp.common.messages.auction.BidResponseMessage;
 import net.auctionapp.common.messages.auction.PriceUpdateResponseMessage;
 import net.auctionapp.common.messages.system.ErrorResponseMessage;
@@ -91,6 +94,8 @@ public class AuctionItemMenuController implements Initializable, AuctionContextC
     @FXML
     private Button placeBidButton;
     @FXML
+    private Button useMinimumBidButton;
+    @FXML
     private Button watchListButton;
     @FXML
     private VBox bidSection;
@@ -114,12 +119,15 @@ public class AuctionItemMenuController implements Initializable, AuctionContextC
     private boolean closeRefreshRequested;
     private boolean inWatchList;
     private boolean watchListStateLoaded;
+    private boolean bidActionAvailable;
+    private boolean bidRequestPending;
 
     @Override
     public void initialize(URL location, ResourceBundle resources) {
         appHeaderController.setupHeader("Auction Details");
         messageLabel.setText("");
         placeBidButton.setDisable(true);
+        useMinimumBidButton.setDisable(true);
         updateWatchListButton();
         auctionStatusLabel.setText("N/A");
         minimumNextBidLabel.setText("N/A");
@@ -170,6 +178,7 @@ public class AuctionItemMenuController implements Initializable, AuctionContextC
     public void handlePlaceBid(ActionEvent event) {
         try {
             BigDecimal bid = parseBidAmount(bidAmountField.getText(), minimumNextBid);
+            setBidRequestPending(true);
             AuctionService.getInstance().placeBid(currentAuctionId, bid, this::handleBidResult);
         } catch (IllegalArgumentException | ValidationException e) {
             setErrorMessage(e.getMessage());
@@ -197,6 +206,7 @@ public class AuctionItemMenuController implements Initializable, AuctionContextC
     private void registerEventListeners() {
         SceneManager.registerSceneMessageListener(MessageType.PRICE_UPDATE, this::handlePriceUpdate);
         SceneManager.registerSceneMessageListener(MessageType.AUCTION_ENDED, this::handleAuctionEnded);
+        SceneManager.registerSceneMessageListener(MessageType.AUCTION_UPDATED, this::handleAuctionUpdated);
         SceneManager.registerSceneMessageListener(MessageType.WATCH_LIST_CHANGED, this::handleWatchListChanged);
     }
 
@@ -261,6 +271,7 @@ public class AuctionItemMenuController implements Initializable, AuctionContextC
             return;
         }
         handleWatchListChanged(changed);
+        NotificationToastManager.showSuccess(watchListActionMessage(changed));
     }
 
     private void handleWatchListChanged(WatchListChangedResponseMessage changed) {
@@ -276,12 +287,21 @@ public class AuctionItemMenuController implements Initializable, AuctionContextC
         if (watchListButton == null) {
             return;
         }
-        watchListButton.setDisable(currentAuctionId == null || currentAuctionId.isBlank() || !watchListStateLoaded);
+        watchListButton.setDisable(
+                currentAuctionId == null || currentAuctionId.isBlank() || !watchListStateLoaded
+        );
         watchListButton.setText(inWatchList ? "Watching" : "Add to watchlist");
         watchListButton.pseudoClassStateChanged(WATCHING_STATE, inWatchList);
     }
 
+    private String watchListActionMessage(WatchListChangedResponseMessage changed) {
+        return changed.isWatched()
+                ? "Auction added to your watchlist."
+                : "Auction removed from your watchlist.";
+    }
+
     private void handleBidResult(Message message) {
+        setBidRequestPending(false);
         if (message instanceof ErrorResponseMessage errorMessage) {
             setErrorMessage(errorMessage.getErrorMessage());
             return;
@@ -301,6 +321,7 @@ public class AuctionItemMenuController implements Initializable, AuctionContextC
             }
             setAuctionEndTime(result.getEndTime());
             setSuccessMessage(result.getMessage());
+            NotificationToastManager.showSuccess(result.getMessage());
             bidAmountField.clear();
             requestAuctionDetails();
             return;
@@ -338,6 +359,12 @@ public class AuctionItemMenuController implements Initializable, AuctionContextC
         closeRefreshRequested = true;
         applyClosedBidState();
         requestAuctionDetails();
+    }
+
+    private void handleAuctionUpdated(AuctionUpdatedResponseMessage update) {
+        if (update != null && currentAuctionId.equals(update.getAuctionId())) {
+            requestAuctionDetails();
+        }
     }
 
     private void renderBidHistory(List<BidView> bidHistory) {
@@ -445,7 +472,9 @@ public class AuctionItemMenuController implements Initializable, AuctionContextC
             return;
         }
         if (!session.isAuthenticated()) {
-            placeBidButton.setDisable(true);
+            bidActionAvailable = false;
+            updatePlaceBidButtonState();
+            useMinimumBidButton.setDisable(true);
             setInfoMessage("Please log in before bidding.");
             return;
         }
@@ -455,13 +484,17 @@ public class AuctionItemMenuController implements Initializable, AuctionContextC
                 && response.getSellerId().equalsIgnoreCase(currentUserId);
 
         if (isSellerViewingOwnAuction) {
-            placeBidButton.setDisable(true);
+            bidActionAvailable = false;
+            updatePlaceBidButtonState();
+            useMinimumBidButton.setDisable(true);
             setInfoMessage("You are the seller of this auction, so bidding is disabled.");
             return;
         }
 
         if (response.getStatus() != AuctionStatus.RUNNING) {
-            placeBidButton.setDisable(true);
+            bidActionAvailable = false;
+            updatePlaceBidButtonState();
+            useMinimumBidButton.setDisable(true);
             String state = response.getStatus() == null
                     ? "unavailable"
                     : response.getStatus().name().toLowerCase(Locale.ROOT);
@@ -469,7 +502,9 @@ public class AuctionItemMenuController implements Initializable, AuctionContextC
             return;
         }
 
-        placeBidButton.setDisable(false);
+        bidActionAvailable = true;
+        updatePlaceBidButtonState();
+        useMinimumBidButton.setDisable(false);
         if (minimumNextBid == null) {
             setInfoMessage("Place a bid higher than $" + currentHighestBid.toPlainString());
             return;
@@ -486,11 +521,7 @@ public class AuctionItemMenuController implements Initializable, AuctionContextC
         if (duration.isNegative() || duration.isZero()) {
             return "Ended";
         }
-        long totalSeconds = duration.getSeconds();
-        long hours = totalSeconds / 3600;
-        long minutes = (totalSeconds % 3600) / 60;
-        long seconds = totalSeconds % 60;
-        return String.format("%02d:%02d:%02d", hours, minutes, seconds);
+        return DurationFormatUtil.formatRemainingDuration(duration);
     }
 
     private String formatTopBidder(String leadingBidderId) {
@@ -603,10 +634,21 @@ public class AuctionItemMenuController implements Initializable, AuctionContextC
 
     private void applyClosedBidState() {
         setBidSectionVisible(false);
-        placeBidButton.setDisable(true);
+        bidActionAvailable = false;
+        updatePlaceBidButtonState();
+        useMinimumBidButton.setDisable(true);
         stopCountdownTimer();
         timeRemainingLabel.setText("Ended");
         updateTimeRemainingStyle(LocalDateTime.now());
+    }
+
+    private void updatePlaceBidButtonState() {
+        placeBidButton.setDisable(!bidActionAvailable || bidRequestPending);
+    }
+
+    private void setBidRequestPending(boolean pending) {
+        bidRequestPending = pending;
+        updatePlaceBidButtonState();
     }
 
     private void setSuccessMessage(String text) {

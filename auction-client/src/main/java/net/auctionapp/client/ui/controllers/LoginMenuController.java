@@ -73,6 +73,8 @@ public class LoginMenuController implements Initializable {
 
         } else if (message.getType() == MessageType.LOGIN_FAILURE) {
             assistantPanelController.speak(result.getMessage(), AssistantPanelController.Tone.ERROR);
+        } else {
+            assistantPanelController.speak("Unexpected response from server.", AssistantPanelController.Tone.ERROR);
         }
     }
 

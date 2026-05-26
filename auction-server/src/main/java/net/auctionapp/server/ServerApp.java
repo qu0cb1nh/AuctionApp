@@ -124,6 +124,10 @@ public class ServerApp {
         }
     }
 
+    public static Set<ClientHandler> getConnectedClients() {
+        return Set.copyOf(CLIENTS);
+    }
+
     public static void shutdown() {
         if (!RUNNING.compareAndSet(true, false)) {
             return;

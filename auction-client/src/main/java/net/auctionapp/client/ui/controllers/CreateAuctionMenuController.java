@@ -18,6 +18,7 @@ import javafx.scene.image.ImageView;
 import javafx.scene.layout.VBox;
 import javafx.stage.FileChooser;
 import net.auctionapp.client.ui.managers.SceneManager;
+import net.auctionapp.client.ui.managers.NotificationToastManager;
 import net.auctionapp.client.services.AuctionService;
 import net.auctionapp.client.ClientSession;
 import net.auctionapp.client.utils.ResourcesUtil;
@@ -162,6 +163,7 @@ public class CreateAuctionMenuController implements Initializable {
         try {
             CreateItemRequestMessage request = buildRequestFromForm();
             setStatus("Creating auction...", null);
+            createAuctionButton.setDisable(true);
             AuctionService.getInstance().createAuction(request, this::handleCreateResponse);
         } catch (IllegalArgumentException ex) {
             setStatus(ex.getMessage(), ERROR_STATE);
@@ -298,6 +300,7 @@ public class CreateAuctionMenuController implements Initializable {
     }
 
     private void handleCreateResponse(Message message) {
+        createAuctionButton.setDisable(false);
         if (message instanceof ErrorResponseMessage errorMessage) {
             setStatus(errorMessage.getErrorMessage(), ERROR_STATE);
             return;
@@ -310,7 +313,8 @@ public class CreateAuctionMenuController implements Initializable {
                 ? result.getMessage()
                 : result.getMessage() + " Image uploaded.";
         setStatus(responseText, SUCCESS_STATE);
-        SceneManager.switchSceneWithDelay("AuctionListMenu.fxml", 600);
+        NotificationToastManager.showSuccess(responseText);
+        SceneManager.switchToAuctionDetails(result.getAuctionId());
     }
 
     private void setImageStatus(String text, boolean error) {

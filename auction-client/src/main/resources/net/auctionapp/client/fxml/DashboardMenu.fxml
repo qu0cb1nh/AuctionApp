@@ -8,7 +8,7 @@
 <?import javafx.scene.layout.BorderPane?>
 <?import javafx.scene.layout.VBox?>
 
-<BorderPane prefHeight="634.0" prefWidth="967.0" style="-fx-background-color: #f4f4f4;" xmlns="http://javafx.com/javafx/25" xmlns:fx="http://javafx.com/fxml/1" fx:controller="net.auctionapp.client.ui.controllers.DashboardMenuController">
+<BorderPane prefHeight="634.0" prefWidth="967.0" style="-fx-background-color: #f4f4f4;" stylesheets="@../styles/ui-states.css" xmlns="http://javafx.com/javafx/25" xmlns:fx="http://javafx.com/fxml/1" fx:controller="net.auctionapp.client.ui.controllers.DashboardMenuController">
    <center>
       <VBox alignment="CENTER" maxHeight="-Infinity" maxWidth="-Infinity" prefHeight="500.0" prefWidth="450.0" BorderPane.alignment="CENTER">
          <children>

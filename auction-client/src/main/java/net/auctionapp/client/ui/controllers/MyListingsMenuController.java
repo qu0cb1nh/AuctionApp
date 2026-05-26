@@ -15,8 +15,8 @@ import net.auctionapp.client.services.AuctionService;
 import net.auctionapp.client.services.WatchListService;
 import net.auctionapp.client.ui.controllers.components.AuctionCardController;
 import net.auctionapp.client.ui.controllers.components.HeaderController;
+import net.auctionapp.client.ui.managers.NotificationToastManager;
 import net.auctionapp.client.ui.managers.SceneManager;
-import net.auctionapp.client.utils.DurationFormatUtil;
 import net.auctionapp.client.utils.ResourcesUtil;
 import net.auctionapp.common.auction.AuctionStatus;
 import net.auctionapp.common.items.ItemType;
@@ -31,7 +31,6 @@ import net.auctionapp.common.messages.watchlist.WatchListResponseMessage;
 import java.io.IOException;
 import java.math.BigDecimal;
 import java.net.URL;
-import java.time.Duration;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
@@ -193,12 +192,12 @@ public class MyListingsMenuController implements Initializable {
                 AuctionCardController.TextTone.MUTED,
                 "Auction state: " + listing.auctionStatus().name(),
                 "Starting price: " + formatMoney(listing.startingPrice()),
-                formatTimingLabel(listing.endTime(), listing.auctionStatus()),
+                null,
                 active ? "Current Price" : "Final Price",
                 formatMoney(listing.currentPrice()),
                 active ? AuctionCardController.TextTone.PRIMARY : AuctionCardController.TextTone.DEFAULT,
-                "Ends At",
-                formatDateTime(listing.endTime()),
+                active ? "Ends In" : "Ended At",
+                active ? "00:00:00" : formatDateTime(listing.endTime()),
                 AuctionCardController.TextTone.DEFAULT,
                 bidderCaption(listing),
                 bidderValue(listing),
@@ -213,19 +212,20 @@ public class MyListingsMenuController implements Initializable {
                 watchListLoaded ? formatWatchListButtonText(listing.auctionId()) : null,
                 watchListLoaded ? () -> handleToggleWatchList(listing.auctionId()) : null
         );
-        return loadAuctionCardComponent(cardData);
+        return loadAuctionCardComponent(cardData, active ? listing.endTime() : null);
     }
 
     private void handleManageAuction(String auctionId) {
         SceneManager.switchToManageAuction(auctionId);
     }
 
-    private HBox loadAuctionCardComponent(AuctionCardController.CardData cardData) {
+    private HBox loadAuctionCardComponent(AuctionCardController.CardData cardData, LocalDateTime countdownEndTime) {
         try {
             FXMLLoader loader = ResourcesUtil.fxmlLoader("components/AuctionCard.fxml");
             HBox card = loader.load();
             AuctionCardController controller = loader.getController();
             controller.bindCard(cardData);
+            controller.startMetricTwoCountdown(countdownEndTime);
             return card;
         } catch (IOException | RuntimeException e) {
             Label fallback = new Label("Failed to load listing card.");
@@ -354,19 +354,6 @@ public class MyListingsMenuController implements Initializable {
         return time == null ? "N/A" : CARD_TIME_FORMATTER.format(time);
     }
 
-    private String formatTimingLabel(LocalDateTime endTime, AuctionStatus auctionStatus) {
-        if (endTime == null) {
-            return "End time: N/A";
-        }
-        if (auctionStatus == AuctionStatus.RUNNING) {
-            Duration remaining = Duration.between(LocalDateTime.now(), endTime);
-            if (!remaining.isNegative() && !remaining.isZero()) {
-                return "Ends in: " + DurationFormatUtil.formatRemainingDuration(remaining);
-            }
-        }
-        return "Ended at: " + CARD_TIME_FORMATTER.format(endTime);
-    }
-
     private boolean isActive(AuctionDetailsResponseMessage response) {
         return response != null
                 && response.getStatus() == AuctionStatus.RUNNING
@@ -399,6 +386,7 @@ public class MyListingsMenuController implements Initializable {
         }
         if (message instanceof WatchListChangedResponseMessage changed) {
             handleWatchListChanged(changed);
+            NotificationToastManager.showSuccess(watchListActionMessage(changed));
         }
     }
 
@@ -412,6 +400,12 @@ public class MyListingsMenuController implements Initializable {
             watchedAuctionIds.remove(changed.getAuctionId());
         }
         applyFilters();
+    }
+
+    private String watchListActionMessage(WatchListChangedResponseMessage changed) {
+        return changed.isWatched()
+                ? "Auction added to your watchlist."
+                : "Auction removed from your watchlist.";
     }
 
     private String formatWatchListButtonText(String auctionId) {

@@ -94,7 +94,7 @@
                         <HBox alignment="CENTER_LEFT" spacing="15.0">
                             <children>
                                 <TextField fx:id="bidAmountField" prefWidth="250.0" promptText="Enter higher amount..." style="-fx-background-radius: 20px; -fx-padding: 10px 15px; -fx-font-size: 14px;" />
-                                <Button mnemonicParsing="false" onAction="#handleUseMinimumBid" style="-fx-background-color: #e7f8fb; -fx-text-fill: #217b93; -fx-background-radius: 20px; -fx-padding: 10px 18px; -fx-font-weight: bold; -fx-cursor: hand;" text="Use minimum" />
+                                <Button fx:id="useMinimumBidButton" mnemonicParsing="false" onAction="#handleUseMinimumBid" style="-fx-background-color: #e7f8fb; -fx-text-fill: #217b93; -fx-background-radius: 20px; -fx-padding: 10px 18px; -fx-font-weight: bold; -fx-cursor: hand;" text="Use minimum" />
                                 <Button fx:id="placeBidButton" mnemonicParsing="false" onAction="#handlePlaceBid" style="-fx-background-color: #3bb3c3; -fx-text-fill: white; -fx-background-radius: 20px; -fx-padding: 10px 30px; -fx-font-weight: bold; -fx-cursor: hand;" text="Place Bid" />
                             </children>
                         </HBox>

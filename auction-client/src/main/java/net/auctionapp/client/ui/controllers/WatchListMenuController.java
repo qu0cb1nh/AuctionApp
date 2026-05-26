@@ -12,6 +12,7 @@ import net.auctionapp.client.ClientSession;
 import net.auctionapp.client.services.WatchListService;
 import net.auctionapp.client.ui.controllers.components.AuctionCardController;
 import net.auctionapp.client.ui.controllers.components.HeaderController;
+import net.auctionapp.client.ui.managers.NotificationToastManager;
 import net.auctionapp.client.ui.managers.SceneManager;
 import net.auctionapp.client.utils.ResourcesUtil;
 import net.auctionapp.common.messages.Message;
@@ -149,6 +150,7 @@ public class WatchListMenuController implements Initializable {
         }
         if (message instanceof WatchListChangedResponseMessage changed) {
             handleWatchListChanged(changed);
+            NotificationToastManager.showSuccess("Auction removed from your watchlist.");
             return;
         }
         showListStatus("Unexpected response from server.", true);

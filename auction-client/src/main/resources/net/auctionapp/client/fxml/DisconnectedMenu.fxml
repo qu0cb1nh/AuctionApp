@@ -7,7 +7,7 @@
 <?import javafx.scene.layout.VBox?>
 <?import javafx.scene.text.Font?>
 
-<StackPane prefHeight="634.0" prefWidth="967.0" style="-fx-background-color: white;" xmlns="http://javafx.com/javafx/25" xmlns:fx="http://javafx.com/fxml/1" fx:controller="net.auctionapp.client.ui.controllers.DisconnectedMenuController">
+<StackPane prefHeight="634.0" prefWidth="967.0" style="-fx-background-color: white;" stylesheets="@../styles/ui-states.css" xmlns="http://javafx.com/javafx/25" xmlns:fx="http://javafx.com/fxml/1" fx:controller="net.auctionapp.client.ui.controllers.DisconnectedMenuController">
    <children>
       <VBox alignment="CENTER" maxWidth="420.0" spacing="20.0">
          <children>

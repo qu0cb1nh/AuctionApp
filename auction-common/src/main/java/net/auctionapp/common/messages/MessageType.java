@@ -181,6 +181,11 @@ public enum MessageType {
     AUCTION_ACTION_SUCCESS,
 
     /**
+     * (Push) Notifies clients that auction management changed an auction.
+     */
+    AUCTION_UPDATED,
+
+    /**
      * Response to the bidding client that their bid was accepted.
      */
     BID_ACCEPTED,

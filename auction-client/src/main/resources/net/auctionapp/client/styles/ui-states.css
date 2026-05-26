@@ -1,3 +1,21 @@
+.button:hover,
+.auction-card-watch-button:hover,
+.notification-clear-button:hover {
+    -fx-opacity: 0.86;
+}
+
+.button:pressed,
+.auction-card-watch-button:pressed,
+.notification-clear-button:pressed {
+    -fx-opacity: 0.72;
+}
+
+.button:disabled,
+.auction-card-watch-button:disabled,
+.notification-clear-button:disabled {
+    -fx-opacity: 0.55;
+}
+
 .list-status {
     -fx-font-size: 12px;
     -fx-text-fill: #666666;

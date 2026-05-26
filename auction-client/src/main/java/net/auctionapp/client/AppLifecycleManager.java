@@ -154,7 +154,6 @@ public final class AppLifecycleManager {
         NotificationType type = notification.getType();
         return type == NotificationType.OUTBID
                 || type == NotificationType.AUCTION_WON
-                || type == NotificationType.AUCTION_SELLER_RESULT
                 || type == NotificationType.WATCH_LIST_ENDING_SOON;
     }
 

@@ -75,6 +75,8 @@ public class RegisterMenuController implements Initializable {
             SceneManager.resetAndSwitchSceneWithDelay("LoginMenu.fxml", 1500);
         } else if (message.getType() == MessageType.REGISTER_FAILURE) {
             assistantPanelController.speak(result.getMessage(), AssistantPanelController.Tone.ERROR);
+        } else {
+            assistantPanelController.speak("Unexpected response from server.", AssistantPanelController.Tone.ERROR);
         }
     }
 
