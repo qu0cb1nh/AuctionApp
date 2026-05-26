@@ -47,3 +47,25 @@ CLOUDINARY_URL=cloudinary://API_KEY:API_SECRET@CLOUD_NAME
 Notes:
 - `.env` is ignored by git and must stay local.
 - Use real OS environment variables in production/CI instead of `.env`.
+
+
+## Wallet Mechanism & Money Flow
+The application uses an internal wallet system to manage funds securely during auctions.
+
+### Dual-Balance Model
+Users have two separate balance types to ensure financial commitment:
+- Available Balance: Liquid funds for bidding or withdrawal.
+- Pending Balance: Funds "locked" in active bids. These are restricted until the auction concludes.
+
+### Deposit & Withdrawal
+- Deposit: Funds are added directly to the Available Balance.
+- Withdrawal: Only Available Balance can be withdrawn. Funds locked in bids cannot be moved until released.
+
+### Money Flow Lifecycle
+1. **Placing a Bid (Locking Funds):** When a bid is placed, the system verifies the user's Available Balance. If valid, the full bid amount is moved to the Pending Balance. The funds remain in the user's account but are no longer spendable.
+2. **Updating a Bid (Incremental Commitment):** Increasing a bid only moves the incremental difference from Available to Pending.The previous bid amount remains unchanged
+3. **Auction Settlement:** When an auction ends, the system automatically resolves the committed funds:
+    - Winning Bidder: Committed funds are deducted from their Pending Balance and transferred to the seller's account.
+    - Other Participants: Their locked funds are moved back from Pending to Available Balance, restoring their liquidity.
+    - Seller: Receives the winning amount directly into their Available Balance upon successful settlement.
+
