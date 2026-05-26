@@ -1,6 +1,5 @@
 module net.auctionapp.common {
     requires com.google.gson;
-    requires io.github.cdimascio.dotenv.java;
     requires org.slf4j;
 
     exports net.auctionapp.common.exceptions;

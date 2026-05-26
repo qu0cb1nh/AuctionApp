@@ -4,7 +4,6 @@ import net.auctionapp.common.users.UserRole;
 import net.auctionapp.server.ClientHandler;
 import net.auctionapp.common.utils.StringUtil;
 
-import java.util.Collections;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;

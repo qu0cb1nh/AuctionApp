@@ -3,11 +3,8 @@ package net.auctionapp.client.ui.controllers;
 import net.auctionapp.client.ui.controllers.components.AssistantPanelController;
 
 import javafx.fxml.FXML;
-import javafx.fxml.Initializable;
-import javafx.scene.control.Button;
 import javafx.scene.control.PasswordField;
 import javafx.scene.control.TextField;
-import javafx.scene.input.MouseEvent;
 import net.auctionapp.client.ui.managers.SceneManager;
 import net.auctionapp.client.services.AuthService;
 import net.auctionapp.common.exceptions.ValidationException;
@@ -17,13 +14,9 @@ import net.auctionapp.common.messages.auth.RegisterResponseMessage;
 import net.auctionapp.common.messages.system.ErrorResponseMessage;
 import net.auctionapp.common.utils.CredentialUtil;
 
-import java.net.URL;
-import java.util.ResourceBundle;
-
-public class RegisterMenuController implements Initializable {
+public class RegisterMenuController {
     private final AuthService authService = AuthService.getInstance();
 
-    // Fields for the registration form.
     @FXML
     private TextField usernameField;
 
@@ -34,17 +27,8 @@ public class RegisterMenuController implements Initializable {
     private PasswordField confirmPasswordField;
 
     @FXML
-    private Button registerButton;
-
-    @FXML
     private AssistantPanelController assistantPanelController;
 
-    @Override
-    public void initialize(URL url, ResourceBundle resourceBundle) {
-        // No persistent message listeners are required for register request/response flow.
-    }
-
-    // Triggered when the user clicks "Register".
     @FXML
     public void handleRegister() {
         String username = usernameField.getText() == null ? "" : usernameField.getText().trim();
@@ -81,7 +65,7 @@ public class RegisterMenuController implements Initializable {
     }
 
     @FXML
-    public void switchToLogin(MouseEvent event) {
+    public void switchToLogin() {
         SceneManager.resetAndSwitchScene("LoginMenu.fxml");
     }
 }

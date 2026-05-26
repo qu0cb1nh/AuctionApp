@@ -1,5 +1,6 @@
 package net.auctionapp.client.services;
 
+import net.auctionapp.client.messages.MessageListener;
 import net.auctionapp.common.messages.Message;
 import net.auctionapp.common.messages.wallet.DepositRequestMessage;
 import net.auctionapp.common.messages.wallet.GetWalletRequestMessage;
@@ -22,12 +23,10 @@ public final class WalletService {
     }
 
     public void deposit(BigDecimal amount, MessageListener<Message> callback) {
-        DepositRequestMessage request = new DepositRequestMessage(amount);
-        NetworkService.getInstance().sendRequest(request, callback);
+        NetworkService.getInstance().sendRequest(new DepositRequestMessage(amount), callback);
     }
 
     public void withdraw(BigDecimal amount, MessageListener<Message> callback) {
-        WithdrawRequestMessage request = new WithdrawRequestMessage(amount);
-        NetworkService.getInstance().sendRequest(request, callback);
+        NetworkService.getInstance().sendRequest(new WithdrawRequestMessage(amount), callback);
     }
 }

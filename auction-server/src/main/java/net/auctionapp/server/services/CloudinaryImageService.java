@@ -4,8 +4,8 @@ import com.cloudinary.Cloudinary;
 import com.cloudinary.utils.ObjectUtils;
 import net.auctionapp.common.exceptions.ValidationException;
 import net.auctionapp.common.messages.auction.CreateItemRequestMessage;
-import net.auctionapp.common.utils.ConfigUtil;
 import net.auctionapp.server.exceptions.ImageStorageException;
+import net.auctionapp.server.utils.EnvUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -22,7 +22,7 @@ public final class CloudinaryImageService {
     private final Cloudinary cloudinary;
 
     private CloudinaryImageService() {
-        String cloudinaryUrl = ConfigUtil.getCloudinaryUrl();
+        String cloudinaryUrl = EnvUtil.getCloudinaryUrl();
         if (cloudinaryUrl.isBlank()) {
             cloudinary = null;
             return;

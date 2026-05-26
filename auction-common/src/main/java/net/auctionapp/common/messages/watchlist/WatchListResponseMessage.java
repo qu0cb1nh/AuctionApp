@@ -15,10 +15,10 @@ public class WatchListResponseMessage extends Message {
 
     public WatchListResponseMessage(List<AuctionSummary> auctions) {
         super(MessageType.WATCH_LIST_RESPONSE);
-        this.auctions = auctions;
+        this.auctions = auctions == null ? List.of() : List.copyOf(auctions);
     }
 
     public List<AuctionSummary> getAuctions() {
-        return auctions == null ? List.of() : auctions;
+        return auctions == null ? List.of() : List.copyOf(auctions);
     }
 }

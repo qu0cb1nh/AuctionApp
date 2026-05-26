@@ -15,10 +15,10 @@ public class NotificationsResponseMessage extends Message {
 
     public NotificationsResponseMessage(List<Notification> notifications) {
         super(MessageType.NOTIFICATIONS_RESPONSE);
-        this.notifications = notifications;
+        this.notifications = notifications == null ? List.of() : List.copyOf(notifications);
     }
 
     public List<Notification> getNotifications() {
-        return notifications == null ? List.of() : notifications;
+        return notifications == null ? List.of() : List.copyOf(notifications);
     }
 }

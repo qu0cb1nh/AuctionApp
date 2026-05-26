@@ -1,10 +1,7 @@
 package net.auctionapp.client.ui.controllers;
 
-import javafx.event.ActionEvent;
 import javafx.css.PseudoClass;
 import javafx.fxml.FXML;
-import javafx.fxml.FXMLLoader;
-import javafx.fxml.Initializable;
 import javafx.scene.control.ComboBox;
 import javafx.scene.control.Label;
 import javafx.scene.control.TextField;
@@ -14,10 +11,12 @@ import net.auctionapp.client.ClientSession;
 import net.auctionapp.client.services.AuctionService;
 import net.auctionapp.client.services.WatchListService;
 import net.auctionapp.client.ui.controllers.components.AuctionCardController;
+import net.auctionapp.client.utils.AuctionCardUtil;
 import net.auctionapp.client.ui.controllers.components.HeaderController;
 import net.auctionapp.client.ui.managers.NotificationToastManager;
 import net.auctionapp.client.ui.managers.SceneManager;
-import net.auctionapp.client.utils.ResourcesUtil;
+import net.auctionapp.client.utils.AuctionDisplayUtil;
+import net.auctionapp.client.utils.FxViewUtil;
 import net.auctionapp.common.auction.AuctionStatus;
 import net.auctionapp.common.items.ItemType;
 import net.auctionapp.common.messages.Message;
@@ -28,22 +27,17 @@ import net.auctionapp.common.messages.system.ErrorResponseMessage;
 import net.auctionapp.common.messages.watchlist.WatchListChangedResponseMessage;
 import net.auctionapp.common.messages.watchlist.WatchListResponseMessage;
 
-import java.io.IOException;
 import java.math.BigDecimal;
-import java.net.URL;
 import java.time.LocalDateTime;
-import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Optional;
-import java.util.ResourceBundle;
 import java.util.Set;
 
-public class MyListingsMenuController implements Initializable {
-    private static final DateTimeFormatter CARD_TIME_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm");
+public class MyListingsMenuController {
     private static final PseudoClass ERROR_STATE = PseudoClass.getPseudoClass("error");
     private static final String STATUS_ACTIVE = "Active";
     private static final String STATUS_SOLD = "Sold";
@@ -67,20 +61,19 @@ public class MyListingsMenuController implements Initializable {
     private boolean watchListLoaded;
     private boolean listingsLoading;
 
-    @Override
-    public void initialize(URL location, ResourceBundle resources) {
+    @FXML
+    public void initialize() {
         appHeaderController.setupHeader("My Listings");
         statusFilterComboBox.getItems().setAll(STATUS_ACTIVE, STATUS_SOLD, STATUS_CANCELED);
         statusFilterComboBox.getSelectionModel().select(STATUS_ACTIVE);
-        summaryLabel.setManaged(false);
-        summaryLabel.setVisible(false);
+        FxViewUtil.setVisible(summaryLabel, false);
         SceneManager.registerSceneMessageListener(MessageType.WATCH_LIST_CHANGED, this::handleWatchListChanged);
-        requestWatchList();
+        WatchListService.getInstance().requestWatchList(this::handleWatchListResponse);
         loadListings();
     }
 
     @FXML
-    public void handleRefresh(ActionEvent event) {
+    public void handleRefresh() {
         loadListings();
     }
 
@@ -100,14 +93,14 @@ public class MyListingsMenuController implements Initializable {
     private void handleListingsRequestResult(Message message) {
         listingsLoading = false;
         if (message instanceof ErrorResponseMessage errorMessage) {
-            handleErrorResponse(errorMessage);
+            showStatus(errorMessage.getErrorMessage(), true);
             return;
         }
         if (!(message instanceof AuctionDetailsListResponseMessage response)) {
             showStatus("Unexpected response from server.", true);
             return;
         }
-        String currentUserId = resolveCurrentUserId();
+        String currentUserId = ClientSession.getInstance().getUserId();
         allListings.clear();
         allListings.addAll(
                 response.getAuctions().stream()
@@ -121,10 +114,6 @@ public class MyListingsMenuController implements Initializable {
         applyFilters();
     }
 
-    private void requestWatchList() {
-        WatchListService.getInstance().requestWatchList(this::handleWatchListResponse);
-    }
-
     private void handleWatchListResponse(Message message) {
         if (!(message instanceof WatchListResponseMessage response)) {
             return;
@@ -132,13 +121,10 @@ public class MyListingsMenuController implements Initializable {
         watchedAuctionIds.clear();
         response.getAuctions().stream()
                 .filter(auction -> auction != null && auction.getAuctionId() != null)
-                .forEach(auction -> watchedAuctionIds.add(auction.getAuctionId()));
+                .map(auction -> auction.getAuctionId())
+                .forEach(watchedAuctionIds::add);
         watchListLoaded = true;
         applyFilters();
-    }
-
-    private void handleErrorResponse(ErrorResponseMessage errorMessage) {
-        showStatus(errorMessage.getErrorMessage(), true);
     }
 
     private void applyFilters() {
@@ -157,7 +143,7 @@ public class MyListingsMenuController implements Initializable {
         renderListingCards(filtered, !allListings.isEmpty());
         updateSummary();
         if (!listingsLoading) {
-            hideStatus();
+            showStatus(null, false);
         }
     }
 
@@ -188,16 +174,16 @@ public class MyListingsMenuController implements Initializable {
                 listing.imageUrl(),
                 listing.itemType(),
                 listing.title(),
-                "Owner: " + formatOwner(listing.sellerUsername()),
+                "Owner: " + AuctionDisplayUtil.formatOwner(listing.sellerUsername()),
                 AuctionCardController.TextTone.MUTED,
                 "Auction state: " + listing.auctionStatus().name(),
-                "Starting price: " + formatMoney(listing.startingPrice()),
+                "Starting price: " + AuctionDisplayUtil.formatPrice(listing.startingPrice()),
                 null,
                 active ? "Current Price" : "Final Price",
-                formatMoney(listing.currentPrice()),
+                AuctionDisplayUtil.formatPrice(listing.currentPrice()),
                 active ? AuctionCardController.TextTone.PRIMARY : AuctionCardController.TextTone.DEFAULT,
                 active ? "Ends In" : "Ended At",
-                active ? "00:00:00" : formatDateTime(listing.endTime()),
+                active ? "00:00:00" : AuctionDisplayUtil.formatDateTime(listing.endTime()),
                 AuctionCardController.TextTone.DEFAULT,
                 bidderCaption(listing),
                 bidderValue(listing),
@@ -206,32 +192,19 @@ public class MyListingsMenuController implements Initializable {
                 () -> {
             statusLabel.setText("Opening listing: " + listing.title());
             SceneManager.switchToAuctionDetails(listing.auctionId());
-        },
+                },
                 canManageAuction ? "Manage auction" : null,
-                canManageAuction ? () -> handleManageAuction(listing.auctionId()) : null,
-                watchListLoaded ? formatWatchListButtonText(listing.auctionId()) : null,
+                canManageAuction ? () -> SceneManager.switchToManageAuction(listing.auctionId()) : null,
+                watchListLoaded
+                        ? AuctionDisplayUtil.watchListButtonText(watchedAuctionIds.contains(listing.auctionId()))
+                        : null,
                 watchListLoaded ? () -> handleToggleWatchList(listing.auctionId()) : null
         );
-        return loadAuctionCardComponent(cardData, active ? listing.endTime() : null);
-    }
-
-    private void handleManageAuction(String auctionId) {
-        SceneManager.switchToManageAuction(auctionId);
-    }
-
-    private HBox loadAuctionCardComponent(AuctionCardController.CardData cardData, LocalDateTime countdownEndTime) {
-        try {
-            FXMLLoader loader = ResourcesUtil.fxmlLoader("components/AuctionCard.fxml");
-            HBox card = loader.load();
-            AuctionCardController controller = loader.getController();
-            controller.bindCard(cardData);
-            controller.startMetricTwoCountdown(countdownEndTime);
-            return card;
-        } catch (IOException | RuntimeException e) {
-            Label fallback = new Label("Failed to load listing card.");
-            fallback.getStyleClass().add("load-error");
-            return new HBox(fallback);
-        }
+        return AuctionCardUtil.createWithMetricCountdown(
+                cardData,
+                active ? listing.endTime() : null,
+                "Failed to load listing card."
+        );
     }
 
     private Optional<ListingCard> toListingCard(AuctionDetailsResponseMessage response, String currentUserId) {
@@ -242,7 +215,7 @@ public class MyListingsMenuController implements Initializable {
             return Optional.empty();
         }
 
-        int bidCount = response.getBidHistory() == null ? 0 : response.getBidHistory().size();
+        int bidCount = response.getBidHistory().size();
         return Optional.of(new ListingCard(
                 response.getAuctionId(),
                 response.getTitle(),
@@ -252,20 +225,12 @@ public class MyListingsMenuController implements Initializable {
                 response.getSellerUsername(),
                 response.getStartingPrice(),
                 response.getCurrentPrice(),
-                bidCount,
                 response.getEndTime(),
-                displayUsername(response.getLeadingBidderUsername(), response.getLeadingBidderId()),
+                AuctionDisplayUtil.displayUsername(response.getLeadingBidderUsername(), response.getLeadingBidderId()),
                 resolveWinner(response),
                 response.getImageUrl(),
                 response.getItemType()
         ));
-    }
-
-    private String resolveCurrentUserId() {
-        if (ClientSession.getInstance().getUserId() == null || ClientSession.getInstance().getUserId().isBlank()) {
-            return "";
-        }
-        return ClientSession.getInstance().getUserId();
     }
 
     private String deriveListingStatus(AuctionDetailsResponseMessage response, int bidCount) {
@@ -283,24 +248,19 @@ public class MyListingsMenuController implements Initializable {
 
     private String resolveWinner(AuctionDetailsResponseMessage response) {
         if (response.getWinnerBidderId() != null && !response.getWinnerBidderId().isBlank()) {
-            return displayUsername(response.getWinnerBidderUsername(), response.getWinnerBidderId());
+            return AuctionDisplayUtil.displayUsername(response.getWinnerBidderUsername(), response.getWinnerBidderId());
         }
         if (response.getStatus() != AuctionStatus.CANCELED
                 && isFinished(response)
                 && response.getLeadingBidderId() != null
                 && !response.getLeadingBidderId().isBlank()) {
-            return displayUsername(response.getLeadingBidderUsername(), response.getLeadingBidderId());
+            return AuctionDisplayUtil.displayUsername(response.getLeadingBidderUsername(), response.getLeadingBidderId());
         }
         return null;
     }
 
-    private String displayUsername(String username, String userId) {
-        return username == null || username.isBlank() ? userId : username;
-    }
-
     private boolean hasWinner(AuctionDetailsResponseMessage response) {
-        return response != null
-                && response.getWinnerBidderId() != null
+        return response.getWinnerBidderId() != null
                 && !response.getWinnerBidderId().isBlank();
     }
 
@@ -313,18 +273,8 @@ public class MyListingsMenuController implements Initializable {
         };
     }
 
-    private String formatMoney(BigDecimal amount) {
-        if (amount == null) {
-            return "N/A";
-        }
-        return "$" + amount.stripTrailingZeros().toPlainString();
-    }
-
     private String safeWinnerName(String winner) {
-        if (winner == null || winner.isBlank()) {
-            return "No winner";
-        }
-        return winner;
+        return winner == null || winner.isBlank() ? "No winner" : winner;
     }
 
     private String bidderCaption(ListingCard listing) {
@@ -346,47 +296,39 @@ public class MyListingsMenuController implements Initializable {
                 : listing.leadingBidderName();
     }
 
-    private String formatOwner(String sellerUsername) {
-        return sellerUsername == null || sellerUsername.isBlank() ? "Unknown" : sellerUsername;
-    }
-
-    private String formatDateTime(LocalDateTime time) {
-        return time == null ? "N/A" : CARD_TIME_FORMATTER.format(time);
-    }
-
     private boolean isActive(AuctionDetailsResponseMessage response) {
-        return response != null
-                && response.getStatus() == AuctionStatus.RUNNING
+        return response.getStatus() == AuctionStatus.RUNNING
                 && response.getEndTime() != null
                 && LocalDateTime.now().isBefore(response.getEndTime());
     }
 
     private boolean isFinished(AuctionDetailsResponseMessage response) {
-        return response != null
-                && (response.getStatus() == AuctionStatus.PAID
+        return response.getStatus() == AuctionStatus.PAID
                 || response.getStatus() == AuctionStatus.CANCELED
-                || response.getStatus() == AuctionStatus.RUNNING && isEnded(response));
+                || response.getStatus() == AuctionStatus.RUNNING && isEnded(response);
     }
 
     private boolean isEnded(AuctionDetailsResponseMessage response) {
-        return response != null
-                && response.getEndTime() != null
+        return response.getEndTime() != null
                 && !LocalDateTime.now().isBefore(response.getEndTime());
     }
 
     private void handleToggleWatchList(String auctionId) {
-        boolean targetState = !watchedAuctionIds.contains(auctionId);
-        WatchListService.getInstance().updateWatched(auctionId, targetState, this::handleWatchListUpdateResponse);
+        WatchListService.getInstance().updateWatched(
+                auctionId,
+                !watchedAuctionIds.contains(auctionId),
+                this::handleWatchListUpdateResponse
+        );
     }
 
     private void handleWatchListUpdateResponse(Message message) {
         if (message instanceof ErrorResponseMessage errorMessage) {
-            handleErrorResponse(errorMessage);
+            showStatus(errorMessage.getErrorMessage(), true);
             return;
         }
         if (message instanceof WatchListChangedResponseMessage changed) {
             handleWatchListChanged(changed);
-            NotificationToastManager.showSuccess(watchListActionMessage(changed));
+            NotificationToastManager.showSuccess(AuctionDisplayUtil.watchListActionMessage(changed.isWatched()));
         }
     }
 
@@ -402,29 +344,17 @@ public class MyListingsMenuController implements Initializable {
         applyFilters();
     }
 
-    private String watchListActionMessage(WatchListChangedResponseMessage changed) {
-        return changed.isWatched()
-                ? "Auction added to your watchlist."
-                : "Auction removed from your watchlist.";
-    }
-
-    private String formatWatchListButtonText(String auctionId) {
-        return watchedAuctionIds.contains(auctionId) ? "Watching" : "Add to watchlist";
-    }
-
     private void updateSummary() {
         long activeCount = countByStatus(STATUS_ACTIVE);
         long soldCount = countByStatus(STATUS_SOLD);
         long canceledCount = countByStatus(STATUS_CANCELED);
         if (allListings.isEmpty()) {
             summaryLabel.setText("");
-            summaryLabel.setManaged(false);
-            summaryLabel.setVisible(false);
+            FxViewUtil.setVisible(summaryLabel, false);
             return;
         }
         summaryLabel.setText("Active: " + activeCount + "  Sold: " + soldCount + "  Canceled: " + canceledCount);
-        summaryLabel.setManaged(true);
-        summaryLabel.setVisible(true);
+        FxViewUtil.setVisible(summaryLabel, true);
     }
 
     private long countByStatus(String status) {
@@ -433,21 +363,11 @@ public class MyListingsMenuController implements Initializable {
                 .count();
     }
 
-    private void hideStatus() {
-        statusLabel.setText("");
-        statusLabel.setManaged(false);
-        statusLabel.setVisible(false);
-    }
-
     private void showStatus(String text, boolean error) {
-        if (text == null || text.isBlank()) {
-            hideStatus();
-            return;
-        }
-        statusLabel.setManaged(true);
-        statusLabel.setVisible(true);
+        boolean visible = text != null && !text.isBlank();
+        FxViewUtil.setVisible(statusLabel, visible);
         statusLabel.pseudoClassStateChanged(ERROR_STATE, error);
-        statusLabel.setText(text);
+        statusLabel.setText(visible ? text : "");
     }
 
     private record ListingCard(
@@ -459,7 +379,6 @@ public class MyListingsMenuController implements Initializable {
             String sellerUsername,
             BigDecimal startingPrice,
             BigDecimal currentPrice,
-            int bidCount,
             LocalDateTime endTime,
             String leadingBidderName,
             String winnerBidderName,

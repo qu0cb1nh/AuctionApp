@@ -1,16 +1,22 @@
 package net.auctionapp.server.models.auction;
 
 import net.auctionapp.common.auction.AuctionStatus;
+import net.auctionapp.common.exceptions.ValidationException;
+import net.auctionapp.common.utils.MoneyUtil;
+import net.auctionapp.common.utils.StringUtil;
 
+import net.auctionapp.server.exceptions.InvalidAuctionStateException;
 import net.auctionapp.server.models.Entity;
 import net.auctionapp.server.models.items.Item;
 
 import java.math.BigDecimal;
+import java.time.Clock;
 import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Objects;
 
 /**
  * Aggregate root for an auction session.
@@ -20,15 +26,16 @@ public class Auction extends Entity {
     private static final long ANTI_SNIPING_EXTENSION_SECONDS = 60;
 
     private final String sellerId;
-    private LocalDateTime startTime;
+    private final LocalDateTime startTime;
     private LocalDateTime endTime;
     private final Item item;
-    private BigDecimal startingPrice;
-    private BigDecimal minimumBidIncrement;
+    private final BigDecimal startingPrice;
+    private final BigDecimal minimumBidIncrement;
     private BigDecimal currentPrice;
     private String leadingBidderId;
     private String winnerBidderId;
     private AuctionStatus status;
+    private final Clock clock;
 
     private final List<BidTransaction> bidHistory = new ArrayList<>();
 
@@ -39,7 +46,8 @@ public class Auction extends Entity {
             LocalDateTime endTime,
             Item item,
             BigDecimal startingPrice,
-            BigDecimal minimumBidIncrement
+            BigDecimal minimumBidIncrement,
+            Clock clock
     ) {
         super(id);
         this.sellerId = sellerId;
@@ -50,6 +58,7 @@ public class Auction extends Entity {
         this.minimumBidIncrement = minimumBidIncrement;
         this.currentPrice = startingPrice;
         this.status = AuctionStatus.RUNNING;
+        this.clock = Objects.requireNonNull(clock, "Clock is required.");
     }
 
     public Auction(
@@ -65,7 +74,37 @@ public class Auction extends Entity {
             String winnerBidderId,
             AuctionStatus status
     ) {
-        this(id, sellerId, startTime, endTime, item, startingPrice, minimumBidIncrement);
+        this(
+                id,
+                sellerId,
+                startTime,
+                endTime,
+                item,
+                startingPrice,
+                minimumBidIncrement,
+                currentPrice,
+                leadingBidderId,
+                winnerBidderId,
+                status,
+                Clock.systemDefaultZone()
+        );
+    }
+
+    public Auction(
+            String id,
+            String sellerId,
+            LocalDateTime startTime,
+            LocalDateTime endTime,
+            Item item,
+            BigDecimal startingPrice,
+            BigDecimal minimumBidIncrement,
+            BigDecimal currentPrice,
+            String leadingBidderId,
+            String winnerBidderId,
+            AuctionStatus status,
+            Clock clock
+    ) {
+        this(id, sellerId, startTime, endTime, item, startingPrice, minimumBidIncrement, clock);
         this.currentPrice = currentPrice == null ? startingPrice : currentPrice;
         this.leadingBidderId = leadingBidderId;
         this.winnerBidderId = winnerBidderId;
@@ -138,26 +177,22 @@ public class Auction extends Entity {
         }
     }
 
-    public synchronized boolean placeBid(BidTransaction bid, LocalDateTime now) {
-        if (status != AuctionStatus.RUNNING) {
-            return false;
+    public void placeBid(BidTransaction bid) {
+        LocalDateTime now = LocalDateTime.now(clock);
+        requireOpenForBidding(now);
+        if (bid == null || !getId().equals(bid.getAuctionId())) {
+            throw new ValidationException("Bid does not belong to this auction.");
         }
-        if (now == null || now.isBefore(startTime) || !now.isBefore(endTime)) {
-            return false;
+        MoneyUtil.requirePositiveMoney(bid.getAmount(), "Bid amount");
+        if (bid.getBidderId() == null || bid.getBidderId().isBlank()) {
+            throw new ValidationException("Bidder is required.");
         }
-        if (bid == null || bid.getAmount() == null) {
-            return false;
+        if (sellerId.equals(bid.getBidderId())) {
+            throw new ValidationException("Seller cannot bid on own auction.");
         }
-        if (!getId().equals(bid.getAuctionId())) {
-            return false;
-        }
-        if (sellerId != null && sellerId.equals(bid.getBidderId())) {
-            return false;
-        }
-
         BigDecimal minimumNextBid = getMinimumNextBid();
-        if (minimumNextBid != null && bid.getAmount().compareTo(minimumNextBid) < 0) {
-            return false;
+        if (bid.getAmount().compareTo(minimumNextBid) < 0) {
+            throw new ValidationException("Bid must be at least " + minimumNextBid + ".");
         }
 
         currentPrice = bid.getAmount();
@@ -168,59 +203,59 @@ public class Auction extends Entity {
         if (secondsLeft <= ANTI_SNIPING_THRESHOLD_SECONDS) {
             endTime = endTime.plusSeconds(ANTI_SNIPING_EXTENSION_SECONDS);
         }
-
-        return true;
     }
 
-    public synchronized boolean updateListingDetails(
+    public void updateManagedListingDetails(
             String title,
             String description,
-            BigDecimal newStartingPrice,
-            BigDecimal newMinimumBidIncrement,
-            LocalDateTime newStartTime,
-            LocalDateTime newEndTime,
-            LocalDateTime now
+            LocalDateTime newEndTime
     ) {
-        if (title == null || title.isBlank()
-                || description == null || description.isBlank()
-                || newStartingPrice == null || newStartingPrice.signum() < 0
-                || newMinimumBidIncrement == null || newMinimumBidIncrement.signum() <= 0
-                || newStartTime == null || newEndTime == null
-                || !newEndTime.isAfter(newStartTime)) {
-            return false;
+        LocalDateTime now = LocalDateTime.now(clock);
+        requireOpenForManagement(now);
+        if (title == null || title.isBlank() || description == null || description.isBlank()) {
+            throw new ValidationException("Auction update data is invalid.");
         }
-
-        LocalDateTime effectiveNow = now == null ? LocalDateTime.now() : now;
-        boolean biddingHasStarted = !effectiveNow.isBefore(startTime) || !bidHistory.isEmpty();
-        if (biddingHasStarted && (newStartingPrice.compareTo(startingPrice) != 0
-                || !newStartTime.equals(startTime)
-                || !newEndTime.isAfter(effectiveNow))) {
-            return false;
+        if (newEndTime == null || !newEndTime.isAfter(now)) {
+            throw new ValidationException("End time must be after the current time.");
         }
-
-        item.updateDetails(title, description, newStartingPrice);
-        startingPrice = newStartingPrice;
-        minimumBidIncrement = newMinimumBidIncrement;
-        startTime = newStartTime;
+        if (newEndTime.isBefore(endTime)) {
+            throw new ValidationException("End time cannot be earlier than the current end time.");
+        }
+        item.updateDetails(title, description, startingPrice);
         endTime = newEndTime;
-        if (!biddingHasStarted) {
-            currentPrice = newStartingPrice;
-            leadingBidderId = null;
-            winnerBidderId = null;
-            bidHistory.clear();
+    }
+
+    public void closeManually() {
+        LocalDateTime now = LocalDateTime.now(clock);
+        requireOpenForManagement(now);
+        finish(false);
+    }
+
+    public void cancel() {
+        LocalDateTime now = LocalDateTime.now(clock);
+        requireOpenForManagement(now);
+        finish(true);
+    }
+
+    public boolean closeIfEnded() {
+        LocalDateTime now = LocalDateTime.now(clock);
+        if (status != AuctionStatus.RUNNING
+                || now.isBefore(endTime)) {
+            return false;
         }
+        finish(false);
         return true;
     }
 
-    public synchronized void setStatus(AuctionStatus status) {
+    public void setStatus(AuctionStatus status) {
         this.status = status;
     }
 
-    public synchronized void setWinnerBidderId(String winnerBidderId) {
+    public void setWinnerBidderId(String winnerBidderId) {
         this.winnerBidderId = winnerBidderId;
     }
 
-    public synchronized List<BidTransaction> invalidateActiveBidsBy(String bidderId) {
+    public List<BidTransaction> invalidateActiveBidsBy(String bidderId) {
         List<BidTransaction> invalidatedBids = new ArrayList<>();
         if (bidderId == null || bidderId.isBlank()) {
             return invalidatedBids;
@@ -240,9 +275,6 @@ public class Auction extends Entity {
     }
 
     public synchronized BigDecimal getMinimumNextBid() {
-        if (currentPrice == null || minimumBidIncrement == null) {
-            return null;
-        }
         return currentPrice.add(minimumBidIncrement);
     }
 
@@ -258,7 +290,8 @@ public class Auction extends Entity {
                 currentPrice,
                 leadingBidderId,
                 winnerBidderId,
-                status
+                status,
+                clock
         );
         copy.bidHistory.addAll(bidHistory);
         return copy;
@@ -271,10 +304,7 @@ public class Auction extends Entity {
         Item snapshotItem = snapshot.getItem();
         item.updateDetails(snapshotItem.getTitle(), snapshotItem.getDescription(), snapshotItem.getBasePrice());
         item.setImageUrl(snapshotItem.getImageUrl());
-        startTime = snapshot.getStartTime();
         endTime = snapshot.getEndTime();
-        startingPrice = snapshot.getStartingPrice();
-        minimumBidIncrement = snapshot.getMinimumBidIncrement();
         currentPrice = snapshot.getCurrentPrice();
         leadingBidderId = snapshot.getLeadingBidderId();
         winnerBidderId = snapshot.getWinnerBidderId();
@@ -311,6 +341,28 @@ public class Auction extends Entity {
         }
         currentPrice = highestActiveBid.getAmount();
         leadingBidderId = highestActiveBid.getBidderId();
+    }
+
+    private void requireOpenForBidding(LocalDateTime now) {
+        if (status != AuctionStatus.RUNNING
+                || now.isBefore(startTime)
+                || !now.isBefore(endTime)) {
+            throw new InvalidAuctionStateException("Auction is not open for bidding.");
+        }
+    }
+
+    private void requireOpenForManagement(LocalDateTime now) {
+        if (status != AuctionStatus.RUNNING
+                || !now.isBefore(endTime)) {
+            throw new InvalidAuctionStateException("Only running auctions can be managed.");
+        }
+    }
+
+    private void finish(boolean forceCancel) {
+        String normalizedLeadingBidderId = StringUtil.normalizeString(leadingBidderId);
+        boolean hasWinner = !forceCancel && !normalizedLeadingBidderId.isEmpty();
+        winnerBidderId = hasWinner ? normalizedLeadingBidderId : null;
+        status = hasWinner ? AuctionStatus.PAID : AuctionStatus.CANCELED;
     }
 
 }

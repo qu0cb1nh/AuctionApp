@@ -6,7 +6,7 @@ import javafx.scene.Parent;
 import javafx.scene.Scene;
 import javafx.stage.Stage;
 import net.auctionapp.client.ClientApp;
-import net.auctionapp.client.services.MessageListener;
+import net.auctionapp.client.messages.MessageListener;
 import net.auctionapp.client.services.NetworkService;
 import net.auctionapp.client.ui.controllers.AuctionContextController;
 import net.auctionapp.client.utils.ResourcesUtil;
@@ -120,15 +120,6 @@ public final class SceneManager {
             cleanup.run();
         }
         SCENE_LISTENER_CLEANUPS.clear();
-    }
-
-    public static void switchSceneWithDelay(String fxmlFile, long delayMillis) {
-        Objects.requireNonNull(fxmlFile, "fxmlFile");
-        SCHEDULER.schedule(
-                () -> Platform.runLater(() -> switchScene(fxmlFile)),
-                delayMillis,
-                TimeUnit.MILLISECONDS
-        );
     }
 
     public static void resetAndSwitchSceneWithDelay(String fxmlFile, long delayMillis) {

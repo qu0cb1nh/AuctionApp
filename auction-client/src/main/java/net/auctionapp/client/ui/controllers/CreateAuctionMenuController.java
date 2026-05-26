@@ -2,11 +2,8 @@ package net.auctionapp.client.ui.controllers;
 
 import net.auctionapp.client.ui.controllers.components.HeaderController;
 
-import javafx.collections.FXCollections;
 import javafx.css.PseudoClass;
-import javafx.event.ActionEvent;
 import javafx.fxml.FXML;
-import javafx.fxml.Initializable;
 import javafx.scene.control.Button;
 import javafx.scene.control.ComboBox;
 import javafx.scene.control.DatePicker;
@@ -21,6 +18,7 @@ import net.auctionapp.client.ui.managers.SceneManager;
 import net.auctionapp.client.ui.managers.NotificationToastManager;
 import net.auctionapp.client.services.AuctionService;
 import net.auctionapp.client.ClientSession;
+import net.auctionapp.client.utils.FxViewUtil;
 import net.auctionapp.client.utils.ResourcesUtil;
 import net.auctionapp.common.messages.Message;
 import net.auctionapp.common.messages.MessageType;
@@ -32,7 +30,6 @@ import net.auctionapp.common.items.ItemType;
 import java.math.BigDecimal;
 import java.io.File;
 import java.io.IOException;
-import java.net.URL;
 import java.nio.file.Files;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -40,16 +37,13 @@ import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
 import java.util.Base64;
-import java.util.ResourceBundle;
 
-public class CreateAuctionMenuController implements Initializable {
+public class CreateAuctionMenuController {
     private static final DateTimeFormatter TIME_FORMATTER = DateTimeFormatter.ofPattern("HH:mm");
     private static final long MAX_IMAGE_BYTES = 5L * 1024L * 1024L;
     private static final PseudoClass ERROR_STATE = PseudoClass.getPseudoClass("error");
     private static final PseudoClass SUCCESS_STATE = PseudoClass.getPseudoClass("success");
     private static final PseudoClass SELECTED_STATE = PseudoClass.getPseudoClass("selected");
-
-    private boolean imageUploaded;
 
     @FXML
     private HeaderController appHeaderController;
@@ -100,11 +94,11 @@ public class CreateAuctionMenuController implements Initializable {
 
     private File selectedImageFile;
 
-    @Override
-    public void initialize(URL location, ResourceBundle resources) {
+    @FXML
+    public void initialize() {
         appHeaderController.setupHeader("Create Auction");
 
-        categoryComboBox.setItems(FXCollections.observableArrayList(ItemType.values()));
+        categoryComboBox.getItems().setAll(ItemType.values());
         categoryComboBox.getSelectionModel().select(ItemType.ELECTRONICS);
         categoryComboBox.valueProperty().addListener((observable, oldValue, newValue) -> updateTypeSpecificFields(newValue));
 
@@ -115,17 +109,18 @@ public class CreateAuctionMenuController implements Initializable {
         vehicleYearCreatedField.setText(String.valueOf(now.getYear()));
         electronicsWarrantyField.setText("12");
         updateTypeSpecificFields(categoryComboBox.getValue());
-        imageUploaded = false;
-        setButtonVisible(createAuctionButton, ClientSession.getInstance().canCreateAuction());
+        boolean canCreateAuction = ClientSession.getInstance().canCreateAuction();
+        FxViewUtil.setVisible(createAuctionButton, canCreateAuction);
+        createAuctionButton.setDisable(!canCreateAuction);
     }
 
     @FXML
-    public void handleCancel(ActionEvent event) {
+    public void handleCancel() {
         SceneManager.goBackOrSwitchScene("DashboardMenu.fxml");
     }
 
     @FXML
-    public void handleChooseImage(ActionEvent event) {
+    public void handleChooseImage() {
         FileChooser fileChooser = new FileChooser();
         fileChooser.setTitle("Choose auction item image");
         fileChooser.getExtensionFilters().add(new FileChooser.ExtensionFilter(
@@ -150,12 +145,11 @@ public class CreateAuctionMenuController implements Initializable {
         }
         selectedImageFile = chosenFile;
         previewImageView.setImage(new Image(chosenFile.toURI().toString(), true));
-        imageUploaded = true;
         setImageStatus(chosenFile.getName(), false);
     }
 
     @FXML
-    public void handleCreateAuction(ActionEvent event) {
+    public void handleCreateAuction() {
         if (!ClientSession.getInstance().canCreateAuction()) {
             setStatus("Please log in before creating an auction.", ERROR_STATE);
             return;
@@ -280,23 +274,12 @@ public class CreateAuctionMenuController implements Initializable {
     }
 
     private void updateTypeSpecificFields(ItemType itemType) {
-        setSectionVisible(electronicsFieldsBox, itemType == ItemType.ELECTRONICS);
-        setSectionVisible(artFieldsBox, itemType == ItemType.ART);
-        setSectionVisible(vehicleFieldsBox, itemType == ItemType.VEHICLE);
-        if (!imageUploaded) {
+        FxViewUtil.setVisible(electronicsFieldsBox, itemType == ItemType.ELECTRONICS);
+        FxViewUtil.setVisible(artFieldsBox, itemType == ItemType.ART);
+        FxViewUtil.setVisible(vehicleFieldsBox, itemType == ItemType.VEHICLE);
+        if (selectedImageFile == null) {
             previewImageView.setImage(new Image(ResourcesUtil.itemPlaceholder(itemType).toExternalForm(), true));
         }
-    }
-
-    private void setSectionVisible(VBox section, boolean visible) {
-        section.setVisible(visible);
-        section.setManaged(visible);
-    }
-
-    private void setButtonVisible(Button button, boolean visible) {
-        button.setVisible(visible);
-        button.setManaged(visible);
-        button.setDisable(!visible);
     }
 
     private void handleCreateResponse(Message message) {

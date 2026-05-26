@@ -6,10 +6,7 @@ import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.SimpleBooleanProperty;
 import javafx.beans.property.SimpleStringProperty;
 import javafx.css.PseudoClass;
-import javafx.event.ActionEvent;
 import javafx.fxml.FXML;
-import javafx.fxml.Initializable;
-import javafx.scene.input.MouseEvent;
 import javafx.scene.control.Button;
 import javafx.scene.control.Label;
 import javafx.scene.control.TableColumn;
@@ -20,6 +17,8 @@ import net.auctionapp.client.services.AuctionService;
 import net.auctionapp.client.ClientSession;
 import net.auctionapp.client.ui.managers.NotificationToastManager;
 import net.auctionapp.client.ui.managers.SceneManager;
+import net.auctionapp.client.utils.AuctionDisplayUtil;
+import net.auctionapp.client.utils.FxViewUtil;
 import net.auctionapp.common.messages.Message;
 import net.auctionapp.common.dto.AdminUserView;
 import net.auctionapp.common.dto.AuctionSummary;
@@ -27,18 +26,11 @@ import net.auctionapp.common.messages.admin.AdminActionResponseMessage;
 import net.auctionapp.common.messages.admin.AdminGetUsersResponseMessage;
 import net.auctionapp.common.messages.auction.AuctionListResponseMessage;
 import net.auctionapp.common.messages.system.ErrorResponseMessage;
-import net.auctionapp.common.auction.AuctionStatus;
 import net.auctionapp.common.users.UserRole;
 import net.auctionapp.common.utils.StringUtil;
 
-import java.net.URL;
-import java.time.LocalDateTime;
-import java.time.format.DateTimeFormatter;
-import java.util.List;
-import java.util.ResourceBundle;
 
-public class AdminPanelMenuController implements Initializable {
-    private static final DateTimeFormatter DATE_TIME_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm");
+public class AdminPanelMenuController {
     private static final PseudoClass ACTIVE_STATE = PseudoClass.getPseudoClass("active");
     private static final PseudoClass ERROR_STATE = PseudoClass.getPseudoClass("error");
     private static final PseudoClass SUCCESS_STATE = PseudoClass.getPseudoClass("success");
@@ -96,75 +88,72 @@ public class AdminPanelMenuController implements Initializable {
     private boolean auctionsLoaded;
     private final BooleanProperty userBanButtonsDisabled = new SimpleBooleanProperty();
 
-    @Override
-    public void initialize(URL location, ResourceBundle resources) {
+    @FXML
+    public void initialize() {
         appHeaderController.setupHeader("Admin Panel");
         configureTables();
         banButton.disableProperty().bind(userBanButtonsDisabled);
         unbanButton.disableProperty().bind(userBanButtonsDisabled);
         updateSectionSelection(AdminSection.USER_MANAGEMENT);
-        boolean isAdmin = ClientSession.getInstance().isAdmin();
-        if (!isAdmin) {
+        if (!ClientSession.getInstance().isAdmin()) {
             setErrorStatus("Admin privileges are required to view this page.");
             disableAdminActions();
             return;
         }
         setActiveSection(AdminSection.USER_MANAGEMENT);
-        handleRefreshUsers(null);
+        handleRefreshUsers();
     }
 
     @FXML
-    public void handleRefreshUsers(ActionEvent event) {
+    public void handleRefreshUsers() {
         setNeutralStatus("Loading users...");
         AdminService.getInstance().requestUsers(this::handleUsersResponse);
     }
 
     @FXML
-    public void handleBanSelected(ActionEvent event) {
-        UserRow selected = usersTable.getSelectionModel().getSelectedItem();
-        if (selected == null) {
-            setErrorStatus("Please select a user to ban.");
-            return;
-        }
-        userBanButtonsDisabled.set(true);
-        AdminService.getInstance().updateUserBanStatus(selected.userId(), true, this::handleUserBanUpdateResponse);
+    public void handleBanSelected() {
+        updateSelectedUserBanStatus(true);
     }
 
     @FXML
-    public void handleUnbanSelected(ActionEvent event) {
+    public void handleUnbanSelected() {
+        updateSelectedUserBanStatus(false);
+    }
+
+    private void updateSelectedUserBanStatus(boolean banned) {
         UserRow selected = usersTable.getSelectionModel().getSelectedItem();
         if (selected == null) {
-            setErrorStatus("Please select a user to unban.");
+            setErrorStatus("Please select a user to " + (banned ? "ban." : "unban."));
             return;
         }
         userBanButtonsDisabled.set(true);
-        AdminService.getInstance().updateUserBanStatus(selected.userId(), false, this::handleUserBanUpdateResponse);
+        AdminService.getInstance().updateUserBanStatus(selected.userId(), banned, this::handleUserBanUpdateResponse);
     }
 
     @FXML
-    public void handleRefreshAuctions(ActionEvent event) {
+    public void handleRefreshAuctions() {
         setNeutralStatus("Loading auctions...");
         AuctionService.getInstance().requestAuctionList(this::handleAuctionListResponse);
     }
 
     @FXML
-    public void handleShowUserManagement(MouseEvent event) {
+    public void handleShowUserManagement() {
         setActiveSection(AdminSection.USER_MANAGEMENT);
         if (!usersLoaded) {
-            handleRefreshUsers(null);
+            handleRefreshUsers();
         }
     }
 
     @FXML
-    public void handleShowAuctionManagement(MouseEvent event) {
+    public void handleShowAuctionManagement() {
         setActiveSection(AdminSection.AUCTION_MANAGEMENT);
         if (!auctionsLoaded) {
-            handleRefreshAuctions(null);
+            handleRefreshAuctions();
         }
     }
 
     @FXML
-    public void handleOpenAuction(ActionEvent event) {
+    public void handleOpenAuction() {
         AuctionRow selected = auctionsTable.getSelectionModel().getSelectedItem();
         if (selected == null) {
             setErrorStatus("Please select an auction to open.");
@@ -174,7 +163,7 @@ public class AdminPanelMenuController implements Initializable {
     }
 
     @FXML
-    public void handleManageAuction(ActionEvent event) {
+    public void handleManageAuction() {
         AuctionRow selected = auctionsTable.getSelectionModel().getSelectedItem();
         if (selected == null) {
             setErrorStatus("Please select an auction to manage.");
@@ -242,7 +231,7 @@ public class AdminPanelMenuController implements Initializable {
         }
         setSuccessStatus(result.getMessage());
         NotificationToastManager.showSuccess(result.getMessage());
-        handleRefreshUsers(null);
+        handleRefreshUsers();
     }
 
     private void handleAuctionListResponse(Message message) {
@@ -256,18 +245,17 @@ public class AdminPanelMenuController implements Initializable {
         }
 
         auctionsTable.getItems().clear();
-        List<AuctionSummary> auctions = response.getAuctions() == null ? List.of() : response.getAuctions();
-        for (AuctionSummary summary : auctions) {
+        for (AuctionSummary summary : response.getAuctions()) {
             if (summary == null) {
                 continue;
             }
             auctionsTable.getItems().add(new AuctionRow(
                     summary.getAuctionId(),
                     summary.getTitle(),
-                    deriveDisplayStatus(summary.getStatus(), summary.getEndTime(), summary.getLeadingBidderId()),
-                    formatPrice(summary.getCurrentPrice()),
-                    formatDateTime(summary.getStartTime()),
-                    formatDateTime(summary.getEndTime())
+                    AuctionDisplayUtil.displayStatus(summary),
+                    AuctionDisplayUtil.formatPrice(summary.getCurrentPrice()),
+                    AuctionDisplayUtil.formatDateTime(summary.getStartTime()),
+                    AuctionDisplayUtil.formatDateTime(summary.getEndTime())
             ));
         }
         auctionsLoaded = true;
@@ -286,10 +274,8 @@ public class AdminPanelMenuController implements Initializable {
 
     private void setActiveSection(AdminSection section) {
         boolean userSectionActive = section == AdminSection.USER_MANAGEMENT;
-        userManagementPage.setVisible(userSectionActive);
-        userManagementPage.setManaged(userSectionActive);
-        auctionManagementPage.setVisible(!userSectionActive);
-        auctionManagementPage.setManaged(!userSectionActive);
+        FxViewUtil.setVisible(userManagementPage, userSectionActive);
+        FxViewUtil.setVisible(auctionManagementPage, !userSectionActive);
         updateSectionSelection(section);
     }
 
@@ -297,33 +283,6 @@ public class AdminPanelMenuController implements Initializable {
         boolean userSectionActive = section == AdminSection.USER_MANAGEMENT;
         userManagementNavLabel.pseudoClassStateChanged(ACTIVE_STATE, userSectionActive);
         auctionManagementNavLabel.pseudoClassStateChanged(ACTIVE_STATE, !userSectionActive);
-    }
-
-    private String deriveDisplayStatus(AuctionStatus status, LocalDateTime endTime, String leadingBidderId) {
-        if (status == AuctionStatus.CANCELED) {
-            return "CANCELED";
-        }
-        if (status == AuctionStatus.PAID) {
-            return "PAID";
-        }
-        if (endTime != null && !LocalDateTime.now().isBefore(endTime)) {
-            return leadingBidderId == null || leadingBidderId.isBlank() ? "CANCELED" : "PAID";
-        }
-        return "RUNNING";
-    }
-
-    private String formatDateTime(LocalDateTime value) {
-        if (value == null) {
-            return "";
-        }
-        return DATE_TIME_FORMATTER.format(value);
-    }
-
-    private String formatPrice(java.math.BigDecimal value) {
-        if (value == null) {
-            return "N/A";
-        }
-        return "$" + value.stripTrailingZeros().toPlainString();
     }
 
     private void setErrorStatus(String text) {
@@ -340,8 +299,7 @@ public class AdminPanelMenuController implements Initializable {
 
     private void clearStatus() {
         statusLabel.setText("");
-        statusLabel.setManaged(false);
-        statusLabel.setVisible(false);
+        FxViewUtil.setVisible(statusLabel, false);
     }
 
     private void setStatus(String text, PseudoClass state) {
@@ -349,8 +307,7 @@ public class AdminPanelMenuController implements Initializable {
             clearStatus();
             return;
         }
-        statusLabel.setManaged(true);
-        statusLabel.setVisible(true);
+        FxViewUtil.setVisible(statusLabel, true);
         statusLabel.pseudoClassStateChanged(ERROR_STATE, state == ERROR_STATE);
         statusLabel.pseudoClassStateChanged(SUCCESS_STATE, state == SUCCESS_STATE);
         statusLabel.setText(text);

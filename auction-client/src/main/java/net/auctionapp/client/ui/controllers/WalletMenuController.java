@@ -1,10 +1,8 @@
 package net.auctionapp.client.ui.controllers;
 
-import javafx.event.ActionEvent;
 import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.SimpleBooleanProperty;
 import javafx.fxml.FXML;
-import javafx.fxml.Initializable;
 import javafx.scene.control.Button;
 import javafx.scene.control.TextField;
 import net.auctionapp.client.services.WalletService;
@@ -20,10 +18,8 @@ import org.slf4j.LoggerFactory;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
-import java.net.URL;
-import java.util.ResourceBundle;
 
-public class WalletMenuController implements Initializable {
+public class WalletMenuController {
     private static final Logger LOGGER = LoggerFactory.getLogger(WalletMenuController.class);
 
     @FXML
@@ -54,18 +50,18 @@ public class WalletMenuController implements Initializable {
     private BigDecimal currentPendingBalance = BigDecimal.ZERO;
     private final BooleanProperty mutationPending = new SimpleBooleanProperty();
 
-    @Override
-    public void initialize(URL location, ResourceBundle resources) {
+    @FXML
+    public void initialize() {
         appHeaderController.setupHeader("Wallet");
         depositButton.disableProperty().bind(mutationPending);
         withdrawButton.disableProperty().bind(mutationPending);
         SceneManager.registerSceneMessageListener(MessageType.BALANCE_UPDATE, this::handleBalanceUpdate);
         updateBalanceDisplay();
-        requestWallet();
+        WalletService.getInstance().requestWallet(this::handleWalletResponse);
     }
 
     @FXML
-    public void handleDeposit(ActionEvent event) {
+    public void handleDeposit() {
         BigDecimal amount = readAmount(depositField, "Deposit amount");
         if (amount == null) {
             return;
@@ -78,7 +74,7 @@ public class WalletMenuController implements Initializable {
     }
 
     @FXML
-    public void handleWithdraw(ActionEvent event) {
+    public void handleWithdraw() {
         BigDecimal amount = readAmount(withdrawField, "Withdrawal amount");
         if (amount == null) {
             return;
@@ -90,13 +86,9 @@ public class WalletMenuController implements Initializable {
         );
     }
 
-    private void requestWallet() {
-        WalletService.getInstance().requestWallet(this::handleWalletResponse);
-    }
-
     private void handleWalletMutationResponse(Message message, TextField sourceField) {
         mutationPending.set(false);
-        if (handleWalletResponse(message) && sourceField != null) {
+        if (handleWalletResponse(message)) {
             sourceField.clear();
         }
     }

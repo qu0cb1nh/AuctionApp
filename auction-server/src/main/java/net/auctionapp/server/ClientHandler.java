@@ -8,10 +8,10 @@ import net.auctionapp.common.users.UserRole;
 import net.auctionapp.common.utils.JsonUtil;
 import net.auctionapp.server.exceptions.AuthenticationException;
 import net.auctionapp.server.exceptions.NotFoundException;
-import net.auctionapp.server.services.AuthService;
-import net.auctionapp.server.services.AuctionService;
 import net.auctionapp.server.managers.SessionManager;
 import net.auctionapp.server.messages.MessageRouter;
+import net.auctionapp.server.managers.AuthManager;
+import net.auctionapp.server.managers.AuctionManager;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -26,23 +26,24 @@ import java.util.concurrent.atomic.AtomicBoolean;
 public class ClientHandler implements Runnable {
     private static final Logger LOGGER = LoggerFactory.getLogger(ClientHandler.class);
     private static final int SOCKET_READ_TIMEOUT_MILLIS = 60_000;
+
     private final Socket socket;
-    private PrintWriter out;
-    private BufferedReader in;
-    private final AuctionService auctionService;
-    private final AuthService authService;
+    private final AuctionManager auctionManager;
+    private final AuthManager authManager;
     private final SessionManager sessionManager;
     private final MessageRouter messageRouter;
     private final AtomicBoolean closed = new AtomicBoolean(false);
+
+    private PrintWriter out;
     private volatile String authenticatedUserId;
     private volatile UserRole authenticatedRole;
 
     public ClientHandler(Socket socket, MessageRouter messageRouter) {
-        this.socket = socket;
-        this.auctionService = AuctionService.getInstance();
-        this.authService = AuthService.getInstance();
-        this.sessionManager = SessionManager.getInstance();
+        this.socket = Objects.requireNonNull(socket, "socket must not be null");
         this.messageRouter = Objects.requireNonNull(messageRouter, "messageRouter must not be null");
+        this.auctionManager = AuctionManager.getInstance();
+        this.authManager = AuthManager.getInstance();
+        this.sessionManager = SessionManager.getInstance();
     }
 
     @Override
@@ -50,37 +51,45 @@ public class ClientHandler implements Runnable {
         try (Socket clientSocket = socket;
              BufferedReader reader = new BufferedReader(new InputStreamReader(clientSocket.getInputStream()));
              PrintWriter writer = new PrintWriter(clientSocket.getOutputStream(), true)) {
+
             clientSocket.setSoTimeout(SOCKET_READ_TIMEOUT_MILLIS);
+
             synchronized (this) {
-                in = reader;
                 out = writer;
             }
+
             ServerApp.registerClient(this);
             LOGGER.info("Client connected from {}", clientSocket.getInetAddress());
 
             String jsonString;
             while ((jsonString = reader.readLine()) != null) {
-                LOGGER.debug("Received from {}: {}", clientSocket.getInetAddress(), jsonString);
-
-                Message message = null;
-                try {
-                    message = JsonUtil.fromJson(jsonString);
-                    if (message == null) {
-                        LOGGER.warn("Received null message after JSON deserialization from {}", clientSocket.getInetAddress());
-                        continue;
-                    }
-
-                    handleMessagesFromClient(message);
-                } catch (RuntimeException e) {
-                    LOGGER.error("Error processing message from {}: {}", clientSocket.getInetAddress(), jsonString, e);
-                    sendResponse(new ErrorResponseMessage("Unable to process request."), message);
-                }
+                handleRawMessage(jsonString);
             }
         } catch (IOException e) {
-            LOGGER.info("Client at {} disconnected.", socket.getInetAddress());
-            LOGGER.info(e.getMessage());
+            if (!closed.get()) {
+                LOGGER.info("Client at {} disconnected: {}", socket.getInetAddress(), e.getMessage());
+            }
         } finally {
             closeConnection();
+        }
+    }
+
+    private void handleRawMessage(String jsonString) {
+        LOGGER.debug("Received from {}: {}", socket.getInetAddress(), jsonString);
+
+        Message request = null;
+        try {
+            request = JsonUtil.fromJson(jsonString);
+
+            if (request == null) {
+                LOGGER.warn("Received null message after JSON deserialization from {}", socket.getInetAddress());
+                return;
+            }
+
+            handleMessageFromClient(request);
+        } catch (RuntimeException e) {
+            LOGGER.error("Error processing message from {}: {}", socket.getInetAddress(), jsonString, e);
+            sendResponse(new ErrorResponseMessage("Unable to process request."), request);
         }
     }
 
@@ -88,15 +97,16 @@ public class ClientHandler implements Runnable {
         if (!closed.compareAndSet(false, true)) {
             return;
         }
+
         LOGGER.info("Closing connection for client {}", socket.getInetAddress());
+
         try {
             socket.close();
         } catch (IOException e) {
             LOGGER.warn("Error while closing socket for {}: {}", socket.getInetAddress(), e.getMessage());
         } finally {
             out = null;
-            in = null;
-            auctionService.removeSubscriber(this);
+            auctionManager.removeSubscriber(this);
             sessionManager.unbindSession(this);
             ServerApp.unregisterClient(this);
         }
@@ -110,35 +120,36 @@ public class ClientHandler implements Runnable {
         }
 
         out.println(jsonMessage);
+
         if (out.checkError()) {
             LOGGER.error("PrintWriter error for client {}. Closing connection.", socket.getInetAddress());
             closeConnection();
             return false;
         }
+
         LOGGER.debug("Sent to {}: {}", socket.getInetAddress(), jsonMessage);
         return true;
     }
 
     public boolean sendMessage(Message message) {
-        if (message == null) {
-            return false;
-        }
-        return sendMessage(JsonUtil.toJson(message));
+        return message != null && sendMessage(JsonUtil.toJson(message));
     }
 
-    public boolean sendResponse(Message response, Message request) {
+    public void sendResponse(Message response, Message request) {
         if (response == null) {
-            return false;
+            return;
         }
+
         if (request != null && request.getMessageId() != null && !request.getMessageId().isBlank()) {
             response.setCorrelationId(request.getMessageId());
         }
-        return sendMessage(response);
+
+        sendMessage(response);
     }
 
     public void authenticate(String userId, UserRole role) {
-        this.authenticatedUserId = userId;
-        this.authenticatedRole = role;
+        authenticatedUserId = userId;
+        authenticatedRole = role;
     }
 
     public synchronized void logout() {
@@ -155,13 +166,15 @@ public class ClientHandler implements Runnable {
         if (authenticatedUserId == null || authenticatedRole == null) {
             throw new AuthenticationException("You must log in before using auction features.");
         }
-        authService.requireActiveUserById(authenticatedUserId);
+
+        authManager.requireActiveUserById(authenticatedUserId);
     }
 
-    private void handleMessagesFromClient(Message message) {
-        if (shouldEnforceBannedAccess(message.getType()) && !enforceAuthenticatedSessionAccess(message)) {
+    private void handleMessageFromClient(Message message) {
+        if (shouldEnforceBannedAccess(message.getType()) && !enforceAuthenticatedSessionAccess()) {
             return;
         }
+
         messageRouter.dispatch(message, this);
     }
 
@@ -171,12 +184,13 @@ public class ClientHandler implements Runnable {
                 && messageType != MessageType.PING;
     }
 
-    private boolean enforceAuthenticatedSessionAccess(Message message) {
+    private boolean enforceAuthenticatedSessionAccess() {
         if (authenticatedUserId == null || authenticatedRole == null) {
             return true;
         }
+
         try {
-            authService.requireActiveUserById(authenticatedUserId);
+            authManager.requireActiveUserById(authenticatedUserId);
             return true;
         } catch (AuthenticationException | NotFoundException e) {
             sendMessage(new ForcedLogoutResponseMessage(e.getMessage()));
@@ -188,8 +202,7 @@ public class ClientHandler implements Runnable {
     @Override
     public boolean equals(Object o) {
         if (this == o) return true;
-        if (o == null || getClass() != o.getClass()) return false;
-        ClientHandler that = (ClientHandler) o;
+        if (!(o instanceof ClientHandler that)) return false;
         return socket.equals(that.socket);
     }
 

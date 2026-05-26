@@ -6,10 +6,8 @@ import net.auctionapp.client.ui.controllers.components.HeaderController;
 
 import javafx.fxml.FXML;
 import javafx.fxml.FXMLLoader;
-import javafx.fxml.Initializable;
 import javafx.css.PseudoClass;
 import javafx.scene.control.Label;
-import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.Pane;
 import javafx.scene.layout.Region;
 import javafx.scene.layout.VBox;
@@ -25,17 +23,15 @@ import net.auctionapp.common.messages.system.ErrorResponseMessage;
 import net.auctionapp.common.notifications.Notification;
 
 import java.io.IOException;
-import java.net.URL;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
-import java.util.ResourceBundle;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class NotificationsMenuController implements Initializable {
+public class NotificationsMenuController {
     private static final Logger LOGGER = LoggerFactory.getLogger(NotificationsMenuController.class);
     private static final DateTimeFormatter CARD_TIME_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
 
@@ -78,8 +74,8 @@ public class NotificationsMenuController implements Initializable {
 
     private final List<Notification> allNotifications = new ArrayList<>();
 
-    @Override
-    public void initialize(URL location, ResourceBundle resources) {
+    @FXML
+    public void initialize() {
         appHeaderController.setupHeader("Notifications");
 
         filterLabels = new Label[]{
@@ -89,58 +85,45 @@ public class NotificationsMenuController implements Initializable {
                 filterUnderlineAll, filterUnderlineBids, filterUnderlineMyAuctions, filterUnderlineSystem,
                 filterUnderlineResults
         };
-        registerMessageListeners();
+        SceneManager.registerSceneMessageListener(MessageType.NOTIFICATION, this::handleNotificationPush);
         setActiveFilter(0, "All");
-        requestNotifications();
+        NotificationService.getInstance().requestNotifications(this::handleNotificationsResponse);
     }
 
     @FXML
-    public void handleFilterAll(MouseEvent event) {
+    public void handleFilterAll() {
         setActiveFilter(0, "All");
     }
 
     @FXML
-    public void handleFilterBids(MouseEvent event) {
+    public void handleFilterBids() {
         setActiveFilter(1, "Bids");
     }
 
     @FXML
-    public void handleFilterMyAuctions(MouseEvent event) {
+    public void handleFilterMyAuctions() {
         setActiveFilter(2, "My Auctions");
     }
 
     @FXML
-    public void handleFilterSystem(MouseEvent event) {
+    public void handleFilterSystem() {
         setActiveFilter(3, "System");
     }
 
     @FXML
-    public void handleFilterResults(MouseEvent event) {
+    public void handleFilterResults() {
         setActiveFilter(4, "Results");
     }
 
     private void setActiveFilter(int index, String nameForStatus) {
-        if (filterLabels == null || filterUnderlines == null) {
-            return;
-        }
         activeFilterIndex = index;
         for (int i = 0; i < filterLabels.length; i++) {
             boolean active = i == index;
             filterLabels[i].pseudoClassStateChanged(ACTIVE_STATE, active);
             filterUnderlines[i].pseudoClassStateChanged(ACTIVE_STATE, active);
         }
-        if (filterStatusLabel != null) {
-            filterStatusLabel.setText("Showing: " + nameForStatus);
-        }
+        filterStatusLabel.setText("Showing: " + nameForStatus);
         renderNotifications();
-    }
-
-    private void registerMessageListeners() {
-        SceneManager.registerSceneMessageListener(MessageType.NOTIFICATION, this::handleNotificationPush);
-    }
-
-    private void requestNotifications() {
-        NotificationService.getInstance().requestNotifications(this::handleNotificationsResponse);
     }
 
     private void handleNotificationsResponse(Message message) {
@@ -167,10 +150,6 @@ public class NotificationsMenuController implements Initializable {
 
     private void updateNotifications(List<Notification> notifications) {
         allNotifications.clear();
-        if (notifications == null) {
-            renderNotifications();
-            return;
-        }
         allNotifications.addAll(
                 notifications.stream()
                         .filter(notification -> notification != null && notification.getId() != null)
@@ -184,9 +163,6 @@ public class NotificationsMenuController implements Initializable {
     }
 
     private void renderNotifications() {
-        if (notificationCardsContainer == null) {
-            return;
-        }
         notificationCardsContainer.getChildren().clear();
 
         List<Notification> filteredNotifications = allNotifications.stream()
@@ -212,12 +188,12 @@ public class NotificationsMenuController implements Initializable {
             controller.bindNotification(
                     notification,
                     notificationTypeLabel(notification),
-                    formatTimestamp(notification == null ? null : notification.getCreatedAt()),
+                    formatTimestamp(notification.getCreatedAt()),
                     "Notification",
                     ""
             );
-            String notificationId = notification == null ? null : notification.getId();
-            String auctionId = notification == null ? null : notification.getAuctionId();
+            String notificationId = notification.getId();
+            String auctionId = notification.getAuctionId();
             controller.setClearAction(() -> clearNotification(notificationId));
             controller.setOpenAuctionAction(auctionId == null || auctionId.isBlank()
                     ? null
@@ -238,9 +214,6 @@ public class NotificationsMenuController implements Initializable {
     }
 
     private boolean matchesActiveFilter(Notification notification) {
-        if (notification == null) {
-            return false;
-        }
         if (activeFilterIndex == 0) {
             return true;
         }
@@ -274,23 +247,20 @@ public class NotificationsMenuController implements Initializable {
     }
 
     private static LocalDateTime notificationTimestampOrMin(Notification notification) {
-        if (notification == null || notification.getCreatedAt() == null) {
+        if (notification.getCreatedAt() == null) {
             return LocalDateTime.MIN;
         }
         return notification.getCreatedAt();
     }
 
     private static boolean matchesNotificationId(Notification notification, String notificationId) {
-        if (notification == null || notification.getId() == null || notificationId == null) {
+        if (notification.getId() == null || notificationId == null) {
             return false;
         }
         return notification.getId().equals(notificationId);
     }
 
     private void setStatusText(String text, boolean isError) {
-        if (filterStatusLabel == null) {
-            return;
-        }
         filterStatusLabel.setText(text);
         filterStatusLabel.pseudoClassStateChanged(ERROR_STATE, isError);
     }

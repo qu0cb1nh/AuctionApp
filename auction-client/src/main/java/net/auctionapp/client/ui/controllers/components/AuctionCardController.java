@@ -2,7 +2,6 @@ package net.auctionapp.client.ui.controllers.components;
 
 import javafx.animation.KeyFrame;
 import javafx.animation.Timeline;
-import javafx.event.ActionEvent;
 import javafx.css.PseudoClass;
 import javafx.fxml.FXML;
 import javafx.scene.control.Button;
@@ -12,6 +11,7 @@ import javafx.scene.image.ImageView;
 import javafx.scene.layout.VBox;
 import javafx.util.Duration;
 import net.auctionapp.client.utils.DurationFormatUtil;
+import net.auctionapp.client.utils.FxViewUtil;
 import net.auctionapp.client.utils.ResourcesUtil;
 import net.auctionapp.common.items.ItemType;
 
@@ -105,21 +105,21 @@ public final class AuctionCardController {
     }
 
     @FXML
-    public void handlePrimaryAction(ActionEvent event) {
+    public void handlePrimaryAction() {
         if (primaryAction != null) {
             primaryAction.run();
         }
     }
 
     @FXML
-    public void handleSecondaryAction(ActionEvent event) {
+    public void handleSecondaryAction() {
         if (secondaryAction != null) {
             secondaryAction.run();
         }
     }
 
     @FXML
-    public void handleWatchListAction(ActionEvent event) {
+    public void handleWatchListAction() {
         if (watchListAction != null) {
             watchListAction.run();
         }
@@ -137,14 +137,12 @@ public final class AuctionCardController {
     private void setOptionalLabel(Label label, String text) {
         boolean visible = text != null && !text.isBlank();
         label.setText(visible ? text : "");
-        label.setManaged(visible);
-        label.setVisible(visible);
+        FxViewUtil.setVisible(label, visible);
     }
 
     private void setMetric(VBox metricBox, Label captionLabel, Label valueLabel, String caption, String value, TextTone tone) {
         boolean visible = (caption != null && !caption.isBlank()) || (value != null && !value.isBlank());
-        metricBox.setManaged(visible);
-        metricBox.setVisible(visible);
+        FxViewUtil.setVisible(metricBox, visible);
         if (!visible) {
             return;
         }
@@ -163,13 +161,16 @@ public final class AuctionCardController {
     private void configureButton(Button button, String text, Runnable action) {
         boolean visible = text != null && !text.isBlank() && action != null;
         button.setText(visible ? text : "");
-        button.setManaged(visible);
-        button.setVisible(visible);
+        FxViewUtil.setVisible(button, visible);
         if (button == primaryButton) {
             primaryAction = action;
             return;
         }
-        secondaryAction = action;
+        if (button == secondaryButton) {
+            secondaryAction = action;
+            return;
+        }
+        watchListAction = action;
     }
 
     private void startCountdown(Label label, String prefix, LocalDateTime endTime) {

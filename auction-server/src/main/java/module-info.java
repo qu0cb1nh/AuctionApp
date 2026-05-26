@@ -7,7 +7,9 @@ module net.auctionapp.server {
     requires org.slf4j;
     requires jbcrypt;
     requires mysql.connector.j;
+    requires io.github.cdimascio.dotenv.java;
 
     exports net.auctionapp.server;
     exports net.auctionapp.server.config;
+    exports net.auctionapp.server.messages;
 }
