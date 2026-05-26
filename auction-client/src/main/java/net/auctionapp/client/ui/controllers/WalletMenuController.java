@@ -1,6 +1,8 @@
 package net.auctionapp.client.ui.controllers;
 
 import javafx.event.ActionEvent;
+import javafx.beans.property.BooleanProperty;
+import javafx.beans.property.SimpleBooleanProperty;
 import javafx.fxml.FXML;
 import javafx.fxml.Initializable;
 import javafx.scene.control.Button;
@@ -50,10 +52,13 @@ public class WalletMenuController implements Initializable {
 
     private BigDecimal currentBalance = BigDecimal.ZERO;
     private BigDecimal currentPendingBalance = BigDecimal.ZERO;
+    private final BooleanProperty mutationPending = new SimpleBooleanProperty();
 
     @Override
     public void initialize(URL location, ResourceBundle resources) {
         appHeaderController.setupHeader("Wallet");
+        depositButton.disableProperty().bind(mutationPending);
+        withdrawButton.disableProperty().bind(mutationPending);
         SceneManager.registerSceneMessageListener(MessageType.BALANCE_UPDATE, this::handleBalanceUpdate);
         updateBalanceDisplay();
         requestWallet();
@@ -65,7 +70,7 @@ public class WalletMenuController implements Initializable {
         if (amount == null) {
             return;
         }
-        setBusy(true);
+        mutationPending.set(true);
         WalletService.getInstance().deposit(
                 amount,
                 message -> handleWalletMutationResponse(message, depositField)
@@ -78,7 +83,7 @@ public class WalletMenuController implements Initializable {
         if (amount == null) {
             return;
         }
-        setBusy(true);
+        mutationPending.set(true);
         WalletService.getInstance().withdraw(
                 amount,
                 message -> handleWalletMutationResponse(message, withdrawField)
@@ -90,7 +95,7 @@ public class WalletMenuController implements Initializable {
     }
 
     private void handleWalletMutationResponse(Message message, TextField sourceField) {
-        setBusy(false);
+        mutationPending.set(false);
         if (handleWalletResponse(message) && sourceField != null) {
             sourceField.clear();
         }
@@ -167,8 +172,4 @@ public class WalletMenuController implements Initializable {
         return value == null ? BigDecimal.ZERO : value;
     }
 
-    private void setBusy(boolean busy) {
-        depositButton.setDisable(busy);
-        withdrawButton.setDisable(busy);
-    }
 }

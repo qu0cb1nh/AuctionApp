@@ -10,6 +10,7 @@ import net.auctionapp.common.messages.auction.AuctionDetailsListResponseMessage;
 import net.auctionapp.common.messages.auction.AuctionDetailsResponseMessage;
 import net.auctionapp.common.messages.auction.AuctionEndedResponseMessage;
 import net.auctionapp.common.messages.auction.AuctionListResponseMessage;
+import net.auctionapp.common.messages.auction.AuctionUpdatedResponseMessage;
 import net.auctionapp.common.messages.auction.BidRequestMessage;
 import net.auctionapp.common.messages.auction.BidResponseMessage;
 import net.auctionapp.common.messages.auction.CancelAuctionRequestMessage;
@@ -35,6 +36,7 @@ import net.auctionapp.common.users.UserRole;
 import net.auctionapp.common.utils.MoneyUtil;
 import net.auctionapp.common.utils.StringUtil;
 import net.auctionapp.server.ClientHandler;
+import net.auctionapp.server.ServerApp;
 import net.auctionapp.server.dao.AuctionDao;
 import net.auctionapp.server.exceptions.AuthenticationException;
 import net.auctionapp.server.exceptions.AuthorizationException;
@@ -246,7 +248,7 @@ public final class AuctionService {
         try {
             handler.ensureAuthenticated();
             String actorId = StringUtil.normalizeString(handler.getAuthenticatedId());
-            updateAuction(
+            Auction updatedAuction = updateAuction(
                     actorId,
                     request.getAuctionId(),
                     request.getTitle(),
@@ -257,6 +259,7 @@ public final class AuctionService {
                     request.getEndTime()
             );
             handler.sendResponse(new AuctionActionResponseMessage("Auction updated successfully."), request);
+            broadcastAuctionUpdated(updatedAuction);
         } catch (RuntimeException e) {
             sendAuctionActionError(handler, request, e);
         }
@@ -266,8 +269,9 @@ public final class AuctionService {
         try {
             handler.ensureAuthenticated();
             String actorId = StringUtil.normalizeString(handler.getAuthenticatedId());
-            cancelAuction(actorId, request.getAuctionId());
+            Auction updatedAuction = cancelAuction(actorId, request.getAuctionId());
             handler.sendResponse(new AuctionActionResponseMessage("Auction canceled successfully."), request);
+            broadcastAuctionUpdated(updatedAuction);
         } catch (RuntimeException e) {
             sendAuctionActionError(handler, request, e);
         }
@@ -277,8 +281,9 @@ public final class AuctionService {
         try {
             handler.ensureAuthenticated();
             String actorId = StringUtil.normalizeString(handler.getAuthenticatedId());
-            closeAuction(actorId, request.getAuctionId());
+            Auction updatedAuction = closeAuction(actorId, request.getAuctionId());
             handler.sendResponse(new AuctionActionResponseMessage("Auction closed successfully."), request);
+            broadcastAuctionUpdated(updatedAuction);
         } catch (RuntimeException e) {
             sendAuctionActionError(handler, request, e);
         }
@@ -415,9 +420,9 @@ public final class AuctionService {
             ensureAdminOrOwningSeller(actor, auction);
 
             synchronized (auction) {
-                if (auction.getStatus() != AuctionStatus.RUNNING) {
-                    throw new InvalidAuctionStateException("Only active auctions can be edited.");
-                }
+                LocalDateTime now = LocalDateTime.now();
+                ensureRunningManagementAction(auction, now);
+                validateManagementUpdate(auction, startingPrice, minimumBidIncrement, startTime, endTime, now);
                 Auction candidate = auction.snapshotCopy();
                 boolean updated = candidate.updateListingDetails(
                         title,
@@ -426,7 +431,7 @@ public final class AuctionService {
                         minimumBidIncrement,
                         startTime,
                         endTime,
-                        LocalDateTime.now()
+                        now
                 );
                 if (!updated) {
                     throw new InvalidAuctionStateException("Auction draft update data is invalid.");
@@ -562,34 +567,34 @@ public final class AuctionService {
         }
     }
 
-    private void closeAuction(String actorId, String auctionId) {
+    private Auction closeAuction(String actorId, String auctionId) {
         Auction auction = requireAuction(auctionId);
-        User actor = authService.requireUserById(StringUtil.normalizeString(actorId));
-        ensureAdminOrOwningSeller(actor, auction);
+        User actor = authService.requireActiveUserById(StringUtil.normalizeString(actorId));
+        if (!actor.hasRole(UserRole.ADMIN)) {
+            throw new AuthorizationException("Only an admin can close an auction manually.");
+        }
         closeAuctionManually(auction);
+        return auction;
     }
 
-    private void cancelAuction(String actorId, String auctionId) {
+    private Auction cancelAuction(String actorId, String auctionId) {
         Auction auction = requireAuction(auctionId);
-        User actor = authService.requireUserById(StringUtil.normalizeString(actorId));
+        User actor = authService.requireActiveUserById(StringUtil.normalizeString(actorId));
         ensureAdminOrOwningSeller(actor, auction);
         boolean actorIsAdmin = actor.hasRole(UserRole.ADMIN);
         if (!finishAuction(auction, true, true, () -> {
+            ensureRunningManagementAction(auction, LocalDateTime.now());
             if (!actorIsAdmin && !auction.getBidHistory().isEmpty()) {
-                throw new AuthorizationException("Only an admin can cancel auctions that already have bids.");
+                throw new AuthorizationException("An auction with bids cannot be canceled by its seller.");
             }
         })) {
             throw new InvalidAuctionStateException("Auction is already closed.");
         }
+        return auction;
     }
 
     private void closeAuctionManually(Auction auction) {
-        synchronized (auction) {
-            if (auction.getStatus() != AuctionStatus.RUNNING) {
-                throw new InvalidAuctionStateException("Auction is already closed.");
-            }
-        }
-        if (!finishAuction(auction, false, true)) {
+        if (!finishAuction(auction, false, true, () -> ensureRunningManagementAction(auction, LocalDateTime.now()))) {
             throw new InvalidAuctionStateException("Auction is already closed.");
         }
     }
@@ -774,6 +779,42 @@ public final class AuctionService {
         }
     }
 
+    private void validateManagementUpdate(
+            Auction auction,
+            BigDecimal startingPrice,
+            BigDecimal minimumBidIncrement,
+            LocalDateTime startTime,
+            LocalDateTime endTime,
+            LocalDateTime now
+    ) {
+        if (!sameMoney(startingPrice, auction.getStartingPrice())
+                || !sameMoney(minimumBidIncrement, auction.getMinimumBidIncrement())
+                || !Objects.equals(startTime, auction.getStartTime())) {
+            throw new AuthorizationException("Starting price, increment, and start time cannot be edited.");
+        }
+        if (endTime == null || !endTime.isAfter(now)) {
+            throw new ValidationException("End time must be after the current time.");
+        }
+        if (endTime.isBefore(auction.getEndTime())) {
+            throw new ValidationException("End time cannot be earlier than the current end time.");
+        }
+    }
+
+    private boolean sameMoney(BigDecimal first, BigDecimal second) {
+        return first != null && second != null && first.compareTo(second) == 0;
+    }
+
+    private void ensureRunningManagementAction(Auction auction, LocalDateTime now) {
+        synchronized (auction) {
+            if (auction.getStatus() != AuctionStatus.RUNNING
+                    || now == null
+                    || auction.getEndTime() == null
+                    || !now.isBefore(auction.getEndTime())) {
+                throw new InvalidAuctionStateException("Only running auctions can be managed.");
+            }
+        }
+    }
+
     private void ensureAuctionIsRunning(Auction auction, LocalDateTime now) {
         synchronized (auction) {
             if (auction.getStatus() != AuctionStatus.RUNNING
@@ -865,6 +906,16 @@ public final class AuctionService {
                     displayUsername(auction.getLeadingBidderId()),
                     auction.getEndTime()
             ));
+        }
+    }
+
+    private void broadcastAuctionUpdated(Auction auction) {
+        if (auction == null) {
+            return;
+        }
+        AuctionUpdatedResponseMessage update = new AuctionUpdatedResponseMessage(auction.getId());
+        for (ClientHandler client : ServerApp.getConnectedClients()) {
+            client.sendMessage(update);
         }
     }
 

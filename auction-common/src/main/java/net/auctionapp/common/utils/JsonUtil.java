@@ -82,6 +82,7 @@ public final class JsonUtil {
                 case ADMIN_GET_USERS_RESPONSE -> GSON.fromJson(json, AdminGetUsersResponseMessage.class);
                 case ADMIN_ACTION_SUCCESS -> GSON.fromJson(json, AdminActionResponseMessage.class);
                 case AUCTION_ACTION_SUCCESS -> GSON.fromJson(json, AuctionActionResponseMessage.class);
+                case AUCTION_UPDATED -> GSON.fromJson(json, AuctionUpdatedResponseMessage.class);
                 case BID_REQUEST -> GSON.fromJson(json, BidRequestMessage.class);
                 case BID_ACCEPTED, BID_REJECTED -> GSON.fromJson(json, BidResponseMessage.class);
                 case PRICE_UPDATE -> GSON.fromJson(json, PriceUpdateResponseMessage.class);

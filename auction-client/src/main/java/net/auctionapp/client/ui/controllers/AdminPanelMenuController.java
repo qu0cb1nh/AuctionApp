@@ -2,6 +2,7 @@ package net.auctionapp.client.ui.controllers;
 
 import net.auctionapp.client.ui.controllers.components.HeaderController;
 
+import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.SimpleBooleanProperty;
 import javafx.beans.property.SimpleStringProperty;
 import javafx.css.PseudoClass;
@@ -17,6 +18,7 @@ import javafx.scene.layout.VBox;
 import net.auctionapp.client.services.AdminService;
 import net.auctionapp.client.services.AuctionService;
 import net.auctionapp.client.ClientSession;
+import net.auctionapp.client.ui.managers.NotificationToastManager;
 import net.auctionapp.client.ui.managers.SceneManager;
 import net.auctionapp.common.messages.Message;
 import net.auctionapp.common.dto.AdminUserView;
@@ -92,11 +94,14 @@ public class AdminPanelMenuController implements Initializable {
 
     private boolean usersLoaded;
     private boolean auctionsLoaded;
+    private final BooleanProperty userBanButtonsDisabled = new SimpleBooleanProperty();
 
     @Override
     public void initialize(URL location, ResourceBundle resources) {
         appHeaderController.setupHeader("Admin Panel");
         configureTables();
+        banButton.disableProperty().bind(userBanButtonsDisabled);
+        unbanButton.disableProperty().bind(userBanButtonsDisabled);
         updateSectionSelection(AdminSection.USER_MANAGEMENT);
         boolean isAdmin = ClientSession.getInstance().isAdmin();
         if (!isAdmin) {
@@ -121,6 +126,7 @@ public class AdminPanelMenuController implements Initializable {
             setErrorStatus("Please select a user to ban.");
             return;
         }
+        userBanButtonsDisabled.set(true);
         AdminService.getInstance().updateUserBanStatus(selected.userId(), true, this::handleUserBanUpdateResponse);
     }
 
@@ -131,6 +137,7 @@ public class AdminPanelMenuController implements Initializable {
             setErrorStatus("Please select a user to unban.");
             return;
         }
+        userBanButtonsDisabled.set(true);
         AdminService.getInstance().updateUserBanStatus(selected.userId(), false, this::handleUserBanUpdateResponse);
     }
 
@@ -224,6 +231,7 @@ public class AdminPanelMenuController implements Initializable {
     }
 
     private void handleUserBanUpdateResponse(Message message) {
+        userBanButtonsDisabled.set(false);
         if (message instanceof ErrorResponseMessage errorMessage) {
             setErrorStatus(errorMessage.getErrorMessage());
             return;
@@ -233,6 +241,7 @@ public class AdminPanelMenuController implements Initializable {
             return;
         }
         setSuccessStatus(result.getMessage());
+        NotificationToastManager.showSuccess(result.getMessage());
         handleRefreshUsers(null);
     }
 
@@ -270,8 +279,7 @@ public class AdminPanelMenuController implements Initializable {
         auctionsTable.setDisable(true);
         userManagementNavLabel.setDisable(true);
         auctionManagementNavLabel.setDisable(true);
-        banButton.setDisable(true);
-        unbanButton.setDisable(true);
+        userBanButtonsDisabled.set(true);
         openAuctionButton.setDisable(true);
         manageAuctionButton.setDisable(true);
     }

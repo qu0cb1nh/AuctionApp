@@ -15,8 +15,8 @@ import net.auctionapp.client.services.AuctionService;
 import net.auctionapp.client.services.WatchListService;
 import net.auctionapp.client.ui.controllers.components.AuctionCardController;
 import net.auctionapp.client.ui.controllers.components.HeaderController;
+import net.auctionapp.client.ui.managers.NotificationToastManager;
 import net.auctionapp.client.ui.managers.SceneManager;
-import net.auctionapp.client.utils.DurationFormatUtil;
 import net.auctionapp.client.utils.ResourcesUtil;
 import net.auctionapp.common.auction.AuctionStatus;
 import net.auctionapp.common.items.ItemType;
@@ -33,7 +33,6 @@ import net.auctionapp.common.messages.watchlist.WatchListResponseMessage;
 import java.io.IOException;
 import java.math.BigDecimal;
 import java.net.URL;
-import java.time.Duration;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
@@ -201,7 +200,7 @@ public class MyActivityMenuController implements Initializable {
                 "Owner: " + formatOwner(activity.sellerUsername()),
                 AuctionCardController.TextTone.MUTED,
                 "Bid state: " + activity.bidPosition(),
-                formatTimingLabel(activity.endTime(), activity.auctionStatus()),
+                active ? "Ends in: 00:00:00" : "Ended at: " + formatDateTime(activity.endTime()),
                 "Bid count: " + activity.bidCount(),
                 "Your Max Bid",
                 formatMoney(activity.yourMaxBid()),
@@ -209,8 +208,8 @@ public class MyActivityMenuController implements Initializable {
                 active ? "Current Price" : "Final Price",
                 formatMoney(activity.currentPrice()),
                 active ? AuctionCardController.TextTone.DANGER : AuctionCardController.TextTone.DEFAULT,
-                active ? "Ends At" : "Winner",
-                active ? formatDateTime(activity.endTime()) : safeWinnerName(activity.winnerBidderId()),
+                active ? null : "Winner",
+                active ? null : safeWinnerName(activity.winnerBidderId()),
                 AuctionCardController.TextTone.DEFAULT,
                 "View auction",
                 () -> {
@@ -222,15 +221,16 @@ public class MyActivityMenuController implements Initializable {
                 watchListLoaded ? formatWatchListButtonText(activity.auctionId()) : null,
                 watchListLoaded ? () -> handleToggleWatchList(activity.auctionId()) : null
         );
-        return loadAuctionCardComponent(cardData);
+        return loadAuctionCardComponent(cardData, active ? activity.endTime() : null);
     }
 
-    private HBox loadAuctionCardComponent(AuctionCardController.CardData cardData) {
+    private HBox loadAuctionCardComponent(AuctionCardController.CardData cardData, LocalDateTime countdownEndTime) {
         try {
             FXMLLoader loader = ResourcesUtil.fxmlLoader("components/AuctionCard.fxml");
             HBox card = loader.load();
             AuctionCardController controller = loader.getController();
             controller.bindCard(cardData);
+            controller.startDetailTwoCountdown(countdownEndTime);
             return card;
         } catch (IOException | RuntimeException e) {
             Label fallback = new Label("Failed to load activity card.");
@@ -338,19 +338,6 @@ public class MyActivityMenuController implements Initializable {
         return username == null || username.isBlank() ? userId : username;
     }
 
-    private String formatTimingLabel(LocalDateTime endTime, AuctionStatus auctionStatus) {
-        if (endTime == null) {
-            return "End time: N/A";
-        }
-        if (auctionStatus == AuctionStatus.RUNNING) {
-            Duration remaining = Duration.between(LocalDateTime.now(), endTime);
-            if (!remaining.isNegative() && !remaining.isZero()) {
-                return "Ends in: " + DurationFormatUtil.formatRemainingDuration(remaining);
-            }
-        }
-        return "Ended at: " + CARD_TIME_FORMATTER.format(endTime);
-    }
-
     private boolean isActive(AuctionDetailsResponseMessage response) {
         return response != null
                 && response.getStatus() == AuctionStatus.RUNNING
@@ -377,6 +364,7 @@ public class MyActivityMenuController implements Initializable {
         }
         if (message instanceof WatchListChangedResponseMessage changed) {
             handleWatchListChanged(changed);
+            NotificationToastManager.showSuccess(watchListActionMessage(changed));
         }
     }
 
@@ -390,6 +378,12 @@ public class MyActivityMenuController implements Initializable {
             watchedAuctionIds.remove(changed.getAuctionId());
         }
         applyFilters();
+    }
+
+    private String watchListActionMessage(WatchListChangedResponseMessage changed) {
+        return changed.isWatched()
+                ? "Auction added to your watchlist."
+                : "Auction removed from your watchlist.";
     }
 
     private String formatWatchListButtonText(String auctionId) {

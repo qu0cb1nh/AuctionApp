@@ -1,5 +1,7 @@
 package net.auctionapp.client.ui.controllers.components;
 
+import javafx.animation.KeyFrame;
+import javafx.animation.Timeline;
 import javafx.event.ActionEvent;
 import javafx.css.PseudoClass;
 import javafx.fxml.FXML;
@@ -8,8 +10,12 @@ import javafx.scene.control.Label;
 import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
 import javafx.scene.layout.VBox;
+import javafx.util.Duration;
+import net.auctionapp.client.utils.DurationFormatUtil;
 import net.auctionapp.client.utils.ResourcesUtil;
 import net.auctionapp.common.items.ItemType;
+
+import java.time.LocalDateTime;
 
 public final class AuctionCardController {
     private static final PseudoClass WATCHING_STATE = PseudoClass.getPseudoClass("watching");
@@ -56,6 +62,16 @@ public final class AuctionCardController {
     private Runnable primaryAction;
     private Runnable secondaryAction;
     private Runnable watchListAction;
+    private Timeline countdownTimeline;
+
+    @FXML
+    private void initialize() {
+        titleLabel.sceneProperty().addListener((observable, oldScene, newScene) -> {
+            if (oldScene != null && newScene == null) {
+                stopCountdownTimer();
+            }
+        });
+    }
 
     public void bindCard(CardData data) {
         if (data == null) {
@@ -78,6 +94,14 @@ public final class AuctionCardController {
                 WATCHING_STATE,
                 "Watching".equals(data.watchListButtonText())
         );
+    }
+
+    public void startDetailTwoCountdown(LocalDateTime endTime) {
+        startCountdown(detailTwoLabel, "Ends in: ", endTime);
+    }
+
+    public void startMetricTwoCountdown(LocalDateTime endTime) {
+        startCountdown(metricTwoValueLabel, "", endTime);
     }
 
     @FXML
@@ -145,11 +169,38 @@ public final class AuctionCardController {
             primaryAction = action;
             return;
         }
-        if (button == secondaryButton) {
-            secondaryAction = action;
+        secondaryAction = action;
+    }
+
+    private void startCountdown(Label label, String prefix, LocalDateTime endTime) {
+        if (endTime == null) {
             return;
         }
-        watchListAction = action;
+        stopCountdownTimer();
+        updateCountdownLabel(label, prefix, endTime);
+        if (!LocalDateTime.now().isBefore(endTime)) {
+            return;
+        }
+        countdownTimeline = new Timeline(new KeyFrame(Duration.seconds(1), event -> {
+            updateCountdownLabel(label, prefix, endTime);
+            if (!LocalDateTime.now().isBefore(endTime)) {
+                stopCountdownTimer();
+            }
+        }));
+        countdownTimeline.setCycleCount(Timeline.INDEFINITE);
+        countdownTimeline.play();
+    }
+
+    private void updateCountdownLabel(Label label, String prefix, LocalDateTime endTime) {
+        java.time.Duration remaining = java.time.Duration.between(LocalDateTime.now(), endTime);
+        label.setText(prefix + DurationFormatUtil.formatRemainingDuration(remaining));
+    }
+
+    private void stopCountdownTimer() {
+        if (countdownTimeline != null) {
+            countdownTimeline.stop();
+            countdownTimeline = null;
+        }
     }
 
     private String textOrFallback(String value, String fallback) {

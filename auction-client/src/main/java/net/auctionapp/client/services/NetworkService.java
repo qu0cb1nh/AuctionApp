@@ -185,10 +185,15 @@ public final class NetworkService {
                 .thenCompose(response -> response);
         result.whenComplete((message, throwable) -> pendingRequests.remove(finalRequestId));
 
-        if (!sendJson(JsonUtil.toJson(request))) {
+        try {
+            if (!sendJson(JsonUtil.toJson(request))) {
+                pendingRequests.remove(requestId);
+                closeResourcesQuietly();
+                future.completeExceptionally(networkFailure(CLIENT_NOT_CONNECTED_MESSAGE));
+            }
+        } catch (RuntimeException e) {
             pendingRequests.remove(requestId);
-            closeResourcesQuietly();
-            future.completeExceptionally(networkFailure(CLIENT_NOT_CONNECTED_MESSAGE));
+            future.completeExceptionally(e);
         }
 
         return result;

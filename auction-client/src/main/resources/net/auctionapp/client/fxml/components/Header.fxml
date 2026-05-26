@@ -5,7 +5,10 @@
 <?import javafx.scene.control.Label?>
 <?import javafx.scene.control.MenuButton?>
 <?import javafx.scene.control.MenuItem?>
+<?import javafx.scene.image.Image?>
+<?import javafx.scene.image.ImageView?>
 <?import javafx.scene.layout.BorderPane?>
+<?import javafx.scene.layout.HBox?>
 <?import javafx.scene.layout.StackPane?>
 
 <StackPane maxHeight="64.0" minHeight="64.0" prefHeight="64.0" prefWidth="945.0" style="-fx-background-color: #3bb3c3;" xmlns="http://javafx.com/javafx/25" xmlns:fx="http://javafx.com/fxml/1" fx:controller="net.auctionapp.client.ui.controllers.components.HeaderController">
@@ -17,15 +20,26 @@
       </Label>
         <BorderPane pickOnBounds="false" StackPane.alignment="CENTER">
             <padding>
-                <Insets bottom="12.0" left="24.0" right="12.0" top="12.0" />
+                <Insets bottom="6.0" left="12.0" right="12.0" top="6.0" />
             </padding>
             <left>
-                <Button fx:id="backButton" mnemonicParsing="false" onAction="#handleBack" prefHeight="34.0" prefWidth="88.0" style="-fx-background-color: white; -fx-text-fill: #3bb3c3; -fx-background-radius: 18px; -fx-font-weight: bold; -fx-cursor: hand;" text="Back" BorderPane.alignment="CENTER" />
+                <HBox alignment="CENTER_LEFT" spacing="12.0" BorderPane.alignment="CENTER">
+                    <children>
+                        <Button mnemonicParsing="false" onAction="#handleOpenDashboard" prefHeight="52.0" prefWidth="52.0" style="-fx-background-color: transparent; -fx-padding: 0; -fx-cursor: hand;" text="">
+                            <graphic>
+                                <ImageView fx:id="dashboardIconImageView" fitHeight="46.0" fitWidth="46.0" preserveRatio="true">
+                           <image>
+                              <Image url="@../../images/app_icon_64.png" />
+                           </image></ImageView>
+                            </graphic>
+                        </Button>
+                        <Button fx:id="backButton" mnemonicParsing="false" onAction="#handleBack" prefHeight="34.0" prefWidth="88.0" style="-fx-background-color: white; -fx-text-fill: #3bb3c3; -fx-background-radius: 18px; -fx-font-weight: bold; -fx-cursor: hand;" text="Back" />
+                    </children>
+                </HBox>
             </left>
             <right>
                 <MenuButton fx:id="userMenuButton" alignment="CENTER_RIGHT" maxWidth="200.0" minWidth="128.0" prefWidth="200.0" style="-fx-background-color: transparent; -fx-text-fill: white; -fx-font-size: 14px; -fx-font-weight: bold; -fx-cursor: hand;" text="Guest" BorderPane.alignment="CENTER_RIGHT">
                     <items>
-                        <MenuItem mnemonicParsing="false" onAction="#handleOpenDashboard" text="Dashboard" />
                         <MenuItem mnemonicParsing="false" onAction="#handleOpenWallet" text="Wallet" />
                         <MenuItem mnemonicParsing="false" onAction="#handleOpenNotifications" text="Notifications" />
                         <MenuItem mnemonicParsing="false" onAction="#handleOpenActivity" text="My Activities" />

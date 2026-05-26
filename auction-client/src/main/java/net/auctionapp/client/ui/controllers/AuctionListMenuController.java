@@ -14,6 +14,7 @@ import javafx.scene.control.Label;
 import javafx.scene.control.TextField;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.VBox;
+import net.auctionapp.client.ui.managers.NotificationToastManager;
 import net.auctionapp.client.ui.managers.SceneManager;
 import net.auctionapp.client.utils.ResourcesUtil;
 import net.auctionapp.client.services.AuctionService;
@@ -22,6 +23,7 @@ import net.auctionapp.client.ClientSession;
 import net.auctionapp.common.messages.Message;
 import net.auctionapp.common.dto.AuctionSummary;
 import net.auctionapp.common.messages.auction.AuctionListResponseMessage;
+import net.auctionapp.common.messages.auction.AuctionUpdatedResponseMessage;
 import net.auctionapp.common.messages.system.ErrorResponseMessage;
 import net.auctionapp.common.messages.watchlist.WatchListChangedResponseMessage;
 import net.auctionapp.common.messages.watchlist.WatchListResponseMessage;
@@ -81,6 +83,7 @@ public class AuctionListMenuController implements Initializable {
         statusFilterComboBox.getSelectionModel().select("RUNNING");
         sortComboBox.getItems().setAll(SORT_ENDING_SOON, SORT_HIGHEST_BID, SORT_NEWEST_START);
         sortComboBox.getSelectionModel().select(SORT_ENDING_SOON);
+        SceneManager.registerSceneMessageListener(MessageType.AUCTION_UPDATED, this::handleAuctionUpdated);
 
         if (authenticatedUser) {
             SceneManager.registerSceneMessageListener(MessageType.WATCH_LIST_CHANGED, this::handleWatchListChanged);
@@ -191,6 +194,7 @@ public class AuctionListMenuController implements Initializable {
     }
 
     private HBox loadAuctionCard(AuctionSummary auction) {
+        boolean active = "RUNNING".equals(deriveDisplayStatus(auction));
         boolean canManageAuction = ClientSession.getInstance().canManageAuction(auction.getSellerId());
         AuctionCardController.CardData cardData = new AuctionCardController.CardData(
                 auction.getImageUrl(),
@@ -200,12 +204,12 @@ public class AuctionListMenuController implements Initializable {
                 AuctionCardController.TextTone.MUTED,
                 "Minimum Next Bid: " + formatPrice(auction.getMinimumNextBid()),
                 "Start: " + formatDateTime(auction.getStartTime()),
-                "End: " + formatDateTime(auction.getEndTime()),
+                null,
                 "Current Bid",
                 formatPrice(auction.getCurrentPrice()),
                 AuctionCardController.TextTone.PRIMARY,
-                "Ends At",
-                formatDateTime(auction.getEndTime()),
+                active ? "Ends In" : "Ended At",
+                active ? "00:00:00" : formatDateTime(auction.getEndTime()),
                 AuctionCardController.TextTone.DANGER,
                 "Top Bidder",
                 formatTopBidder(auction.getLeadingBidderUsername()),
@@ -215,17 +219,20 @@ public class AuctionListMenuController implements Initializable {
                 canManageAuction ? "Manage auction" : null,
                 canManageAuction ? () -> handleManageAuction(auction.getAuctionId()) : null,
                 authenticatedUser && watchListLoaded ? formatWatchListButtonText(auction.getAuctionId()) : null,
-                authenticatedUser && watchListLoaded ? () -> handleToggleWatchList(auction.getAuctionId()) : null
+                authenticatedUser && watchListLoaded
+                        ? () -> handleToggleWatchList(auction.getAuctionId())
+                        : null
         );
-        return loadAuctionCardComponent(cardData);
+        return loadAuctionCardComponent(cardData, active ? auction.getEndTime() : null);
     }
 
-    private HBox loadAuctionCardComponent(AuctionCardController.CardData cardData) {
+    private HBox loadAuctionCardComponent(AuctionCardController.CardData cardData, LocalDateTime countdownEndTime) {
         try {
             FXMLLoader loader = ResourcesUtil.fxmlLoader("components/AuctionCard.fxml");
             HBox card = loader.load();
             AuctionCardController controller = loader.getController();
             controller.bindCard(cardData);
+            controller.startMetricTwoCountdown(countdownEndTime);
             return card;
         } catch (IOException | RuntimeException e) {
             Label fallback = new Label("Failed to load auction card.");
@@ -333,10 +340,15 @@ public class AuctionListMenuController implements Initializable {
             return;
         }
         applyWatchListChange(changed);
+        NotificationToastManager.showSuccess(watchListActionMessage(changed));
     }
 
     private void handleWatchListChanged(WatchListChangedResponseMessage changed) {
         applyWatchListChange(changed);
+    }
+
+    private void handleAuctionUpdated(AuctionUpdatedResponseMessage update) {
+        requestAuctionList();
     }
 
     private void applyWatchListChange(WatchListChangedResponseMessage changed) {
@@ -349,6 +361,12 @@ public class AuctionListMenuController implements Initializable {
             watchedAuctionIds.remove(changed.getAuctionId());
         }
         applyFilters();
+    }
+
+    private String watchListActionMessage(WatchListChangedResponseMessage changed) {
+        return changed.isWatched()
+                ? "Auction added to your watchlist."
+                : "Auction removed from your watchlist.";
     }
 
     private String formatWatchListButtonText(String auctionId) {

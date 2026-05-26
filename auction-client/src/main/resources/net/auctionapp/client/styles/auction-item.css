@@ -1,3 +1,18 @@
+.button:hover,
+.auction-watch-button:hover {
+    -fx-opacity: 0.86;
+}
+
+.button:pressed,
+.auction-watch-button:pressed {
+    -fx-opacity: 0.72;
+}
+
+.button:disabled,
+.auction-watch-button:disabled {
+    -fx-opacity: 0.55;
+}
+
 .chart-card {
     -fx-background-color: white;
     -fx-background-radius: 16px;

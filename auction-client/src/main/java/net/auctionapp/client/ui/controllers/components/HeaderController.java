@@ -7,10 +7,12 @@ import javafx.scene.control.ContextMenu;
 import javafx.scene.control.Label;
 import javafx.scene.control.MenuButton;
 import javafx.scene.control.MenuItem;
+import javafx.scene.image.ImageView;
 import javafx.scene.input.MouseEvent;
 import net.auctionapp.client.services.AuthService;
 import net.auctionapp.client.ClientSession;
 import net.auctionapp.client.ui.managers.SceneManager;
+import net.auctionapp.client.utils.ResourcesUtil;
 
 public class HeaderController {
     @FXML

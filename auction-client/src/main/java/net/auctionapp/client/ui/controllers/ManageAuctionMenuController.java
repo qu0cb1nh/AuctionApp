@@ -6,16 +6,23 @@ import javafx.event.ActionEvent;
 import javafx.css.PseudoClass;
 import javafx.fxml.FXML;
 import javafx.fxml.Initializable;
+import javafx.scene.control.Alert;
 import javafx.scene.control.Button;
+import javafx.scene.control.ButtonType;
 import javafx.scene.control.Label;
 import javafx.scene.control.TextArea;
 import javafx.scene.control.TextField;
 import net.auctionapp.client.services.AuctionService;
 import net.auctionapp.client.ClientSession;
+import net.auctionapp.client.ui.managers.NotificationToastManager;
 import net.auctionapp.client.ui.managers.SceneManager;
 import net.auctionapp.common.messages.Message;
+import net.auctionapp.common.messages.MessageType;
 import net.auctionapp.common.messages.auction.AuctionActionResponseMessage;
 import net.auctionapp.common.messages.auction.AuctionDetailsResponseMessage;
+import net.auctionapp.common.messages.auction.AuctionEndedResponseMessage;
+import net.auctionapp.common.messages.auction.AuctionUpdatedResponseMessage;
+import net.auctionapp.common.messages.auction.PriceUpdateResponseMessage;
 import net.auctionapp.common.messages.auction.UpdateAuctionRequestMessage;
 import net.auctionapp.common.messages.system.ErrorResponseMessage;
 import net.auctionapp.common.auction.AuctionStatus;
@@ -25,6 +32,7 @@ import java.net.URL;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
+import java.util.Optional;
 import java.util.ResourceBundle;
 
 public class ManageAuctionMenuController implements Initializable, AuctionContextController {
@@ -43,12 +51,6 @@ public class ManageAuctionMenuController implements Initializable, AuctionContex
     @FXML
     private TextArea descriptionField;
     @FXML
-    private TextField startingPriceField;
-    @FXML
-    private TextField incrementField;
-    @FXML
-    private TextField startTimeField;
-    @FXML
     private TextField endTimeField;
     @FXML
     private Button saveButton;
@@ -58,10 +60,13 @@ public class ManageAuctionMenuController implements Initializable, AuctionContex
     private Button closeButton;
 
     private String currentAuctionId;
+    private AuctionDetailsResponseMessage currentAuction;
+    private boolean actionRequestPending;
 
     @Override
     public void initialize(URL location, ResourceBundle resources) {
         appHeaderController.setupHeader("Manage Auction");
+        setInfoStatus("");
     }
 
     @Override
@@ -72,6 +77,12 @@ public class ManageAuctionMenuController implements Initializable, AuctionContex
             disableActions();
             return;
         }
+        SceneManager.registerSceneMessageListener(MessageType.AUCTION_UPDATED, this::handleAuctionUpdated);
+        SceneManager.registerSceneMessageListener(MessageType.PRICE_UPDATE, this::handlePriceUpdate);
+        SceneManager.registerSceneMessageListener(MessageType.AUCTION_ENDED, this::handleAuctionEnded);
+        AuctionService.getInstance().observeAuction(currentAuctionId, true);
+        String observedAuctionId = currentAuctionId;
+        SceneManager.registerSceneCleanup(() -> AuctionService.getInstance().observeAuction(observedAuctionId, false));
         requestAuctionDetails();
     }
 
@@ -84,6 +95,7 @@ public class ManageAuctionMenuController implements Initializable, AuctionContex
     public void handleSave(ActionEvent event) {
         try {
             UpdateAuctionRequestMessage request = buildUpdateRequest();
+            setActionRequestPending(true);
             AuctionService.getInstance().updateAuction(request, this::handleActionResponse);
         } catch (IllegalArgumentException e) {
             setErrorStatus(e.getMessage());
@@ -92,12 +104,28 @@ public class ManageAuctionMenuController implements Initializable, AuctionContex
 
     @FXML
     public void handleCancel(ActionEvent event) {
-        AuctionService.getInstance().cancelAuction(currentAuctionId, this::handleActionResponse);
+        if (currentAuctionId == null) {
+            setErrorStatus("No auction selected.");
+            disableActions();
+            return;
+        }
+        if (confirmAction("Cancel Auction", "Cancel this auction? This action cannot be undone.")) {
+            setActionRequestPending(true);
+            AuctionService.getInstance().cancelAuction(currentAuctionId, this::handleActionResponse);
+        }
     }
 
     @FXML
     public void handleClose(ActionEvent event) {
-        AuctionService.getInstance().closeAuction(currentAuctionId, this::handleActionResponse);
+        if (currentAuctionId == null) {
+            setErrorStatus("No auction selected.");
+            disableActions();
+            return;
+        }
+        if (confirmAction("Close Auction", "Close this auction now and determine its result?")) {
+            setActionRequestPending(true);
+            AuctionService.getInstance().closeAuction(currentAuctionId, this::handleActionResponse);
+        }
     }
 
     private void requestAuctionDetails() {
@@ -114,31 +142,29 @@ public class ManageAuctionMenuController implements Initializable, AuctionContex
             setErrorStatus("Unexpected response from server.");
             return;
         }
+        if (!currentAuctionId.equals(response.getAuctionId())) {
+            return;
+        }
 
+        currentAuction = response;
         auctionInfoLabel.setText("Managing: " + response.getTitle() + " (" + deriveDisplayStatus(response) + ")");
         titleField.setText(response.getTitle());
         descriptionField.setText(response.getDescription());
-        startingPriceField.setText(response.getStartingPrice() == null ? "" : response.getStartingPrice().stripTrailingZeros().toPlainString());
-        incrementField.setText(response.getMinimumNextBid() == null || response.getCurrentPrice() == null
-                ? ""
-                : response.getMinimumNextBid().subtract(response.getCurrentPrice()).stripTrailingZeros().toPlainString());
-        startTimeField.setText(formatDateTime(response.getStartTime()));
         endTimeField.setText(formatDateTime(response.getEndTime()));
-        boolean canManageAuction = ClientSession.getInstance().canManageAuction(response.getSellerId());
-        setActionButtonsVisible(canManageAuction);
-        setFormEditable(canManageAuction);
-        boolean canChangeRunningAuction = canManageAuction && response.getStatus() == AuctionStatus.RUNNING;
-        saveButton.setDisable(!canChangeRunningAuction);
-        closeButton.setDisable(!canChangeRunningAuction);
-        cancelButton.setDisable(!canChangeRunningAuction);
+        ClientSession session = ClientSession.getInstance();
+        boolean canManageAuction = session.canManageAuction(response.getSellerId());
         if (!canManageAuction) {
+            setActionButtonsVisible(false);
+            setFormEditable(false);
             setErrorStatus("Only the seller or an admin can manage this auction.");
             return;
         }
-        setSuccessStatus("Auction details loaded.");
+        configureActions(response, session.isAdmin());
+        setInfoStatus("");
     }
 
     private void handleActionResponse(Message message) {
+        setActionRequestPending(false);
         if (message instanceof ErrorResponseMessage errorMessage) {
             setErrorStatus(errorMessage.getErrorMessage());
             return;
@@ -148,14 +174,18 @@ public class ManageAuctionMenuController implements Initializable, AuctionContex
             return;
         }
         setSuccessStatus(result.getMessage());
-        if (result.getMessage() != null && result.getMessage().toLowerCase().contains("canceled")) {
-            SceneManager.switchSceneWithDelay("AuctionListMenu.fxml", 500);
-            return;
-        }
+        NotificationToastManager.showSuccess(result.getMessage());
         requestAuctionDetails();
     }
 
     private UpdateAuctionRequestMessage buildUpdateRequest() {
+        if (currentAuction == null) {
+            throw new IllegalArgumentException("Auction details are not loaded yet.");
+        }
+        boolean running = isRunning(currentAuction);
+        if (!running) {
+            throw new IllegalArgumentException("Only running auctions can be edited.");
+        }
         String title = trim(titleField.getText());
         String description = trim(descriptionField.getText());
         if (title.isEmpty()) {
@@ -164,12 +194,18 @@ public class ManageAuctionMenuController implements Initializable, AuctionContex
         if (description.isEmpty()) {
             throw new IllegalArgumentException("Description is required.");
         }
-        BigDecimal startingPrice = parseDecimal(startingPriceField.getText(), "Starting price", false);
-        BigDecimal increment = parseDecimal(incrementField.getText(), "Increment", true);
-        LocalDateTime startTime = parseDateTime(startTimeField.getText(), "Start time");
+        BigDecimal startingPrice = currentAuction.getStartingPrice();
+        BigDecimal increment = currentIncrement();
+        LocalDateTime startTime = currentAuction.getStartTime();
         LocalDateTime endTime = parseDateTime(endTimeField.getText(), "End time");
         if (!endTime.isAfter(startTime)) {
             throw new IllegalArgumentException("End time must be after start time.");
+        }
+        if (endTime.isBefore(currentAuction.getEndTime())) {
+            throw new IllegalArgumentException("End time cannot be earlier than the current end time.");
+        }
+        if (!endTime.isAfter(LocalDateTime.now())) {
+            throw new IllegalArgumentException("End time must be after the current time.");
         }
         return new UpdateAuctionRequestMessage(
                 currentAuctionId,
@@ -182,23 +218,11 @@ public class ManageAuctionMenuController implements Initializable, AuctionContex
         );
     }
 
-    private BigDecimal parseDecimal(String raw, String fieldName, boolean mustBePositive) {
-        String input = trim(raw);
-        if (input.isEmpty()) {
-            throw new IllegalArgumentException(fieldName + " is required.");
+    private BigDecimal currentIncrement() {
+        if (currentAuction.getMinimumNextBid() == null || currentAuction.getCurrentPrice() == null) {
+            throw new IllegalArgumentException("Auction increment is not available.");
         }
-        try {
-            BigDecimal value = new BigDecimal(input);
-            if (mustBePositive && value.signum() <= 0) {
-                throw new IllegalArgumentException(fieldName + " must be greater than zero.");
-            }
-            if (!mustBePositive && value.signum() < 0) {
-                throw new IllegalArgumentException(fieldName + " must not be negative.");
-            }
-            return value;
-        } catch (NumberFormatException e) {
-            throw new IllegalArgumentException(fieldName + " must be a valid number.");
-        }
+        return currentAuction.getMinimumNextBid().subtract(currentAuction.getCurrentPrice());
     }
 
     private LocalDateTime parseDateTime(String raw, String fieldName) {
@@ -233,6 +257,17 @@ public class ManageAuctionMenuController implements Initializable, AuctionContex
                 || (leadingBidder != null && !leadingBidder.isBlank());
     }
 
+    private boolean hasBids(AuctionDetailsResponseMessage response) {
+        return response != null && !response.getBidHistory().isEmpty();
+    }
+
+    private boolean isRunning(AuctionDetailsResponseMessage response) {
+        return response != null
+                && response.getStatus() == AuctionStatus.RUNNING
+                && response.getEndTime() != null
+                && LocalDateTime.now().isBefore(response.getEndTime());
+    }
+
     private String formatDateTime(LocalDateTime value) {
         if (value == null) {
             return "";
@@ -247,9 +282,6 @@ public class ManageAuctionMenuController implements Initializable, AuctionContex
     private void disableActions() {
         titleField.setDisable(true);
         descriptionField.setDisable(true);
-        startingPriceField.setDisable(true);
-        incrementField.setDisable(true);
-        startTimeField.setDisable(true);
         endTimeField.setDisable(true);
         saveButton.setDisable(true);
         cancelButton.setDisable(true);
@@ -259,10 +291,22 @@ public class ManageAuctionMenuController implements Initializable, AuctionContex
     private void setFormEditable(boolean editable) {
         titleField.setDisable(!editable);
         descriptionField.setDisable(!editable);
-        startingPriceField.setDisable(!editable);
-        incrementField.setDisable(!editable);
-        startTimeField.setDisable(!editable);
         endTimeField.setDisable(!editable);
+    }
+
+    private void configureActions(AuctionDetailsResponseMessage response, boolean admin) {
+        boolean running = isRunning(response);
+        boolean hasBids = hasBids(response);
+        setButtonVisible(saveButton, true);
+        setButtonVisible(cancelButton, true);
+        setButtonVisible(closeButton, admin);
+
+        titleField.setDisable(!running);
+        descriptionField.setDisable(!running);
+        endTimeField.setDisable(!running);
+        saveButton.setDisable(actionRequestPending || !running);
+        closeButton.setDisable(actionRequestPending || !admin || !running);
+        cancelButton.setDisable(actionRequestPending || !running || (!admin && hasBids));
     }
 
     private void setActionButtonsVisible(boolean visible) {
@@ -277,21 +321,65 @@ public class ManageAuctionMenuController implements Initializable, AuctionContex
         button.setDisable(!visible);
     }
 
+    private void setActionRequestPending(boolean pending) {
+        actionRequestPending = pending;
+        if (currentAuction != null) {
+            configureActions(currentAuction, ClientSession.getInstance().isAdmin());
+        }
+    }
+
+    private boolean confirmAction(String title, String text) {
+        Alert confirmation = new Alert(Alert.AlertType.CONFIRMATION);
+        confirmation.setTitle(title);
+        confirmation.setHeaderText(title);
+        confirmation.setContentText(text);
+        if (statusLabel.getScene() != null) {
+            confirmation.initOwner(statusLabel.getScene().getWindow());
+        }
+        Optional<ButtonType> answer = confirmation.showAndWait();
+        return answer.isPresent() && answer.get() == ButtonType.OK;
+    }
+
+    private void handleAuctionUpdated(AuctionUpdatedResponseMessage update) {
+        if (update != null && currentAuctionId.equals(update.getAuctionId())) {
+            requestAuctionDetails();
+        }
+    }
+
+    private void handlePriceUpdate(PriceUpdateResponseMessage update) {
+        if (update != null && currentAuctionId.equals(update.getAuctionId())) {
+            requestAuctionDetails();
+        }
+    }
+
+    private void handleAuctionEnded(AuctionEndedResponseMessage update) {
+        if (update != null && currentAuctionId.equals(update.getAuctionId())) {
+            requestAuctionDetails();
+        }
+    }
+
     private void setSuccessStatus(String text) {
         statusLabel.pseudoClassStateChanged(ERROR_STATE, false);
         statusLabel.pseudoClassStateChanged(SUCCESS_STATE, true);
-        statusLabel.setText(text);
+        updateStatusText(text);
     }
 
     private void setErrorStatus(String text) {
         statusLabel.pseudoClassStateChanged(ERROR_STATE, true);
         statusLabel.pseudoClassStateChanged(SUCCESS_STATE, false);
-        statusLabel.setText(text);
+        updateStatusText(text);
     }
 
     private void setInfoStatus(String text) {
         statusLabel.pseudoClassStateChanged(ERROR_STATE, false);
         statusLabel.pseudoClassStateChanged(SUCCESS_STATE, false);
-        statusLabel.setText(text);
+        updateStatusText(text);
+    }
+
+    private void updateStatusText(String text) {
+        boolean visible = text != null && !text.isBlank();
+        statusLabel.setManaged(visible);
+        statusLabel.setVisible(visible);
+        statusLabel.setText(visible ? text : "");
     }
 }
