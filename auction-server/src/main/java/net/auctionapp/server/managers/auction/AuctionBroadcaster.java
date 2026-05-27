@@ -39,22 +39,12 @@ public final class AuctionBroadcaster {
             return;
         }
         for (String auctionId : auctionSubscribers.keySet()) {
-            unsubscribe(auctionId, handler);
+            removeSubscriberFrom(auctionId, handler);
         }
     }
 
     public void unsubscribe(String auctionId, ClientHandler handler) {
-        if (auctionId == null || auctionId.isBlank() || handler == null) {
-            return;
-        }
-        Set<ClientHandler> subscribers = auctionSubscribers.get(auctionId);
-        if (subscribers == null) {
-            return;
-        }
-        subscribers.remove(handler);
-        if (subscribers.isEmpty()) {
-            auctionSubscribers.remove(auctionId, subscribers);
-        }
+        removeSubscriberFrom(auctionId, handler);
     }
 
     public void broadcastPriceUpdate(Auction auction) {
@@ -89,14 +79,31 @@ public final class AuctionBroadcaster {
     }
 
     private void sendToSubscribers(String auctionId, Message message) {
+        if (auctionId == null || auctionId.isBlank()) {
+            return;
+        }
         Set<ClientHandler> subscribers = auctionSubscribers.get(auctionId);
-        if (subscribers == null || subscribers.isEmpty()) {
+        if (subscribers.isEmpty()) {
             return;
         }
         for (ClientHandler subscriber : subscribers) {
             if (!subscriber.sendMessage(message)) {
-                unsubscribe(auctionId, subscriber);
+                removeSubscriberFrom(auctionId, subscriber);
             }
+        }
+    }
+
+        private void removeSubscriberFrom(String auctionId, ClientHandler handler) {
+        if (auctionId == null || auctionId.isBlank() || handler == null) {
+            return;
+        }
+        Set<ClientHandler> subscribers = auctionSubscribers.get(auctionId);
+        if (subscribers == null) {
+            return;
+        }
+        subscribers.remove(handler);
+        if (subscribers.isEmpty()) {
+            auctionSubscribers.remove(auctionId, subscribers);
         }
     }
 

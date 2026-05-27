@@ -2,11 +2,12 @@ package net.auctionapp.server.managers;
 
 import net.auctionapp.common.exceptions.ValidationException;
 import net.auctionapp.common.messages.Message;
-import net.auctionapp.common.dto.AdminUserView;
-import net.auctionapp.common.messages.admin.AdminActionResponseMessage;
-import net.auctionapp.common.messages.admin.AdminGetUsersRequestMessage;
-import net.auctionapp.common.messages.admin.AdminGetUsersResponseMessage;
-import net.auctionapp.common.messages.admin.AdminSetUserBanRequestMessage;
+import net.auctionapp.common.messages.MessageType;
+import net.auctionapp.common.messages.admin.SetUserBanResponseMessage;
+import net.auctionapp.common.messages.admin.GetUserListRequestMessage;
+import net.auctionapp.common.messages.admin.GetUserListResponseMessage;
+import net.auctionapp.common.dto.AdminUserDto;
+import net.auctionapp.common.messages.admin.SetUserBanRequestMessage;
 import net.auctionapp.common.messages.system.ErrorResponseMessage;
 import net.auctionapp.common.utils.StringUtil;
 import net.auctionapp.server.ClientHandler;
@@ -14,6 +15,7 @@ import net.auctionapp.server.exceptions.AuthenticationException;
 import net.auctionapp.server.exceptions.AuthorizationException;
 import net.auctionapp.server.exceptions.DatabaseException;
 import net.auctionapp.server.exceptions.NotFoundException;
+import net.auctionapp.server.messages.MessageRouter;
 import net.auctionapp.server.models.users.User;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -39,14 +41,21 @@ public final class UserManager {
         return INSTANCE;
     }
 
-    public void handleGetUsers(AdminGetUsersRequestMessage request, ClientHandler handler) {
+    public void registerCommands(MessageRouter messageRouter) {
+        messageRouter.register(MessageType.GET_USER_LIST_REQUEST, GetUserListRequestMessage.class,
+                this::handleGetUsers);
+        messageRouter.register(MessageType.SET_USER_BAN_REQUEST, SetUserBanRequestMessage.class,
+                this::handleSetUserBan);
+    }
+
+    public void handleGetUsers(GetUserListRequestMessage request, ClientHandler handler) {
         try {
             handler.ensureAuthenticated();
             String actorId = StringUtil.normalizeString(handler.getAuthenticatedId());
             List<User> users = authManager.getAllUsers(actorId);
-            List<AdminUserView> userViews = new ArrayList<>();
+            List<AdminUserDto> userViews = new ArrayList<>();
             for (User user : users) {
-                userViews.add(new AdminUserView(
+                userViews.add(new AdminUserDto(
                         user.getId(),
                         user.getUsername(),
                         user.getRole(),
@@ -54,7 +63,7 @@ public final class UserManager {
                         sessionManager.isUserOnline(user.getId())
                 ));
             }
-            handler.sendResponse(new AdminGetUsersResponseMessage(userViews), request);
+            handler.sendResponse(new GetUserListResponseMessage(userViews), request);
         } catch (AuthenticationException | AuthorizationException | NotFoundException | ValidationException e) {
             sendUserError(handler, request, e.getMessage());
         } catch (DatabaseException e) {
@@ -66,7 +75,7 @@ public final class UserManager {
         }
     }
 
-    public void handleSetUserBan(AdminSetUserBanRequestMessage request, ClientHandler handler) {
+    public void handleSetUserBan(SetUserBanRequestMessage request, ClientHandler handler) {
         try {
             handler.ensureAuthenticated();
             String actorId = StringUtil.normalizeString(handler.getAuthenticatedId());
@@ -80,7 +89,7 @@ public final class UserManager {
             }
             String action = updatedUser.isBanned() ? "banned" : "unbanned";
             handler.sendResponse(
-                    new AdminActionResponseMessage("User \"" + updatedUser.getUsername() + "\" was " + action + "."),
+                    new SetUserBanResponseMessage("User \"" + updatedUser.getUsername() + "\" was " + action + "."),
                     request
             );
         } catch (AuthenticationException | AuthorizationException | NotFoundException | ValidationException e) {

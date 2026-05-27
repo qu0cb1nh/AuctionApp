@@ -2,32 +2,29 @@ package net.auctionapp.client.ui.controllers;
 
 import javafx.css.PseudoClass;
 import javafx.fxml.FXML;
-import javafx.scene.control.ComboBox;
 import javafx.scene.control.Label;
-import javafx.scene.control.TextField;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.VBox;
 import net.auctionapp.client.ClientSession;
 import net.auctionapp.client.services.AuctionService;
 import net.auctionapp.client.services.WatchListService;
 import net.auctionapp.client.ui.controllers.components.AuctionCardController;
+import net.auctionapp.client.ui.controllers.components.AuctionToolBarController;
 import net.auctionapp.client.utils.AuctionCardUtil;
 import net.auctionapp.client.ui.controllers.components.HeaderController;
 import net.auctionapp.client.ui.managers.NotificationToastManager;
 import net.auctionapp.client.ui.managers.SceneManager;
 import net.auctionapp.client.utils.AuctionDisplayUtil;
 import net.auctionapp.client.utils.FxViewUtil;
-import net.auctionapp.common.dto.AuctionSummary;
 import net.auctionapp.common.messages.Message;
 import net.auctionapp.common.messages.MessageType;
 import net.auctionapp.common.messages.auction.AuctionListResponseMessage;
+import net.auctionapp.common.dto.AuctionSummaryDto;
 import net.auctionapp.common.messages.system.ErrorResponseMessage;
 import net.auctionapp.common.messages.watchlist.WatchListChangedResponseMessage;
 import net.auctionapp.common.messages.watchlist.WatchListResponseMessage;
 
-import java.time.LocalDateTime;
 import java.util.ArrayList;
-import java.util.Comparator;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
@@ -35,10 +32,10 @@ import java.util.Set;
 
 public class AuctionListMenuController {
     private static final PseudoClass ERROR_STATE = PseudoClass.getPseudoClass("error");
-    private static final String STATUS_ALL = "ALL";
-    private static final String SORT_ENDING_SOON = "Ending soon";
-    private static final String SORT_HIGHEST_BID = "Highest bid";
-    private static final String SORT_NEWEST_START = "Newest start";
+    private static final String STATUS_ALL = "All";
+    private static final String STATUS_RUNNING = "Running";
+    private static final String STATUS_PAID = "Paid";
+    private static final String STATUS_CANCELED = "Canceled";
 
     @FXML
     private HeaderController appHeaderController;
@@ -47,13 +44,9 @@ public class AuctionListMenuController {
     @FXML
     private Label listStatusLabel;
     @FXML
-    private TextField searchField;
-    @FXML
-    private ComboBox<String> statusFilterComboBox;
-    @FXML
-    private ComboBox<String> sortComboBox;
+    private AuctionToolBarController auctionToolBarController;
 
-    private final List<AuctionSummary> allAuctions = new ArrayList<>();
+    private final List<AuctionSummaryDto> allAuctions = new ArrayList<>();
     private final Set<String> watchedAuctionIds = new HashSet<>();
     private boolean authenticatedUser;
     private boolean watchListLoaded;
@@ -62,15 +55,13 @@ public class AuctionListMenuController {
     public void initialize() {
         appHeaderController.setupHeader("Explore Auctions");
         authenticatedUser = ClientSession.getInstance().isAuthenticated();
-        statusFilterComboBox.getItems().setAll(
-                STATUS_ALL,
-                "RUNNING",
-                "PAID",
-                "CANCELED"
+        auctionToolBarController.setup(
+                "Search for products...",
+                List.of(STATUS_ALL, STATUS_RUNNING, STATUS_PAID, STATUS_CANCELED),
+                STATUS_RUNNING,
+                this::applyFilters,
+                this::requestAuctionList
         );
-        statusFilterComboBox.getSelectionModel().select("RUNNING");
-        sortComboBox.getItems().setAll(SORT_ENDING_SOON, SORT_HIGHEST_BID, SORT_NEWEST_START);
-        sortComboBox.getSelectionModel().select(SORT_ENDING_SOON);
         SceneManager.registerSceneMessageListener(MessageType.AUCTION_UPDATED, update -> requestAuctionList());
 
         if (authenticatedUser) {
@@ -116,36 +107,24 @@ public class AuctionListMenuController {
         watchedAuctionIds.clear();
         response.getAuctions().stream()
                 .filter(auction -> auction != null && auction.getAuctionId() != null)
-                .map(AuctionSummary::getAuctionId)
+                .map(AuctionSummaryDto::getAuctionId)
                 .forEach(watchedAuctionIds::add);
         watchListLoaded = true;
         applyFilters();
     }
 
-    @FXML
-    public void handleFilterChanged() {
-        applyFilters();
-    }
-
-    @FXML
-    public void handleRefresh() {
-        requestAuctionList();
-    }
-
     private void applyFilters() {
-        String search = searchField.getText() == null ? "" : searchField.getText().trim().toLowerCase(Locale.ROOT);
-        String selectedStatus = statusFilterComboBox.getSelectionModel().getSelectedItem();
-        String selectedSort = sortComboBox.getSelectionModel().getSelectedItem();
+        String search = auctionToolBarController.getSearchText();
+        String selectedStatus = auctionToolBarController.getSelectedFilter();
 
-        List<AuctionSummary> filtered = allAuctions.stream()
+        List<AuctionSummaryDto> filtered = allAuctions.stream()
                 .filter(auction -> search.isBlank() || auction.getTitle().toLowerCase(Locale.ROOT).contains(search))
                 .filter(auction -> selectedStatus == null
                         || STATUS_ALL.equalsIgnoreCase(selectedStatus)
                         || AuctionDisplayUtil.displayStatus(auction).equalsIgnoreCase(selectedStatus))
                 .toList();
 
-        List<AuctionSummary> sorted = sortAuctions(filtered, selectedSort);
-        renderAuctionCards(sorted);
+        renderAuctionCards(filtered);
         if (allAuctions.isEmpty()) {
             showListStatus("No auctions available.", false);
             return;
@@ -157,7 +136,7 @@ public class AuctionListMenuController {
         showListStatus(null, false);
     }
 
-    private void renderAuctionCards(List<AuctionSummary> auctions) {
+    private void renderAuctionCards(List<AuctionSummaryDto> auctions) {
         auctionFlowPane.getChildren().clear();
         if (auctions.isEmpty()) {
             Label emptyLabel = new Label("No auctions found.");
@@ -166,12 +145,12 @@ public class AuctionListMenuController {
             return;
         }
 
-        for (AuctionSummary auction : auctions) {
+        for (AuctionSummaryDto auction : auctions) {
             auctionFlowPane.getChildren().add(loadAuctionCard(auction));
         }
     }
 
-    private HBox loadAuctionCard(AuctionSummary auction) {
+    private HBox loadAuctionCard(AuctionSummaryDto auction) {
         boolean active = "RUNNING".equals(AuctionDisplayUtil.displayStatus(auction));
         boolean canManageAuction = ClientSession.getInstance().canManageAuction(auction.getSellerId());
         AuctionCardController.CardData cardData = new AuctionCardController.CardData(
@@ -208,37 +187,6 @@ public class AuctionListMenuController {
                 active ? auction.getEndTime() : null,
                 "Failed to load auction card."
         );
-    }
-
-    private List<AuctionSummary> sortAuctions(List<AuctionSummary> auctions, String selectedSort) {
-        String sortKey = selectedSort == null ? SORT_ENDING_SOON : selectedSort;
-        Comparator<AuctionSummary> comparator = switch (sortKey) {
-            case SORT_HIGHEST_BID -> Comparator.comparing(
-                    AuctionSummary::getCurrentPrice,
-                    Comparator.nullsLast(Comparator.reverseOrder())
-            );
-            case SORT_NEWEST_START -> Comparator.comparing(
-                    AuctionSummary::getStartTime,
-                    Comparator.nullsLast(Comparator.reverseOrder())
-            );
-            case SORT_ENDING_SOON -> Comparator
-                    .comparingInt((AuctionSummary auction) -> statusSortPriority(AuctionDisplayUtil.displayStatus(auction)))
-                    .thenComparing(AuctionSummary::getEndTime, Comparator.nullsLast(LocalDateTime::compareTo));
-            default -> Comparator.comparing(
-                    AuctionSummary::getEndTime,
-                    Comparator.nullsLast(LocalDateTime::compareTo)
-            );
-        };
-        return auctions.stream().sorted(comparator).toList();
-    }
-
-    private int statusSortPriority(String status) {
-        return switch (status) {
-            case "RUNNING" -> 0;
-            case "PAID" -> 1;
-            case "CANCELED" -> 2;
-            default -> 3;
-        };
     }
 
     private void handleToggleWatchList(String auctionId) {

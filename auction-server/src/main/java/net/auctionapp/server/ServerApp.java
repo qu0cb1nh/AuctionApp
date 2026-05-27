@@ -1,6 +1,9 @@
 package net.auctionapp.server;
 
+import net.auctionapp.common.messages.Message;
+import net.auctionapp.common.messages.MessageType;
 import net.auctionapp.common.messages.system.ErrorResponseMessage;
+import net.auctionapp.common.messages.system.PongResponseMessage;
 import net.auctionapp.common.utils.JsonUtil;
 import net.auctionapp.server.config.ServerConfig;
 import net.auctionapp.server.dao.JdbcAuctionDao;
@@ -67,14 +70,16 @@ public class ServerApp {
 
             AuctionManager.getInstance().startStatusScheduler();
 
-            MessageRouter messageRouter = new MessageRouter(
-                    AuthManager.getInstance(),
-                    AuctionManager.getInstance(),
-                    UserManager.getInstance(),
-                    NotificationManager.getInstance(),
-                    WalletManager.getInstance(),
-                    WatchListManager.getInstance()
-            );
+            MessageRouter messageRouter = new MessageRouter();
+
+            messageRouter.register(MessageType.PING, Message.class,
+                    (message, handler) -> handler.sendResponse(new PongResponseMessage(), message));
+            AuthManager.getInstance().registerCommands(messageRouter);
+            AuctionManager.getInstance().registerCommands(messageRouter);
+            UserManager.getInstance().registerCommands(messageRouter);
+            NotificationManager.getInstance().registerCommands(messageRouter);
+            WalletManager.getInstance().registerCommands(messageRouter);
+            WatchListManager.getInstance().registerCommands(messageRouter);
 
             String host = ServerConfig.getServerHost();
             int port = ServerConfig.getServerPort();

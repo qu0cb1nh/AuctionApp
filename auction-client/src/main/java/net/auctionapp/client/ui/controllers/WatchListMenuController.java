@@ -8,6 +8,7 @@ import javafx.scene.layout.VBox;
 import net.auctionapp.client.ClientSession;
 import net.auctionapp.client.services.WatchListService;
 import net.auctionapp.client.ui.controllers.components.AuctionCardController;
+import net.auctionapp.client.ui.controllers.components.AuctionToolBarController;
 import net.auctionapp.client.utils.AuctionCardUtil;
 import net.auctionapp.client.ui.controllers.components.HeaderController;
 import net.auctionapp.client.ui.managers.NotificationToastManager;
@@ -16,16 +17,21 @@ import net.auctionapp.client.utils.AuctionDisplayUtil;
 import net.auctionapp.client.utils.FxViewUtil;
 import net.auctionapp.common.messages.Message;
 import net.auctionapp.common.messages.MessageType;
-import net.auctionapp.common.dto.AuctionSummary;
 import net.auctionapp.common.messages.system.ErrorResponseMessage;
 import net.auctionapp.common.messages.watchlist.WatchListChangedResponseMessage;
 import net.auctionapp.common.messages.watchlist.WatchListResponseMessage;
+import net.auctionapp.common.dto.AuctionSummaryDto;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 
 public class WatchListMenuController {
     private static final PseudoClass ERROR_STATE = PseudoClass.getPseudoClass("error");
+    private static final String STATUS_ALL = "All";
+    private static final String STATUS_RUNNING = "Running";
+    private static final String STATUS_PAID = "Paid";
+    private static final String STATUS_CANCELED = "Canceled";
 
     @FXML
     private HeaderController appHeaderController;
@@ -33,18 +39,22 @@ public class WatchListMenuController {
     private VBox auctionFlowPane;
     @FXML
     private Label listStatusLabel;
+    @FXML
+    private AuctionToolBarController auctionToolBarController;
 
-    private final List<AuctionSummary> watchedAuctions = new ArrayList<>();
+    private final List<AuctionSummaryDto> watchedAuctions = new ArrayList<>();
 
     @FXML
     public void initialize() {
         appHeaderController.setupHeader("My Watchlist");
+        auctionToolBarController.setup(
+                "Search your watchlist...",
+                List.of(STATUS_ALL, STATUS_RUNNING, STATUS_PAID, STATUS_CANCELED),
+                STATUS_ALL,
+                this::applyFilters,
+                this::requestWatchList
+        );
         SceneManager.registerSceneMessageListener(MessageType.WATCH_LIST_CHANGED, this::handleWatchListChanged);
-        requestWatchList();
-    }
-
-    @FXML
-    public void handleRefresh() {
         requestWatchList();
     }
 
@@ -64,7 +74,7 @@ public class WatchListMenuController {
         }
         watchedAuctions.clear();
         watchedAuctions.addAll(response.getAuctions());
-        renderAuctionCards();
+        applyFilters();
     }
 
     private void handleWatchListChanged(WatchListChangedResponseMessage changed) {
@@ -76,22 +86,37 @@ public class WatchListMenuController {
             return;
         }
         watchedAuctions.removeIf(auction -> changed.getAuctionId().equals(auction.getAuctionId()));
-        renderAuctionCards();
+        applyFilters();
     }
 
-    private void renderAuctionCards() {
+    private void applyFilters() {
+        String search = auctionToolBarController.getSearchText();
+        String selectedStatus = auctionToolBarController.getSelectedFilter();
+        List<AuctionSummaryDto> filtered = watchedAuctions.stream()
+                .filter(auction -> search.isBlank() || auction.getTitle().toLowerCase(Locale.ROOT).contains(search))
+                .filter(auction -> selectedStatus == null
+                        || STATUS_ALL.equalsIgnoreCase(selectedStatus)
+                        || AuctionDisplayUtil.displayStatus(auction).equalsIgnoreCase(selectedStatus))
+                .toList();
+        renderAuctionCards(filtered);
+    }
+
+    private void renderAuctionCards(List<AuctionSummaryDto> auctions) {
         auctionFlowPane.getChildren().clear();
-        if (watchedAuctions.isEmpty()) {
-            showListStatus("Your watchlist is empty.", false);
+        if (auctions.isEmpty()) {
+            showListStatus(
+                    watchedAuctions.isEmpty() ? "Your watchlist is empty." : "No watched auctions match your filters.",
+                    false
+            );
             return;
         }
         showListStatus(null, false);
-        for (AuctionSummary auction : watchedAuctions) {
+        for (AuctionSummaryDto auction : auctions) {
             auctionFlowPane.getChildren().add(loadAuctionCard(auction));
         }
     }
 
-    private HBox loadAuctionCard(AuctionSummary auction) {
+    private HBox loadAuctionCard(AuctionSummaryDto auction) {
         boolean canManageAuction = ClientSession.getInstance().canManageAuction(auction.getSellerId());
         AuctionCardController.CardData cardData = new AuctionCardController.CardData(
                 auction.getImageUrl(),
@@ -101,7 +126,7 @@ public class WatchListMenuController {
                 AuctionCardController.TextTone.MUTED,
                 "Minimum Next Bid: " + AuctionDisplayUtil.formatPrice(auction.getMinimumNextBid()),
                 "Start: " + AuctionDisplayUtil.formatDateTime(auction.getStartTime()),
-                "End: " + AuctionDisplayUtil.formatDateTime(auction.getEndTime()),
+                null,
                 "Current Bid",
                 AuctionDisplayUtil.formatPrice(auction.getCurrentPrice()),
                 AuctionCardController.TextTone.PRIMARY,

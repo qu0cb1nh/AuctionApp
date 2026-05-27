@@ -1,6 +1,6 @@
 package net.auctionapp.common.messages.auction;
 
-import net.auctionapp.common.dto.BidView;
+import net.auctionapp.common.dto.BidDto;
 import net.auctionapp.common.messages.Message;
 import net.auctionapp.common.messages.MessageType;
 import net.auctionapp.common.auction.AuctionStatus;
@@ -28,7 +28,7 @@ public class AuctionDetailsResponseMessage extends Message {
     private LocalDateTime endTime;
     private String imageUrl;
     private ItemType itemType;
-    private List<BidView> bidHistory;
+    private List<BidDto> bidHistory;
 
     public AuctionDetailsResponseMessage() {
         super(MessageType.AUCTION_DETAILS_RESPONSE);
@@ -49,7 +49,7 @@ public class AuctionDetailsResponseMessage extends Message {
             LocalDateTime endTime,
             String imageUrl,
             ItemType itemType,
-            List<BidView> bidHistory,
+            List<BidDto> bidHistory,
             String leadingBidderUsername,
             String winnerBidderUsername,
             String sellerUsername
@@ -102,5 +102,5 @@ public class AuctionDetailsResponseMessage extends Message {
     public LocalDateTime getEndTime() { return endTime; }
     public String getImageUrl() { return imageUrl; }
     public ItemType getItemType() { return itemType; }
-    public List<BidView> getBidHistory() { return bidHistory == null ? List.of() : List.copyOf(bidHistory); }
+    public List<BidDto> getBidHistory() { return bidHistory == null ? List.of() : List.copyOf(bidHistory); }
 }

@@ -31,8 +31,8 @@ import net.auctionapp.client.utils.ResourcesUtil;
 import net.auctionapp.common.exceptions.ValidationException;
 import net.auctionapp.common.messages.Message;
 import net.auctionapp.common.messages.MessageType;
-import net.auctionapp.common.dto.BidView;
 import net.auctionapp.common.messages.auction.AuctionDetailsResponseMessage;
+import net.auctionapp.common.dto.BidDto;
 import net.auctionapp.common.messages.auction.AuctionEndedResponseMessage;
 import net.auctionapp.common.messages.auction.AuctionUpdatedResponseMessage;
 import net.auctionapp.common.messages.auction.BidResponseMessage;
@@ -352,9 +352,9 @@ public class AuctionItemMenuController implements AuctionContextController {
         }
     }
 
-    private void renderBidHistory(List<BidView> bidHistory) {
+    private void renderBidHistory(List<BidDto> bidHistory) {
         priceSeries.getData().clear();
-        List<BidView> validBids = bidHistory.stream()
+        List<BidDto> validBids = bidHistory.stream()
                 .filter(bid -> bid != null && bid.getAmount() != null && bid.getTimestamp() != null)
                 .toList();
         int totalBids = validBids.size();
@@ -367,7 +367,7 @@ public class AuctionItemMenuController implements AuctionContextController {
         int skipCount = Math.max(0, totalBids - MAX_VISIBLE_BIDS);
         int validIndex = 0;
         Map<String, Integer> timeOccurrences = new HashMap<>();
-        for (BidView bid : validBids) {
+        for (BidDto bid : validBids) {
             if (validIndex++ < skipCount) {
                 continue;
             }
@@ -383,7 +383,7 @@ public class AuctionItemMenuController implements AuctionContextController {
                 : "Showing the latest " + MAX_VISIBLE_BIDS + " bids");
     }
 
-    private void installPriceTooltip(XYChart.Data<String, Number> point, BidView bid) {
+    private void installPriceTooltip(XYChart.Data<String, Number> point, BidDto bid) {
         Tooltip tooltip = new Tooltip(
                 "$" + bid.getAmount().stripTrailingZeros().toPlainString()
                         + "\n" + bid.getTimestamp().format(TOOLTIP_TIME_FORMAT)

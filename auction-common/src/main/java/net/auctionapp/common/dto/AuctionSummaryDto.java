@@ -6,22 +6,25 @@ import net.auctionapp.common.items.ItemType;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
-public class AuctionSummary {
-    private final String auctionId;
-    private final String title;
-    private final BigDecimal currentPrice;
-    private final BigDecimal minimumNextBid;
-    private final AuctionStatus status;
-    private final String leadingBidderId;
-    private final String leadingBidderUsername;
-    private final String sellerId;
-    private final String sellerUsername;
-    private final LocalDateTime startTime;
-    private final LocalDateTime endTime;
-    private final String imageUrl;
-    private final ItemType itemType;
+public class AuctionSummaryDto {
+    private String auctionId;
+    private String title;
+    private BigDecimal currentPrice;
+    private BigDecimal minimumNextBid;
+    private AuctionStatus status;
+    private String leadingBidderId;
+    private String leadingBidderUsername;
+    private String sellerId;
+    private String sellerUsername;
+    private LocalDateTime startTime;
+    private LocalDateTime endTime;
+    private String imageUrl;
+    private ItemType itemType;
 
-    public AuctionSummary(
+    public AuctionSummaryDto() {
+    }
+
+    public AuctionSummaryDto(
             String auctionId,
             String title,
             BigDecimal currentPrice,
@@ -48,7 +51,7 @@ public class AuctionSummary {
         );
     }
 
-    public AuctionSummary(
+    public AuctionSummaryDto(
             String auctionId,
             String title,
             BigDecimal currentPrice,

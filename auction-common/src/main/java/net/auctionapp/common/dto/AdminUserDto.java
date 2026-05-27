@@ -2,17 +2,17 @@ package net.auctionapp.common.dto;
 
 import net.auctionapp.common.users.UserRole;
 
-public class AdminUserView {
+public class AdminUserDto {
     private String userId;
     private String username;
     private UserRole role;
     private boolean banned;
     private boolean online;
 
-    public AdminUserView() {
+    public AdminUserDto() {
     }
 
-    public AdminUserView(String userId, String username, UserRole role, boolean banned, boolean online) {
+    public AdminUserDto(String userId, String username, UserRole role, boolean banned, boolean online) {
         this.userId = userId;
         this.username = username;
         this.role = role;

@@ -2,9 +2,8 @@ package net.auctionapp.server.managers;
 
 import net.auctionapp.common.messages.Message;
 import net.auctionapp.common.messages.MessageType;
-import net.auctionapp.common.dto.AuctionSummary;
+import net.auctionapp.common.dto.AuctionSummaryDto;
 import net.auctionapp.common.messages.auction.AuctionActionResponseMessage;
-import net.auctionapp.common.messages.auction.AuctionDetailsListResponseMessage;
 import net.auctionapp.common.messages.auction.AuctionDetailsResponseMessage;
 import net.auctionapp.common.messages.auction.AuctionListResponseMessage;
 import net.auctionapp.common.messages.auction.BidRequestMessage;
@@ -16,6 +15,8 @@ import net.auctionapp.common.messages.auction.GetAuctionDetailsRequestMessage;
 import net.auctionapp.common.messages.auction.GetAuctionListRequestMessage;
 import net.auctionapp.common.messages.auction.GetMyActivityRequestMessage;
 import net.auctionapp.common.messages.auction.GetMyListingsRequestMessage;
+import net.auctionapp.common.messages.auction.MyActivityResponseMessage;
+import net.auctionapp.common.messages.auction.MyListingsResponseMessage;
 import net.auctionapp.common.messages.auction.ObserveAuctionRequestMessage;
 import net.auctionapp.common.messages.auction.UpdateAuctionRequestMessage;
 import net.auctionapp.common.messages.system.ErrorResponseMessage;
@@ -25,6 +26,7 @@ import net.auctionapp.common.utils.StringUtil;
 import net.auctionapp.server.ClientHandler;
 import net.auctionapp.server.dao.AuctionDao;
 import net.auctionapp.server.exceptions.DatabaseException;
+import net.auctionapp.server.messages.MessageRouter;
 import net.auctionapp.server.services.CloudinaryImageService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -52,7 +54,7 @@ public final class AuctionManager {
 
     private AuctionManager() {
         ConcurrentMap<String, Auction> auctions = new ConcurrentHashMap<>();
-        AuctionMutationExecutor auctionMutations = new AuctionMutationExecutor();
+        AuctionSafeUpdateExecutor auctionMutations = new AuctionSafeUpdateExecutor();
         Clock clock = Clock.systemDefaultZone();
         AuthManager authManager = AuthManager.getInstance();
         this.notificationManager = NotificationManager.getInstance();
@@ -104,6 +106,27 @@ public final class AuctionManager {
         return instance;
     }
 
+    public void registerCommands(MessageRouter messageRouter) {
+        messageRouter.register(MessageType.GET_AUCTION_LIST_REQUEST, GetAuctionListRequestMessage.class,
+                this::handleGetAuctionList);
+        messageRouter.register(MessageType.GET_AUCTION_DETAILS_REQUEST, GetAuctionDetailsRequestMessage.class,
+                this::handleGetAuctionDetails);
+        messageRouter.register(MessageType.GET_MY_ACTIVITY_REQUEST, GetMyActivityRequestMessage.class,
+                this::handleGetMyActivity);
+        messageRouter.register(MessageType.GET_MY_LISTINGS_REQUEST, GetMyListingsRequestMessage.class,
+                this::handleGetMyListings);
+        messageRouter.register(MessageType.OBSERVE_AUCTION_REQUEST, ObserveAuctionRequestMessage.class,
+                this::handleObserveAuction);
+        messageRouter.register(MessageType.CREATE_ITEM_REQUEST, CreateItemRequestMessage.class, this::handleCreateItem);
+        messageRouter.register(MessageType.BID_REQUEST, BidRequestMessage.class, this::handleBidRequest);
+        messageRouter.register(MessageType.UPDATE_AUCTION_REQUEST, UpdateAuctionRequestMessage.class,
+                this::handleUpdateAuction);
+        messageRouter.register(MessageType.CANCEL_AUCTION_REQUEST, CancelAuctionRequestMessage.class,
+                this::handleCancelAuction);
+        messageRouter.register(MessageType.CLOSE_AUCTION_REQUEST, CloseAuctionRequestMessage.class,
+                this::handleCloseAuction);
+    }
+
     // --- Message Handling Logic ---
 
     public void handleGetAuctionList(GetAuctionListRequestMessage request, ClientHandler handler) {
@@ -117,25 +140,25 @@ public final class AuctionManager {
             AuctionDetailsResponseMessage response = auctionQuery.buildAuctionDetailsResponse(auction);
             handler.sendResponse(response, message);
         } catch (RuntimeException e) {
-            sendError(handler, message, AuctionExceptionHandler.clientMessage(e, "Auction details request", "Unable to load auction."));
+            sendError(handler, message, e.getMessage());
         }
     }
 
     public void handleGetMyActivity(GetMyActivityRequestMessage request, ClientHandler handler) {
         try {
             String userId = requireAuthenticatedUserId(handler);
-            handler.sendResponse(new AuctionDetailsListResponseMessage(auctionQuery.getActivityForUser(userId)), request);
+            handler.sendResponse(new MyActivityResponseMessage(auctionQuery.getActivityForUser(userId)), request);
         } catch (RuntimeException e) {
-            sendError(handler, request, AuctionExceptionHandler.clientMessage(e, "Auction activity request", "Unable to load auctions."));
+            sendError(handler, request, e.getMessage());
         }
     }
 
     public void handleGetMyListings(GetMyListingsRequestMessage request, ClientHandler handler) {
         try {
             String userId = requireAuthenticatedUserId(handler);
-            handler.sendResponse(new AuctionDetailsListResponseMessage(auctionQuery.getListingsForUser(userId)), request);
+            handler.sendResponse(new MyListingsResponseMessage(auctionQuery.getListingsForUser(userId)), request);
         } catch (RuntimeException e) {
-            sendError(handler, request, AuctionExceptionHandler.clientMessage(e, "Auction listings request", "Unable to load auctions."));
+            sendError(handler, request, e.getMessage());
         }
     }
 
@@ -148,7 +171,7 @@ public final class AuctionManager {
             handler.ensureAuthenticated();
             auctionBroadcaster.subscribe(message.getAuctionId(), handler);
         } catch (RuntimeException e) {
-            sendError(handler, message, AuctionExceptionHandler.clientMessage(e, "Auction observation request", "Unable to observe auction."));
+            sendError(handler, message, e.getMessage());
         }
     }
 
@@ -163,7 +186,7 @@ public final class AuctionManager {
                     message
             );
         } catch (RuntimeException e) {
-            sendError(handler, message, AuctionExceptionHandler.clientMessage(e, "Auction creation", "Unable to save auction."));
+            sendError(handler, message, e.getMessage());
         }
     }
 
@@ -176,8 +199,13 @@ public final class AuctionManager {
             auctionBroadcaster.broadcastPriceUpdate(result.auction());
             trySendOutbidNotification(result.previousLeadingBidderId(), result.auction());
         } catch (RuntimeException e) {
-            sendBidRejected(handler, message, auctionId,
-                    AuctionExceptionHandler.clientMessage(e, "Bid processing", "Unable to process bid."));
+            handler.sendResponse(new BidResponseMessage(
+                    MessageType.BID_REJECTED,
+                    auctionId,
+                    null,
+                    null,
+                    e.getMessage()
+            ), message);
         }
     }
 
@@ -193,7 +221,7 @@ public final class AuctionManager {
             );
             sendAuctionActionSuccess(handler, request, updatedAuction, "Auction updated successfully.");
         } catch (RuntimeException e) {
-            sendError(handler, request, AuctionExceptionHandler.clientMessage(e, "Auction update", "Auction request failed."));
+            sendError(handler, request, e.getMessage());
         }
     }
 
@@ -203,7 +231,7 @@ public final class AuctionManager {
             Auction updatedAuction = auctionLifecycle.cancelAuction(actorId, request.getAuctionId());
             sendAuctionActionSuccess(handler, request, updatedAuction, "Auction canceled successfully.");
         } catch (RuntimeException e) {
-            sendError(handler, request, AuctionExceptionHandler.clientMessage(e, "Auction cancellation", "Auction request failed."));
+            sendError(handler, request, e.getMessage());
         }
     }
 
@@ -213,7 +241,7 @@ public final class AuctionManager {
             Auction updatedAuction = auctionLifecycle.closeAuction(actorId, request.getAuctionId());
             sendAuctionActionSuccess(handler, request, updatedAuction, "Auction closed successfully.");
         } catch (RuntimeException e) {
-            sendError(handler, request, AuctionExceptionHandler.clientMessage(e, "Auction closing", "Auction request failed."));
+            sendError(handler, request, e.getMessage());
         }
     }
 
@@ -225,7 +253,7 @@ public final class AuctionManager {
         auctionLifecycle.stop();
     }
 
-    public List<AuctionSummary> getAuctionSummaries(Iterable<String> auctionIds) {
+    public List<AuctionSummaryDto> getAuctionSummaries(Iterable<String> auctionIds) {
         return auctionQuery.getAuctionSummaries(auctionIds);
     }
 
@@ -257,21 +285,6 @@ public final class AuctionManager {
                     "Bid accepted."
             ), request);
         }
-    }
-
-    private void sendBidRejected(
-            ClientHandler handler,
-            BidRequestMessage request,
-            String auctionId,
-            String message
-    ) {
-        handler.sendResponse(new BidResponseMessage(
-                MessageType.BID_REJECTED,
-                auctionId,
-                null,
-                null,
-                message
-        ), request);
     }
 
     private void sendAuctionActionSuccess(

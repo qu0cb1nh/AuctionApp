@@ -26,6 +26,39 @@
     -fx-text-fill: #d9534f;
 }
 
+.auction-toolbar {
+    -fx-background-color: #f3f4f6;
+    -fx-border-color: transparent transparent #d1d5db transparent;
+    -fx-border-width: 0 0 1 0;
+}
+
+.auction-toolbar-label {
+    -fx-font-weight: bold;
+    -fx-text-fill: #374151;
+}
+
+.auction-toolbar-search,
+.auction-toolbar-filter {
+    -fx-background-color: #ffffff;
+    -fx-border-color: #d1d5db;
+    -fx-border-radius: 10;
+    -fx-background-radius: 10;
+}
+
+.auction-toolbar-search {
+    -fx-background-radius: 15;
+    -fx-border-radius: 15;
+}
+
+.auction-toolbar-refresh {
+    -fx-background-color: #ffffff;
+    -fx-border-color: #d1d5db;
+    -fx-border-radius: 10;
+    -fx-background-radius: 10;
+    -fx-text-fill: #53677a;
+    -fx-font-weight: bold;
+}
+
 .empty-state {
     -fx-font-size: 14px;
     -fx-font-weight: bold;

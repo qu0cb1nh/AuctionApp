@@ -17,6 +17,7 @@ import net.auctionapp.server.exceptions.AuthenticationException;
 import net.auctionapp.server.exceptions.AuthorizationException;
 import net.auctionapp.server.exceptions.DatabaseException;
 import net.auctionapp.server.exceptions.NotFoundException;
+import net.auctionapp.server.messages.MessageRouter;
 import net.auctionapp.server.utils.UserRoleUtil;
 import org.mindrot.jbcrypt.BCrypt;
 import org.slf4j.Logger;
@@ -47,6 +48,11 @@ public class AuthManager {
 
     public void setUserDao(UserDao userDao) {
         this.userDao = userDao;
+    }
+
+    public void registerCommands(MessageRouter messageRouter) {
+        messageRouter.register(MessageType.LOGIN_REQUEST, LoginRequestMessage.class, this::handleLogin);
+        messageRouter.register(MessageType.REGISTER_REQUEST, RegisterRequestMessage.class, this::handleRegister);
     }
 
     public void handleLogin(LoginRequestMessage request, ClientHandler clientHandler) {
@@ -225,6 +231,9 @@ public class AuthManager {
         User target = requireUserById(targetUserId);
         if (actor.getId().equals(target.getId())) {
             throw new AuthorizationException("Admin cannot ban own account.");
+        }
+        if (target.hasRole(UserRole.ADMIN)) {
+            throw new AuthorizationException("Admin accounts cannot be banned.");
         }
         return target;
     }
