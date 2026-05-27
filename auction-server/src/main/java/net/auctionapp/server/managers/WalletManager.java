@@ -18,6 +18,7 @@ import net.auctionapp.server.exceptions.AuthenticationException;
 import net.auctionapp.server.exceptions.DatabaseException;
 import net.auctionapp.server.exceptions.InsufficientFundsException;
 import net.auctionapp.server.exceptions.NotFoundException;
+import net.auctionapp.server.messages.MessageRouter;
 import net.auctionapp.server.models.auction.Auction;
 import net.auctionapp.server.models.auction.BidTransaction;
 import net.auctionapp.server.models.users.User;
@@ -42,6 +43,12 @@ public final class WalletManager {
 
     public static WalletManager getInstance() {
         return INSTANCE;
+    }
+
+    public void registerCommands(MessageRouter messageRouter) {
+        messageRouter.register(MessageType.DEPOSIT_REQUEST, DepositRequestMessage.class, this::handleDeposit);
+        messageRouter.register(MessageType.WITHDRAW_REQUEST, WithdrawRequestMessage.class, this::handleWithdraw);
+        messageRouter.register(MessageType.GET_WALLET_REQUEST, GetWalletRequestMessage.class, this::handleGetWallet);
     }
 
     public void setBalanceDao(BalanceDao balanceDao) {

@@ -20,11 +20,11 @@ import net.auctionapp.client.ui.managers.SceneManager;
 import net.auctionapp.client.utils.AuctionDisplayUtil;
 import net.auctionapp.client.utils.FxViewUtil;
 import net.auctionapp.common.messages.Message;
-import net.auctionapp.common.dto.AdminUserView;
-import net.auctionapp.common.dto.AuctionSummary;
-import net.auctionapp.common.messages.admin.AdminActionResponseMessage;
-import net.auctionapp.common.messages.admin.AdminGetUsersResponseMessage;
+import net.auctionapp.common.messages.admin.SetUserBanResponseMessage;
+import net.auctionapp.common.messages.admin.GetUserListResponseMessage;
+import net.auctionapp.common.dto.AdminUserDto;
 import net.auctionapp.common.messages.auction.AuctionListResponseMessage;
+import net.auctionapp.common.dto.AuctionSummaryDto;
 import net.auctionapp.common.messages.system.ErrorResponseMessage;
 import net.auctionapp.common.users.UserRole;
 import net.auctionapp.common.utils.StringUtil;
@@ -195,13 +195,13 @@ public class AdminPanelMenuController {
             setErrorStatus(errorMessage.getErrorMessage());
             return;
         }
-        if (!(message instanceof AdminGetUsersResponseMessage response)) {
+        if (!(message instanceof GetUserListResponseMessage response)) {
             setErrorStatus("Unexpected response while loading users.");
             return;
         }
 
         usersTable.getItems().clear();
-        for (AdminUserView user : response.getUsers()) {
+        for (AdminUserDto user : response.getUsers()) {
             String username = user.getUsername() == null ? "" : user.getUsername();
             String userId = user.getUserId();
             if (userId == null || userId.isBlank()) {
@@ -225,7 +225,7 @@ public class AdminPanelMenuController {
             setErrorStatus(errorMessage.getErrorMessage());
             return;
         }
-        if (!(message instanceof AdminActionResponseMessage result)) {
+        if (!(message instanceof SetUserBanResponseMessage result)) {
             setErrorStatus("Unexpected response while updating user ban state.");
             return;
         }
@@ -245,7 +245,7 @@ public class AdminPanelMenuController {
         }
 
         auctionsTable.getItems().clear();
-        for (AuctionSummary summary : response.getAuctions()) {
+        for (AuctionSummaryDto summary : response.getAuctions()) {
             if (summary == null) {
                 continue;
             }

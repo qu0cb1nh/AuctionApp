@@ -1,8 +1,8 @@
 package net.auctionapp.client.utils;
 
 import net.auctionapp.common.auction.AuctionStatus;
-import net.auctionapp.common.dto.AuctionSummary;
 import net.auctionapp.common.messages.auction.AuctionDetailsResponseMessage;
+import net.auctionapp.common.dto.AuctionSummaryDto;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
@@ -34,7 +34,7 @@ public final class AuctionDisplayUtil {
         return username == null || username.isBlank() ? userId : username;
     }
 
-    public static String displayStatus(AuctionSummary auction) {
+    public static String displayStatus(AuctionSummaryDto auction) {
         if (auction == null || auction.getStatus() == null) {
             return "N/A";
         }

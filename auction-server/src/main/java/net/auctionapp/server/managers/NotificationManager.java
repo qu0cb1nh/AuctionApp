@@ -1,6 +1,7 @@
 package net.auctionapp.server.managers;
 
 import net.auctionapp.common.exceptions.ValidationException;
+import net.auctionapp.common.messages.MessageType;
 import net.auctionapp.common.messages.notification.ClearNotificationsRequestMessage;
 import net.auctionapp.common.messages.notification.GetNotificationsRequestMessage;
 import net.auctionapp.common.messages.notification.NotificationResponseMessage;
@@ -14,6 +15,7 @@ import net.auctionapp.server.dao.NotificationDao;
 import net.auctionapp.server.exceptions.AuthenticationException;
 import net.auctionapp.server.exceptions.DatabaseException;
 import net.auctionapp.server.exceptions.NotFoundException;
+import net.auctionapp.server.messages.MessageRouter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -42,6 +44,13 @@ public final class NotificationManager {
 
     public void setNotificationDao(NotificationDao notificationDao) {
         this.notificationDao = notificationDao;
+    }
+
+    public void registerCommands(MessageRouter messageRouter) {
+        messageRouter.register(MessageType.GET_NOTIFICATIONS_REQUEST, GetNotificationsRequestMessage.class,
+                this::handleGetNotifications);
+        messageRouter.register(MessageType.CLEAR_NOTIFICATIONS_REQUEST, ClearNotificationsRequestMessage.class,
+                this::handleClearNotifications);
     }
 
     public void handleGetNotifications(GetNotificationsRequestMessage request, ClientHandler handler) {

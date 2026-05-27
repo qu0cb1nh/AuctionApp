@@ -1,7 +1,7 @@
 package net.auctionapp.server.managers;
 
 import net.auctionapp.common.auction.AuctionStatus;
-import net.auctionapp.common.dto.AuctionSummary;
+import net.auctionapp.common.dto.AuctionSummaryDto;
 import org.junit.jupiter.api.Test;
 
 import java.math.BigDecimal;
@@ -41,8 +41,8 @@ class WatchListManagerTest {
         ));
     }
 
-    private AuctionSummary auctionEndingAt(LocalDateTime endTime, AuctionStatus status) {
-        return new AuctionSummary(
+    private AuctionSummaryDto auctionEndingAt(LocalDateTime endTime, AuctionStatus status) {
+        return new AuctionSummaryDto(
                 "auction-1",
                 "Laptop",
                 new BigDecimal("100.00"),

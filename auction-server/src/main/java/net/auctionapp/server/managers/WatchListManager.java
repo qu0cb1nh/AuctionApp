@@ -1,12 +1,13 @@
 package net.auctionapp.server.managers;
 
 import net.auctionapp.common.exceptions.ValidationException;
-import net.auctionapp.common.dto.AuctionSummary;
+import net.auctionapp.common.messages.MessageType;
 import net.auctionapp.common.messages.system.ErrorResponseMessage;
 import net.auctionapp.common.messages.watchlist.GetWatchListRequestMessage;
 import net.auctionapp.common.messages.watchlist.UpdateWatchListRequestMessage;
 import net.auctionapp.common.messages.watchlist.WatchListChangedResponseMessage;
 import net.auctionapp.common.messages.watchlist.WatchListResponseMessage;
+import net.auctionapp.common.dto.AuctionSummaryDto;
 import net.auctionapp.common.auction.AuctionStatus;
 import net.auctionapp.common.utils.StringUtil;
 import net.auctionapp.server.ClientHandler;
@@ -14,6 +15,7 @@ import net.auctionapp.server.dao.WatchListDao;
 import net.auctionapp.server.exceptions.AuthenticationException;
 import net.auctionapp.server.exceptions.DatabaseException;
 import net.auctionapp.server.exceptions.NotFoundException;
+import net.auctionapp.server.messages.MessageRouter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -41,6 +43,13 @@ public final class WatchListManager {
 
     public void setWatchListDao(WatchListDao watchListDao) {
         this.watchListDao = watchListDao;
+    }
+
+    public void registerCommands(MessageRouter messageRouter) {
+        messageRouter.register(MessageType.GET_WATCH_LIST_REQUEST, GetWatchListRequestMessage.class,
+                this::handleGetWatchList);
+        messageRouter.register(MessageType.UPDATE_WATCH_LIST_REQUEST, UpdateWatchListRequestMessage.class,
+                this::handleUpdateWatchList);
     }
 
     public void handleGetWatchList(GetWatchListRequestMessage request, ClientHandler handler) {
@@ -81,7 +90,7 @@ public final class WatchListManager {
         }
     }
 
-    public void sendEndingSoonReminders(AuctionSummary auction, LocalDateTime now) {
+    public void sendEndingSoonReminders(AuctionSummaryDto auction, LocalDateTime now) {
         if (!isEndingSoonReminderDue(auction, now)) {
             return;
         }
@@ -105,7 +114,7 @@ public final class WatchListManager {
         }
     }
 
-    static boolean isEndingSoonReminderDue(AuctionSummary auction, LocalDateTime now) {
+    static boolean isEndingSoonReminderDue(AuctionSummaryDto auction, LocalDateTime now) {
         if (auction == null || now == null || auction.getStatus() != AuctionStatus.RUNNING || auction.getEndTime() == null) {
             return false;
         }

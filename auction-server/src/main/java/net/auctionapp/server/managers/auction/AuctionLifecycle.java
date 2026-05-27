@@ -24,7 +24,7 @@ public final class AuctionLifecycle {
     private static final Logger LOGGER = LoggerFactory.getLogger(AuctionLifecycle.class);
 
     private final ConcurrentMap<String, Auction> auctions;
-    private final AuctionMutationExecutor auctionMutations;
+    private final AuctionSafeUpdateExecutor auctionMutations;
     private final AuthManager authManager;
     private final AuctionQuery auctionQuery;
     private final AuctionPersistence auctionPersistence;
@@ -35,7 +35,7 @@ public final class AuctionLifecycle {
 
     public AuctionLifecycle(
             ConcurrentMap<String, Auction> auctions,
-            AuctionMutationExecutor auctionMutations,
+            AuctionSafeUpdateExecutor auctionMutations,
             AuthManager authManager,
             AuctionQuery auctionQuery,
             AuctionPersistence auctionPersistence,
@@ -61,15 +61,16 @@ public final class AuctionLifecycle {
             LocalDateTime endTime
     ) {
         Auction auction = auctionQuery.requireAuction(auctionId);
-        return auctionMutations.executeWithLock(() -> {
-            User actor = authManager.requireActiveUserById(StringUtil.normalizeString(actorId));
-            ensureAdminOrOwningSeller(actor, auction);
-            Auction candidate = auction.snapshotCopy();
-            candidate.updateManagedListingDetails(title, description, endTime);
-            auctionPersistence.persistAuctionDetails(candidate);
-            auction.applySnapshot(candidate);
-            return auction;
-        });
+        auctionMutations.executeWithLock(
+                auction,
+                candidate -> {
+                    User actor = authManager.requireActiveUserById(StringUtil.normalizeString(actorId));
+                    ensureAdminOrOwningSeller(actor, auction);
+                    candidate.updateManagedListingDetails(title, description, endTime);
+                },
+                auctionPersistence::persistAuctionDetails
+        );
+        return auction;
     }
 
     public Auction closeAuction(String actorId, String auctionId) {
@@ -136,27 +137,23 @@ public final class AuctionLifecycle {
     }
 
     void closeAuctionIfEnded(Auction auction) {
-        boolean closed = auctionMutations.executeWithLock(() -> {
-            Auction candidate = auction.snapshotCopy();
-            if (!candidate.closeIfEnded()) {
-                return false;
-            }
-            auctionPersistence.persistAuctionState(candidate);
-            auction.applySnapshot(candidate);
-            return true;
-        });
+        boolean closed = auctionMutations.executeWithLock(
+                auction,
+                Auction::closeIfEnded,
+                (candidate, didClose) -> {
+                    if (Boolean.TRUE.equals(didClose)) {
+                        auctionPersistence.persistAuctionState(candidate);
+                    }
+                },
+                null
+        );
         if (closed) {
             auctionBroadcaster.broadcastAuctionStatusChanged(auction);
         }
     }
 
     private void applyStateTransition(Auction auction, Consumer<Auction> transition) {
-        auctionMutations.executeWithLock(() -> {
-            Auction candidate = auction.snapshotCopy();
-            transition.accept(candidate);
-            auctionPersistence.persistAuctionState(candidate);
-            auction.applySnapshot(candidate);
-        });
+        auctionMutations.executeWithLock(auction, transition, auctionPersistence::persistAuctionState);
         auctionBroadcaster.broadcastAuctionStatusChanged(auction);
     }
 

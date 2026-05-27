@@ -85,8 +85,10 @@ public class ClientHandler implements Runnable {
                 LOGGER.warn("Received null message after JSON deserialization from {}", socket.getInetAddress());
                 return;
             }
-
-            handleMessageFromClient(request);
+            if (shouldEnforceBannedAccess(request.getType()) && !enforceAuthenticatedSessionAccess()) {
+                return;
+            }
+            messageRouter.dispatch(request, this);
         } catch (RuntimeException e) {
             LOGGER.error("Error processing message from {}: {}", socket.getInetAddress(), jsonString, e);
             sendResponse(new ErrorResponseMessage("Unable to process request."), request);
@@ -168,14 +170,6 @@ public class ClientHandler implements Runnable {
         }
 
         authManager.requireActiveUserById(authenticatedUserId);
-    }
-
-    private void handleMessageFromClient(Message message) {
-        if (shouldEnforceBannedAccess(message.getType()) && !enforceAuthenticatedSessionAccess()) {
-            return;
-        }
-
-        messageRouter.dispatch(message, this);
     }
 
     private boolean shouldEnforceBannedAccess(MessageType messageType) {

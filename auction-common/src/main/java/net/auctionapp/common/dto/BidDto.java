@@ -3,13 +3,16 @@ package net.auctionapp.common.dto;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
-public class BidView {
-    private final String bidId;
-    private final String bidderId;
-    private final BigDecimal amount;
-    private final LocalDateTime timestamp;
+public class BidDto {
+    private String bidId;
+    private String bidderId;
+    private BigDecimal amount;
+    private LocalDateTime timestamp;
 
-    public BidView(String bidId, String bidderId, BigDecimal amount, LocalDateTime timestamp) {
+    public BidDto() {
+    }
+
+    public BidDto(String bidId, String bidderId, BigDecimal amount, LocalDateTime timestamp) {
         this.bidId = bidId;
         this.bidderId = bidderId;
         this.amount = amount;

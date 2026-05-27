@@ -23,7 +23,7 @@ public final class AuctionBanEffect {
     private static final Logger LOGGER = LoggerFactory.getLogger(AuctionBanEffect.class);
 
     private final ConcurrentMap<String, Auction> auctions;
-    private final AuctionMutationExecutor auctionMutations;
+    private final AuctionSafeUpdateExecutor auctionMutations;
     private final AuthManager authManager;
     private final NotificationManager notificationManager;
     private final WalletManager walletManager;
@@ -32,7 +32,7 @@ public final class AuctionBanEffect {
 
     public AuctionBanEffect(
             ConcurrentMap<String, Auction> auctions,
-            AuctionMutationExecutor auctionMutations,
+            AuctionSafeUpdateExecutor auctionMutations,
             AuthManager authManager,
             NotificationManager notificationManager,
             WalletManager walletManager,
@@ -135,7 +135,7 @@ public final class AuctionBanEffect {
             return null;
         }
         for (BidTransaction invalidatedBid : newlyInvalidatedBids) {
-            if (!isRestoredBid(invalidatedBid)) {
+            if (!("restored-" + invalidatedBid.getAuctionId()).equals(invalidatedBid.getId())) {
                 invalidatedBids.add(invalidatedBid);
             }
         }
@@ -171,10 +171,6 @@ public final class AuctionBanEffect {
             return;
         }
         fundsToRelease.merge(normalizedBidderId, amount, BigDecimal::add);
-    }
-
-    private boolean isRestoredBid(BidTransaction bid) {
-        return ("restored-" + bid.getAuctionId()).equals(bid.getId());
     }
 
     private void sendBidRemovalNotifications(Auction auction) {

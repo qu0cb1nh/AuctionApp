@@ -21,7 +21,7 @@ import java.util.concurrent.ConcurrentMap;
 
 public final class AuctionCreation {
     private final ConcurrentMap<String, Auction> auctions;
-    private final AuctionMutationExecutor auctionMutations;
+    private final AuctionSafeUpdateExecutor auctionMutations;
     private final AuthManager authManager;
     private final CloudinaryImageService cloudinaryImageService;
     private final AuctionPersistence auctionPersistence;
@@ -29,7 +29,7 @@ public final class AuctionCreation {
 
     public AuctionCreation(
             ConcurrentMap<String, Auction> auctions,
-            AuctionMutationExecutor auctionMutations,
+            AuctionSafeUpdateExecutor auctionMutations,
             AuthManager authManager,
             CloudinaryImageService cloudinaryImageService,
             AuctionPersistence auctionPersistence,
