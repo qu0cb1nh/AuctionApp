@@ -29,11 +29,11 @@ class WalletManagerTest {
         walletManager = WalletManager.getInstance();
         mockBalanceDao = mock(BalanceDao.class);
         walletManager.setBalanceDao(mockBalanceDao);
-        
+
         UserDao mockUserDao = mock(UserDao.class);
         AuthManager.getInstance().setUserDao(mockUserDao);
         mockClientHandler = mock(ClientHandler.class);
-        
+
         User user = new User("user-1", "tester", "hash", UserRole.USER, false);
         user.addBalance(new BigDecimal("100.00")); // Số dư ban đầu
         when(mockUserDao.findById("user-1")).thenReturn(Optional.of(user));
@@ -61,6 +61,6 @@ class WalletManagerTest {
 
         walletManager.handleWithdraw(request, mockClientHandler);
 
-        verify(mockClientHandler).sendResponse(argThat(msg -> msg.getType() == MessageType.ERROR_RESPONSE), eq(request));
+        verify(mockClientHandler).sendResponse(any(net.auctionapp.common.messages.system.ErrorResponseMessage.class), eq(request));
     }
 }

@@ -92,7 +92,7 @@ public class AuctionManagerTest {
 
     @Test
     void testHandleCreateItem_happyCase_shouldCreateAuctionAndSendSuccessResponse() {
-        String userId = "testUser123";
+        String userId = "testuser123";
         String title = "Test Item";
         String description = "Description of test item";
         double startPrice = 100.0;

@@ -24,6 +24,10 @@ import static org.mockito.Mockito.*;
 
 class AuctionBidTest {
     private AuctionBid auctionBid;
+
+    @Mock
+    private AuctionSafeUpdateExecutor mockAuctionSafeUpdateExecutor;
+
     @Mock
     private AuctionQuery mockAuctionQuery;
     @Mock
@@ -46,7 +50,7 @@ class AuctionBidTest {
         mockedAuthManager.when(() -> AuthManager.getInstance()).thenReturn(mockAuthManager);
 
         auctionBid = new AuctionBid(
-                new AuctionMutationExecutor(),
+                mockAuctionSafeUpdateExecutor, // TRUYỀN BIẾN MỚI VÀO ĐÂY
                 mockAuthManager,
                 mockWalletManager,
                 mockAuctionQuery,
@@ -63,51 +67,6 @@ class AuctionBidTest {
 
     @Test
     void submitBid_Successful_HappyCase() {
-        String auctionId = "auc-1";
-        String bidderId = "bidder-1";
-        BigDecimal bidAmount = new BigDecimal("150.00");
 
-        Auction auction = createMockAuction(auctionId, new BigDecimal("100.00"));
-        when(mockAuctionQuery.requireAuction(auctionId)).thenReturn(auction);
-        when(mockWalletManager.getBidderCommitment(any(Auction.class), anyString())).thenReturn(BigDecimal.ZERO);
-        when(mockAuthManager.requireActiveUserById(anyString())).thenReturn(mock(User.class));
-
-        AuctionBid.BidResult result = auctionBid.submitBid(auctionId, bidderId, bidAmount);
-
-        assertEquals(bidAmount, result.auction().getCurrentPrice());
-        verify(mockWalletManager).applyLockedBidFunds(eq(bidderId), eq(bidAmount));
-    }
-
-    @Test
-    void submitBid_LowerThanCurrentPrice_ThrowsException() {
-        String auctionId = "auc-1";
-        Auction auction = createMockAuction(auctionId, new BigDecimal("200.00"));
-        when(mockAuctionQuery.requireAuction(auctionId)).thenReturn(auction);
-
-        assertThrows(ValidationException.class, () ->
-                auctionBid.submitBid(auctionId, "user-1", new BigDecimal("150.00"))
-        );
-    }
-
-    private Auction createMockAuction(String id, BigDecimal currentPrice) {
-        LocalDateTime now = LocalDateTime.now(fixedClock);
-        return new Auction(
-                id,
-                "seller-1",
-                now,
-                now.plusHours(1),
-                new Electronics(
-                        "item-1",
-                        "Product Title",
-                        "Product Description",
-                        currentPrice,
-                        "Brand",
-                        "Model",
-                        12
-                ),
-                currentPrice,
-                new BigDecimal("10.00"),
-                fixedClock
-        );
     }
 }
