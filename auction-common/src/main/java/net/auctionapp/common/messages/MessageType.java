@@ -51,5 +51,5 @@ public enum MessageType {
     WATCH_LIST_RESPONSE,
     WATCH_LIST_CHANGED,
     BALANCE_UPDATE,
-    PONG
+    ERROR_RESPONSE, PONG
 }

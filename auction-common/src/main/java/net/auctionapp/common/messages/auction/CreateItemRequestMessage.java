@@ -27,6 +27,10 @@ public class CreateItemRequestMessage extends Message {
         super(MessageType.CREATE_ITEM_REQUEST);
     }
 
+    public CreateItemRequestMessage(String testItem, String descriptionOfTestItem, double v, long epochMilli, String imageUrl) {
+
+    }
+
     public ItemType getItemType() {
         return itemType;
     }
