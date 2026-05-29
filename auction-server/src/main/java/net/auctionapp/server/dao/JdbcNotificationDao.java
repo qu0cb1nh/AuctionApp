@@ -42,6 +42,10 @@ public class JdbcNotificationDao implements NotificationDao {
             DELETE FROM notifications
             WHERE id = ? AND user_id = ?
             """;
+    private static final String CLEAR_BY_USER_ID_QUERY = """
+            DELETE FROM notifications
+            WHERE user_id = ?
+            """;
 
     private final DatabaseConnection databaseConnection;
 
@@ -110,6 +114,17 @@ public class JdbcNotificationDao implements NotificationDao {
             return statement.executeUpdate() == 1;
         } catch (SQLException e) {
             throw new DatabaseException("Failed to clear notification.", e);
+        }
+    }
+
+    @Override
+    public void clearByUserId(String userId) {
+        try (Connection connection = databaseConnection.getConnection();
+             PreparedStatement statement = connection.prepareStatement(CLEAR_BY_USER_ID_QUERY)) {
+            statement.setString(1, userId);
+            statement.executeUpdate();
+        } catch (SQLException e) {
+            throw new DatabaseException("Failed to clear notifications.", e);
         }
     }
 

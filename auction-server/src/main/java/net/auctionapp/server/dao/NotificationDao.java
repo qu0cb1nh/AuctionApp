@@ -19,4 +19,6 @@ public interface NotificationDao {
     List<Notification> findByUserId(String userId);
 
     boolean clearById(String userId, String notificationId);
+
+    void clearByUserId(String userId);
 }
