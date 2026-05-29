@@ -7,6 +7,7 @@ import net.auctionapp.client.ui.controllers.components.HeaderController;
 import javafx.fxml.FXML;
 import javafx.fxml.FXMLLoader;
 import javafx.css.PseudoClass;
+import javafx.scene.control.Button;
 import javafx.scene.control.Label;
 import javafx.scene.layout.Pane;
 import javafx.scene.layout.Region;
@@ -45,6 +46,9 @@ public class NotificationsMenuController {
 
     @FXML
     private Label filterStatusLabel;
+
+    @FXML
+    private Button clearAllButton;
 
     @FXML
     private Label filterLabelAll;
@@ -129,6 +133,7 @@ public class NotificationsMenuController {
     private void handleNotificationsResponse(Message message) {
         if (message instanceof ErrorResponseMessage errorMessage) {
             setStatusText(errorMessage.getErrorMessage(), true);
+            updateClearAllButton();
             return;
         }
         if (!(message instanceof NotificationsResponseMessage response)) {
@@ -163,6 +168,7 @@ public class NotificationsMenuController {
     }
 
     private void renderNotifications() {
+        updateClearAllButton();
         notificationCardsContainer.getChildren().clear();
 
         List<Notification> filteredNotifications = allNotifications.stream()
@@ -211,6 +217,21 @@ public class NotificationsMenuController {
             return;
         }
         NotificationService.getInstance().clearNotification(notificationId, this::handleNotificationsResponse);
+    }
+
+    @FXML
+    public void handleClearAll() {
+        if (allNotifications.isEmpty()) {
+            return;
+        }
+        clearAllButton.setDisable(true);
+        NotificationService.getInstance().clearAllNotifications(this::handleNotificationsResponse);
+    }
+
+    private void updateClearAllButton() {
+        if (clearAllButton != null) {
+            clearAllButton.setDisable(allNotifications.isEmpty());
+        }
     }
 
     private boolean matchesActiveFilter(Notification notification) {
