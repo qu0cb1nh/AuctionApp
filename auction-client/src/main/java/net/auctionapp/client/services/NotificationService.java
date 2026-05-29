@@ -22,4 +22,8 @@ public final class NotificationService {
     public void clearNotification(String notificationId, MessageListener<Message> callback) {
         NetworkService.getInstance().sendRequest(new ClearNotificationsRequestMessage(notificationId), callback);
     }
+
+    public void clearAllNotifications(MessageListener<Message> callback) {
+        NetworkService.getInstance().sendRequest(new ClearNotificationsRequestMessage(true), callback);
+    }
 }
