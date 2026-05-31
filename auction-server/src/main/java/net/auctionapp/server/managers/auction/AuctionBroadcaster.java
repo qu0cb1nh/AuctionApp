@@ -31,7 +31,9 @@ public final class AuctionBroadcaster {
 
     public void subscribe(String auctionId, ClientHandler handler) {
         Auction auction = auctionQuery.requireAuction(auctionId);
-        auctionSubscribers.computeIfAbsent(auction.getId(), ignored -> ConcurrentHashMap.newKeySet()).add(handler);
+        Set<ClientHandler> subscribers = auctionSubscribers.computeIfAbsent(auction.getId(), ignored -> ConcurrentHashMap.newKeySet());
+        subscribers.add(handler);
+        LOGGER.debug("Client subscribed to auction {} updates. Subscriber count: {}.", auction.getId(), subscribers.size());
     }
 
     public void removeSubscriber(ClientHandler handler) {
@@ -49,6 +51,7 @@ public final class AuctionBroadcaster {
 
     public void broadcastPriceUpdate(Auction auction) {
         synchronized (auction) {
+            LOGGER.info("Broadcasting price update for auction {} at price {}.", auction.getId(), auction.getCurrentPrice());
             sendToSubscribers(auction.getId(), new PriceUpdateResponseMessage(
                     auction.getId(),
                     auction.getCurrentPrice(),
@@ -60,6 +63,7 @@ public final class AuctionBroadcaster {
 
     public void broadcastAuctionUpdated(Auction auction) {
         AuctionUpdatedResponseMessage update = new AuctionUpdatedResponseMessage(auction.getId());
+        LOGGER.info("Broadcasting auction update for auction {} to all connected clients.", auction.getId());
         for (ClientHandler client : ServerApp.getConnectedClients()) {
             client.sendMessage(update);
         }
@@ -70,6 +74,7 @@ public final class AuctionBroadcaster {
         if (status != AuctionStatus.PAID && status != AuctionStatus.CANCELED) {
             return;
         }
+        LOGGER.info("Broadcasting auction {} ended with status {}.", auction.getId(), status);
         sendAuctionEndedNotifications(auction);
         sendToSubscribers(auction.getId(), new AuctionEndedResponseMessage(
                 auction.getId(),
@@ -83,17 +88,22 @@ public final class AuctionBroadcaster {
             return;
         }
         Set<ClientHandler> subscribers = auctionSubscribers.get(auctionId);
-        if (subscribers.isEmpty()) {
+        if (subscribers == null || subscribers.isEmpty()) {
+            LOGGER.debug("No subscribers for auction {} message {}.", auctionId, message == null ? null : message.getType());
             return;
         }
+        int deliveredCount = 0;
         for (ClientHandler subscriber : subscribers) {
-            if (!subscriber.sendMessage(message)) {
+            if (subscriber.sendMessage(message)) {
+                deliveredCount++;
+            } else {
                 removeSubscriberFrom(auctionId, subscriber);
             }
         }
+        LOGGER.debug("Delivered {} message to {} subscriber(s) for auction {}.", message.getType(), deliveredCount, auctionId);
     }
 
-        private void removeSubscriberFrom(String auctionId, ClientHandler handler) {
+    private void removeSubscriberFrom(String auctionId, ClientHandler handler) {
         if (auctionId == null || auctionId.isBlank() || handler == null) {
             return;
         }
@@ -102,6 +112,7 @@ public final class AuctionBroadcaster {
             return;
         }
         subscribers.remove(handler);
+        LOGGER.debug("Client unsubscribed from auction {} updates. Subscriber count: {}.", auctionId, subscribers.size());
         if (subscribers.isEmpty()) {
             auctionSubscribers.remove(auctionId, subscribers);
         }

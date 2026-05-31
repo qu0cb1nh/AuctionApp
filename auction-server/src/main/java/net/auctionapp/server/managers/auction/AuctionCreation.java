@@ -12,6 +12,8 @@ import net.auctionapp.server.models.auction.Auction;
 import net.auctionapp.server.models.items.Item;
 import net.auctionapp.server.managers.AuthManager;
 import net.auctionapp.server.services.CloudinaryImageService;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.math.BigDecimal;
 import java.time.Clock;
@@ -20,6 +22,8 @@ import java.util.UUID;
 import java.util.concurrent.ConcurrentMap;
 
 public final class AuctionCreation {
+    private static final Logger LOGGER = LoggerFactory.getLogger(AuctionCreation.class);
+
     private final ConcurrentMap<String, Auction> auctions;
     private final AuctionSafeUpdateExecutor auctionMutations;
     private final AuthManager authManager;
@@ -46,6 +50,9 @@ public final class AuctionCreation {
     public CreateItemResponseMessage createAuction(CreateItemRequestMessage request, String sellerId) {
         CloudinaryImageService.UploadedImage uploadedImage = null;
         try {
+            LOGGER.debug("Create-auction request started for seller {} and item type {}.",
+                    StringUtil.normalizeString(sellerId),
+                    request == null ? null : request.getItemType());
             validateCreateAuctionRequest(request);
             Item item = createItem(request);
             uploadedImage = cloudinaryImageService.uploadAuctionItemImage(request);
@@ -65,6 +72,7 @@ public final class AuctionCreation {
                     "Auction created successfully."
             );
         } catch (RuntimeException e) {
+            LOGGER.warn("Create-auction request failed for seller {}: {}", StringUtil.normalizeString(sellerId), e.getMessage());
             cloudinaryImageService.deleteAuctionItemImage(uploadedImage);
             throw e;
         }
@@ -100,6 +108,14 @@ public final class AuctionCreation {
                 auctions.remove(auction.getId(), auction);
                 throw e;
             }
+            LOGGER.info(
+                    "Created auction {} for seller {} with starting price {}, minimum increment {}, and end time {}.",
+                    auction.getId(),
+                    seller.getId(),
+                    startingPrice,
+                    minimumBidIncrement,
+                    endTime
+            );
             return auction;
         });
     }

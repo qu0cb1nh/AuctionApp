@@ -24,7 +24,9 @@ import net.auctionapp.server.managers.WatchListManager;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.BufferedWriter;
 import java.io.IOException;
+import java.io.OutputStreamWriter;
 import java.io.PrintWriter;
 import java.net.InetSocketAddress;
 import java.net.ServerSocket;
@@ -173,7 +175,7 @@ public class ServerApp {
 
     private static void rejectClient(Socket clientSocket, String reason) {
         try (clientSocket;
-             PrintWriter writer = new PrintWriter(clientSocket.getOutputStream(), true)) {
+             PrintWriter writer = new PrintWriter(new BufferedWriter(new OutputStreamWriter(clientSocket.getOutputStream())), true)) {
             LOGGER.warn("Rejected client {}: {}", clientSocket.getInetAddress(), reason);
             writer.println(JsonUtil.toJson(new ErrorResponseMessage(reason)));
         } catch (IOException e) {

@@ -57,7 +57,9 @@ public final class NotificationManager {
         try {
             handler.ensureAuthenticated();
             String userId = requireAuthenticatedUserId(handler);
-            handler.sendResponse(new NotificationsResponseMessage(requireNotificationDao().findByUserId(userId)), request);
+            var notifications = requireNotificationDao().findByUserId(userId);
+            LOGGER.debug("Loaded {} notification(s) for user {}.", notifications.size(), userId);
+            handler.sendResponse(new NotificationsResponseMessage(notifications), request);
         } catch (AuthenticationException | NotFoundException | ValidationException e) {
             handler.sendResponse(new ErrorResponseMessage(e.getMessage()), request);
         } catch (DatabaseException e) {
@@ -75,6 +77,7 @@ public final class NotificationManager {
             if (!cleared) {
                 throw new NotFoundException("Notification not found.");
             }
+            LOGGER.info("Cleared notification {} for user {}.", notificationId, userId);
             handler.sendResponse(
                     new NotificationsResponseMessage(requireNotificationDao().findByUserId(userId)),
                     request
@@ -223,6 +226,7 @@ public final class NotificationManager {
             }
             clientHandler.sendMessage(pushMessage);
         }
+        LOGGER.debug("Pushed notification {} to online user {}.", notification.getId(), userId);
     }
 
     private void createAndPush(
@@ -240,6 +244,7 @@ public final class NotificationManager {
                 auctionId,
                 LocalDateTime.now()
         );
+        LOGGER.info("Created {} notification {} for user {}.", type, notification.getId(), userId);
         pushToOnlineClients(userId, notification);
     }
 

@@ -44,5 +44,9 @@ AGENTS.md
 .env.*
 !.env.example
 
+### Runtime logs ###
+logs/
+**/logs/
+
 ### Mac OS ###
 .DS_Store

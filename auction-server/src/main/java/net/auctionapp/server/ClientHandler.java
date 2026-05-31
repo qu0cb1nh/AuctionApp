@@ -15,10 +15,7 @@ import net.auctionapp.server.managers.AuctionManager;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.BufferedReader;
-import java.io.IOException;
-import java.io.InputStreamReader;
-import java.io.PrintWriter;
+import java.io.*;
 import java.net.Socket;
 import java.util.Objects;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -50,7 +47,7 @@ public class ClientHandler implements Runnable {
     public void run() {
         try (Socket clientSocket = socket;
              BufferedReader reader = new BufferedReader(new InputStreamReader(clientSocket.getInputStream()));
-             PrintWriter writer = new PrintWriter(clientSocket.getOutputStream(), true)) {
+             PrintWriter writer = new PrintWriter(new BufferedWriter(new OutputStreamWriter(clientSocket.getOutputStream())), true)) {
 
             clientSocket.setSoTimeout(SOCKET_READ_TIMEOUT_MILLIS);
 
@@ -75,8 +72,6 @@ public class ClientHandler implements Runnable {
     }
 
     private void handleRawMessage(String jsonString) {
-        LOGGER.debug("Received from {}: {}", socket.getInetAddress(), jsonString);
-
         Message request = null;
         try {
             request = JsonUtil.fromJson(jsonString);
@@ -85,12 +80,18 @@ public class ClientHandler implements Runnable {
                 LOGGER.warn("Received null message after JSON deserialization from {}", socket.getInetAddress());
                 return;
             }
+            LOGGER.debug(
+                    "Received {} request from {} with message id {}.",
+                    request.getType(),
+                    socket.getInetAddress(),
+                    request.getMessageId()
+            );
             if (shouldEnforceBannedAccess(request.getType()) && !enforceAuthenticatedSessionAccess()) {
                 return;
             }
             messageRouter.dispatch(request, this);
         } catch (RuntimeException e) {
-            LOGGER.error("Error processing message from {}: {}", socket.getInetAddress(), jsonString, e);
+            LOGGER.error("Error processing client message from {}.", socket.getInetAddress(), e);
             sendResponse(new ErrorResponseMessage("Unable to process request."), request);
         }
     }
@@ -129,7 +130,7 @@ public class ClientHandler implements Runnable {
             return false;
         }
 
-        LOGGER.debug("Sent to {}: {}", socket.getInetAddress(), jsonMessage);
+        LOGGER.debug("Sent message to {}.", socket.getInetAddress());
         return true;
     }
 
@@ -155,6 +156,7 @@ public class ClientHandler implements Runnable {
     }
 
     public synchronized void logout() {
+        LOGGER.info("Logging out client session for user {}.", authenticatedUserId);
         authenticatedUserId = null;
         authenticatedRole = null;
         sessionManager.unbindSession(this);

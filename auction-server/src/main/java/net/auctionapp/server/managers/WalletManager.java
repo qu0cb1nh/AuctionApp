@@ -123,6 +123,7 @@ public final class WalletManager {
         User bidder = authManager.requireUserById(normalizedBidderId);
         updateCachedWallet(bidder, amount.negate(), amount);
         pushWalletUpdate(bidder);
+        LOGGER.info("Locked {} pending funds for bidder {}.", amount, normalizedBidderId);
     }
 
     public BigDecimal getBidderCommitment(Auction auction, String bidderId) {
@@ -144,6 +145,7 @@ public final class WalletManager {
             User bidder = authManager.requireUserById(StringUtil.normalizeString(entry.getKey()));
             updateCachedWallet(bidder, amount, amount.negate());
             pushWalletUpdate(bidder);
+            LOGGER.info("Released {} pending funds for bidder {}.", amount, bidder.getId());
         }
     }
 
@@ -152,6 +154,12 @@ public final class WalletManager {
             return;
         }
         Map<String, BigDecimal> committedAmountsByBidder = getCommittedAmountsByBidder(auction);
+        LOGGER.info(
+                "Closing wallets for auction {} with status {} and {} committed bidder(s).",
+                auction.getId(),
+                auction.getStatus(),
+                committedAmountsByBidder.size()
+        );
         String winnerId = StringUtil.normalizeString(auction.getWinnerBidderId());
         BigDecimal winningAmount = auction.getCurrentPrice();
         boolean hasWinner = !winnerId.isEmpty() && auction.getStatus() == AuctionStatus.PAID;
@@ -182,6 +190,8 @@ public final class WalletManager {
             BigDecimal committedAmount = committedAmountsByBidder.get(bidderId);
             updateCachedWallet(entry.getValue(), committedAmount, committedAmount.negate());
             pushWalletUpdate(entry.getValue());
+            LOGGER.info("Released {} pending funds for non-winning bidder {} in auction {}.",
+                    committedAmount, bidderId, auction.getId());
         }
     }
 
@@ -243,6 +253,12 @@ public final class WalletManager {
     private void updateCachedWallet(User user, BigDecimal balanceDelta, BigDecimal pendingDelta) {
         user.addBalance(balanceDelta);
         user.addPendingBalance(pendingDelta);
+        LOGGER.debug(
+                "Updated cached wallet for user {} with balance delta {} and pending delta {}.",
+                user.getId(),
+                balanceDelta,
+                pendingDelta
+        );
     }
 
     private WalletResponseMessage walletResponse(User user, String message) {
@@ -264,6 +280,7 @@ public final class WalletManager {
         for (ClientHandler clientHandler : sessionManager.getClientsByUserId(user.getId())) {
             clientHandler.sendMessage(update);
         }
+        LOGGER.debug("Pushed wallet update for user {}.", user.getId());
     }
 
     private BalanceDao requireBalanceDao() {

@@ -130,7 +130,9 @@ public final class AuctionManager {
     // --- Message Handling Logic ---
 
     public void handleGetAuctionList(GetAuctionListRequestMessage request, ClientHandler handler) {
-        handler.sendResponse(new AuctionListResponseMessage(auctionQuery.getAuctionSummaries()), request);
+        List<AuctionSummaryDto> summaries = auctionQuery.getAuctionSummaries();
+        LOGGER.debug("Returning {} auction summary item(s).", summaries.size());
+        handler.sendResponse(new AuctionListResponseMessage(summaries), request);
     }
 
     public void handleGetAuctionDetails(GetAuctionDetailsRequestMessage message, ClientHandler handler) {
@@ -139,6 +141,7 @@ public final class AuctionManager {
             Auction auction = auctionQuery.requireAuction(message.getAuctionId());
             AuctionDetailsResponseMessage response = auctionQuery.buildAuctionDetailsResponse(auction);
             handler.sendResponse(response, message);
+            LOGGER.debug("Returned auction details for auction {}.", message.getAuctionId());
         } catch (RuntimeException e) {
             sendError(handler, message, e.getMessage());
         }
@@ -147,7 +150,9 @@ public final class AuctionManager {
     public void handleGetMyActivity(GetMyActivityRequestMessage request, ClientHandler handler) {
         try {
             String userId = requireAuthenticatedUserId(handler);
-            handler.sendResponse(new MyActivityResponseMessage(auctionQuery.getActivityForUser(userId)), request);
+            var activity = auctionQuery.getActivityForUser(userId);
+            LOGGER.debug("Returning {} activity item(s) for user {}.", activity.size(), userId);
+            handler.sendResponse(new MyActivityResponseMessage(activity), request);
         } catch (RuntimeException e) {
             sendError(handler, request, e.getMessage());
         }
@@ -156,7 +161,9 @@ public final class AuctionManager {
     public void handleGetMyListings(GetMyListingsRequestMessage request, ClientHandler handler) {
         try {
             String userId = requireAuthenticatedUserId(handler);
-            handler.sendResponse(new MyListingsResponseMessage(auctionQuery.getListingsForUser(userId)), request);
+            var listings = auctionQuery.getListingsForUser(userId);
+            LOGGER.debug("Returning {} listing item(s) for user {}.", listings.size(), userId);
+            handler.sendResponse(new MyListingsResponseMessage(listings), request);
         } catch (RuntimeException e) {
             sendError(handler, request, e.getMessage());
         }
@@ -199,6 +206,12 @@ public final class AuctionManager {
             auctionBroadcaster.broadcastPriceUpdate(result.auction());
             trySendOutbidNotification(result.previousLeadingBidderId(), result.auction());
         } catch (RuntimeException e) {
+            LOGGER.warn(
+                    "Rejected bid for auction {} from client user {}: {}",
+                    auctionId,
+                    handler.getAuthenticatedId(),
+                    e.getMessage()
+            );
             handler.sendResponse(new BidResponseMessage(
                     MessageType.BID_REJECTED,
                     auctionId,
@@ -220,6 +233,7 @@ public final class AuctionManager {
                     request.getEndTime()
             );
             sendAuctionActionSuccess(handler, request, updatedAuction, "Auction updated successfully.");
+            LOGGER.info("Auction {} was updated by user {}.", updatedAuction.getId(), actorId);
         } catch (RuntimeException e) {
             sendError(handler, request, e.getMessage());
         }
@@ -230,6 +244,7 @@ public final class AuctionManager {
             String actorId = requireAuthenticatedUserId(handler);
             Auction updatedAuction = auctionLifecycle.cancelAuction(actorId, request.getAuctionId());
             sendAuctionActionSuccess(handler, request, updatedAuction, "Auction canceled successfully.");
+            LOGGER.info("Auction {} was canceled by user {}.", updatedAuction.getId(), actorId);
         } catch (RuntimeException e) {
             sendError(handler, request, e.getMessage());
         }
@@ -240,6 +255,7 @@ public final class AuctionManager {
             String actorId = requireAuthenticatedUserId(handler);
             Auction updatedAuction = auctionLifecycle.closeAuction(actorId, request.getAuctionId());
             sendAuctionActionSuccess(handler, request, updatedAuction, "Auction closed successfully.");
+            LOGGER.info("Auction {} was manually closed by user {}.", updatedAuction.getId(), actorId);
         } catch (RuntimeException e) {
             sendError(handler, request, e.getMessage());
         }
@@ -267,6 +283,7 @@ public final class AuctionManager {
     }
 
     public void applyUserBanEffects(String bannedUserId) {
+        LOGGER.info("Applying auction effects for banned user {}.", bannedUserId);
         auctionBanEffect.applyUserBanEffects(bannedUserId);
     }
 
@@ -298,6 +315,7 @@ public final class AuctionManager {
     }
 
     private void sendError(ClientHandler handler, Message request, String message) {
+        LOGGER.warn("Auction request {} failed: {}", request == null ? null : request.getType(), message);
         handler.sendResponse(new ErrorResponseMessage(message), request);
     }
 

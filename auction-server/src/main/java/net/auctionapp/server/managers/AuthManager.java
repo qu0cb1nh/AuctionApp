@@ -58,6 +58,7 @@ public class AuthManager {
     public void handleLogin(LoginRequestMessage request, ClientHandler clientHandler) {
         String normalizedUsername = StringUtil.normalizeString(request.getUsername());
         String password = request.getPassword();
+        LOGGER.info("Login request received for username '{}'.", normalizedUsername);
 
         try {
             CredentialUtil.validateLogin(request.getUsername(), password);
@@ -106,6 +107,7 @@ public class AuthManager {
         String normalizedUsername = StringUtil.normalizeString(request.getUsername());
         String password = request.getPassword();
         String username = request.getUsername() == null ? "" : request.getUsername().trim();
+        LOGGER.info("Registration request received for username '{}'.", normalizedUsername);
 
         try {
             CredentialUtil.validateRegistration(username, password, password);
@@ -156,6 +158,7 @@ public class AuthManager {
     ) {
         LoginResponseMessage failure = new LoginResponseMessage(MessageType.LOGIN_FAILURE, null, null, null, message);
         clientHandler.sendResponse(failure, request);
+        LOGGER.info("Login failed: {}", message);
     }
 
     private void sendRegisterFailure(
@@ -165,6 +168,7 @@ public class AuthManager {
     ) {
         RegisterResponseMessage failure = new RegisterResponseMessage(MessageType.REGISTER_FAILURE, null, message);
         clientHandler.sendResponse(failure, request);
+        LOGGER.info("Registration failed: {}", message);
     }
 
     private UserDao requireUserDao() {
@@ -270,6 +274,7 @@ public class AuthManager {
             return;
         }
         List<ClientHandler> sessionSnapshot = List.copyOf(sessions);
+        LOGGER.info("Forcing logout for {} banned user session(s).", sessionSnapshot.size());
         for (ClientHandler clientHandler : sessionSnapshot) {
             clientHandler.sendMessage(new ForcedLogoutResponseMessage(
                     "Your account has been banned. You have been logged out."

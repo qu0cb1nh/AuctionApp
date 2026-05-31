@@ -6,6 +6,8 @@ import net.auctionapp.server.exceptions.InsufficientFundsException;
 import net.auctionapp.server.models.auction.Auction;
 import net.auctionapp.server.models.auction.BidTransaction;
 import net.auctionapp.server.managers.WalletManager;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.math.BigDecimal;
 import java.util.List;
@@ -15,6 +17,8 @@ import java.util.concurrent.ConcurrentMap;
 import java.util.function.Consumer;
 
 public final class AuctionPersistence {
+    private static final Logger LOGGER = LoggerFactory.getLogger(AuctionPersistence.class);
+
     private final ConcurrentMap<String, Auction> auctions;
     private final WalletManager walletManager;
     private volatile AuctionDao auctionDao;
@@ -31,14 +35,17 @@ public final class AuctionPersistence {
         for (Auction auction : persistedAuctions) {
             auctions.put(auction.getId(), auction);
         }
+        LOGGER.info("Loaded {} auction(s) from persistence.", persistedAuctions.size());
     }
 
     public void persistAuction(Auction auction) {
         executeDaoAction(dao -> requireSuccess(dao.createAuction(auction), "Auction could not be persisted."));
+        LOGGER.debug("Persisted new auction {}.", auction.getId());
     }
 
     public void persistAuctionState(Auction auction) {
         walletManager.closeAuctionWallets(auction);
+        LOGGER.info("Persisted auction state for auction {} with status {}.", auction.getId(), auction.getStatus());
     }
 
     public void persistAcceptedBid(Auction auction, BidTransaction bid, BigDecimal amountToLock) {
@@ -47,10 +54,12 @@ public final class AuctionPersistence {
                 throw new InsufficientFundsException("Insufficient balance. Please check your wallet.");
             }
         });
+        LOGGER.debug("Persisted bid {} for auction {} and locked amount {}.", bid.getId(), auction.getId(), amountToLock);
     }
 
     public void persistAuctionDetails(Auction auction) {
         executeDaoAction(dao -> requireSuccess(dao.updateAuction(auction), "Auction details could not be persisted."));
+        LOGGER.info("Persisted auction detail update for auction {}.", auction.getId());
     }
 
     public void persistUserBanEffects(
@@ -63,6 +72,13 @@ public final class AuctionPersistence {
                 dao.applyUserBanEffects(bannedUserId, changedAuctions, invalidatedBids, fundsToRelease),
                 "User ban effects could not be persisted."
         ));
+        LOGGER.info(
+                "Persisted user ban effects for user {}. Changed auctions: {}, invalidated bids: {}, released fund entries: {}.",
+                bannedUserId,
+                changedAuctions == null ? 0 : changedAuctions.size(),
+                invalidatedBids == null ? 0 : invalidatedBids.size(),
+                fundsToRelease == null ? 0 : fundsToRelease.size()
+        );
     }
 
     private void executeDaoAction(Consumer<AuctionDao> action) {
