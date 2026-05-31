@@ -10,7 +10,7 @@ public class ConsoleTestClient {
             System.out.println("Connected to the Auction Server!");
 
             BufferedReader in = new BufferedReader(new InputStreamReader(socket.getInputStream()));
-            PrintWriter out = new PrintWriter(socket.getOutputStream(), true);
+            PrintWriter out = new PrintWriter(new BufferedWriter(new OutputStreamWriter(socket.getOutputStream())), true);
 
             // 1. Background thread to LISTEN for messages from the Server (Broadcast)
             new Thread(() -> {

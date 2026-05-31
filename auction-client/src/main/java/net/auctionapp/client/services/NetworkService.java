@@ -83,7 +83,9 @@ public final class NetworkService {
 
         if (!current.send(JsonUtil.toJson(message))) {
             markDisconnected(current);
+            return;
         }
+        LOGGER.debug("Sent {} message to server.", message.getType());
     }
 
     public void sendRequest(Message request, MessageListener<Message> callback) {
@@ -125,6 +127,7 @@ public final class NetworkService {
             markDisconnected(current);
             return CompletableFuture.failedFuture(new NetworkException(NOT_CONNECTED));
         }
+        LOGGER.debug("Sent {} request with id {}.", request.getType(), requestId);
 
         return withTimeout(future, timeout)
                 .whenComplete((message, throwable) -> pendingRequests.remove(requestId));
@@ -178,9 +181,11 @@ public final class NetworkService {
             CompletableFuture<Message> pending = pendingRequests.remove(correlationId);
             if (pending != null) {
                 pending.complete(message);
+                LOGGER.debug("Completed pending request {} with response {}.", correlationId, message.getType());
             }
             return;
         }
+        LOGGER.debug("Dispatching server push message {}.", message.getType());
         messageDispatcher.dispatch(message);
     }
 
@@ -202,10 +207,12 @@ public final class NetworkService {
             sendRequest(new PingRequestMessage(), HEARTBEAT_TIMEOUT)
                     .thenAccept(response -> {
                         if (response == null || response.getType() != MessageType.PONG) {
+                            LOGGER.warn("Heartbeat received unexpected response {}.", response == null ? null : response.getType());
                             markDisconnected(current);
                         }
                     })
                     .exceptionally(throwable -> {
+                        LOGGER.warn("Heartbeat failed: {}", unwrap(throwable).getMessage());
                         markDisconnected(current);
                         return null;
                     });
@@ -287,7 +294,7 @@ public final class NetworkService {
             try {
                 socket.connect(new InetSocketAddress(host, port), (int) CONNECT_TIMEOUT.toMillis());
                 BufferedReader reader = new BufferedReader(new InputStreamReader(socket.getInputStream()));
-                PrintWriter writer = new PrintWriter(socket.getOutputStream(), true);
+                PrintWriter writer = new PrintWriter(new BufferedWriter(new OutputStreamWriter(socket.getOutputStream())), true);
                 return new Connection(socket, reader, writer);
             } catch (IOException | RuntimeException e) {
                 socket.close();

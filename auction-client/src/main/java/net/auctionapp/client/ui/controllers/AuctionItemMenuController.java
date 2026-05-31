@@ -41,7 +41,6 @@ import net.auctionapp.common.messages.system.ErrorResponseMessage;
 import net.auctionapp.common.messages.watchlist.WatchListChangedResponseMessage;
 import net.auctionapp.common.messages.watchlist.WatchListResponseMessage;
 import net.auctionapp.common.auction.AuctionStatus;
-import net.auctionapp.common.items.ItemType;
 import net.auctionapp.common.utils.MoneyUtil;
 
 import java.math.BigDecimal;
@@ -299,7 +298,7 @@ public class AuctionItemMenuController implements AuctionContextController {
             return;
         }
 
-        if (message.getType() == MessageType.BID_ACCEPTED) {
+        if (result.getType() == MessageType.BID_ACCEPTED) {
             if (result.getCurrentPrice() != null) {
                 currentHighestBid = result.getCurrentPrice();
                 currentBidLabel.setText("$" + currentHighestBid.toPlainString());
@@ -311,8 +310,14 @@ public class AuctionItemMenuController implements AuctionContextController {
             requestAuctionDetails();
             return;
         }
-        if (message.getType() == MessageType.BID_REJECTED) {
-            setErrorMessage(result.getMessage());
+        if (result.getType() == MessageType.BID_REJECTED) {
+            String rejectionMessage = "Bid was rejected.";
+            if(result.getMessage() != null)
+                rejectionMessage += result.getMessage();
+            setErrorMessage(rejectionMessage);
+            NotificationToastManager.showError(rejectionMessage);
+            bidAmountField.clear();
+            requestAuctionDetails();
             return;
         }
         setErrorMessage("Unexpected bid response from server.");
@@ -444,7 +449,6 @@ public class AuctionItemMenuController implements AuctionContextController {
         }
         String currentUserId = session.getUserId();
         boolean isSellerViewingOwnAuction = response.getSellerId() != null
-                && currentUserId != null
                 && response.getSellerId().equalsIgnoreCase(currentUserId);
 
         if (isSellerViewingOwnAuction) {

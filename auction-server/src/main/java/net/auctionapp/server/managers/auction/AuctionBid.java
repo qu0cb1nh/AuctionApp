@@ -6,6 +6,8 @@ import net.auctionapp.server.models.auction.Auction;
 import net.auctionapp.server.models.auction.BidTransaction;
 import net.auctionapp.server.managers.AuthManager;
 import net.auctionapp.server.managers.WalletManager;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.math.BigDecimal;
 import java.time.Clock;
@@ -13,6 +15,8 @@ import java.time.LocalDateTime;
 import java.util.UUID;
 
 public final class AuctionBid {
+    private static final Logger LOGGER = LoggerFactory.getLogger(AuctionBid.class);
+
     private final AuctionSafeUpdateExecutor auctionMutations;
     private final AuthManager authManager;
     private final WalletManager walletManager;
@@ -39,6 +43,7 @@ public final class AuctionBid {
     public BidResult submitBid(String auctionId, String bidderId, BigDecimal amount) {
         Auction auction = auctionQuery.requireAuction(auctionId);
         String normalizedBidderId = StringUtil.normalizeString(bidderId);
+        LOGGER.debug("Bid submission started for auction {} by bidder {} with amount {}.", auctionId, normalizedBidderId, amount);
         BidMutation mutation = auctionMutations.executeWithLock(
                 auction,
                 candidate -> {
@@ -70,6 +75,15 @@ public final class AuctionBid {
                         normalizedBidderId,
                         result.incrementalAmount()
                 )
+        );
+        LOGGER.info(
+                "Accepted bid {} for auction {} from bidder {} at amount {}. Previous leader: {}. Current price: {}.",
+                mutation.bid().getId(),
+                auction.getId(),
+                normalizedBidderId,
+                mutation.bid().getAmount(),
+                mutation.previousLeadingBidderId(),
+                auction.getCurrentPrice()
         );
         return new BidResult(auction, mutation.previousLeadingBidderId());
     }

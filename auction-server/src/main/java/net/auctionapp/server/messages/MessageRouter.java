@@ -26,6 +26,7 @@ public final class MessageRouter {
             clientHandler.sendResponse(new ErrorResponseMessage("Unsupported message type."), message);
             return;
         }
+        LOGGER.debug("Routing message type {}.", message.getType());
         route.execute(message, clientHandler);
     }
 

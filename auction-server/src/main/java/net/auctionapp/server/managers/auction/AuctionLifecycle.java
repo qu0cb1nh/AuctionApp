@@ -70,6 +70,7 @@ public final class AuctionLifecycle {
                 },
                 auctionPersistence::persistAuctionDetails
         );
+        LOGGER.info("Auction {} details updated by user {}. New end time: {}.", auction.getId(), actorId, endTime);
         return auction;
     }
 
@@ -80,6 +81,7 @@ public final class AuctionLifecycle {
             throw new AuthorizationException("Only an admin can close an auction manually.");
         }
         applyStateTransition(auction, Auction::closeManually);
+        LOGGER.info("Auction {} manually closed by admin {}.", auction.getId(), actor.getId());
         return auction;
     }
 
@@ -94,6 +96,7 @@ public final class AuctionLifecycle {
             }
             candidate.cancel();
         });
+        LOGGER.info("Auction {} canceled by user {}.", auction.getId(), actor.getId());
         return auction;
     }
 
@@ -115,12 +118,14 @@ public final class AuctionLifecycle {
                 LOGGER.warn("Auction status refresh failed: {}", e.getMessage(), e);
             }
         }, 1, 1, TimeUnit.SECONDS);
+        LOGGER.info("Auction status scheduler started.");
     }
 
     public synchronized void stop() {
         if (statusScheduler != null) {
             statusScheduler.shutdownNow();
             statusScheduler = null;
+            LOGGER.info("Auction status scheduler stopped.");
         }
     }
 
@@ -148,6 +153,7 @@ public final class AuctionLifecycle {
                 null
         );
         if (closed) {
+            LOGGER.info("Auction {} closed automatically with status {}.", auction.getId(), auction.getStatus());
             auctionBroadcaster.broadcastAuctionStatusChanged(auction);
         }
     }
