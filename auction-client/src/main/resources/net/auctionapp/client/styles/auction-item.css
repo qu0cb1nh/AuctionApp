@@ -112,6 +112,15 @@
     -fx-text-fill: #c62828;
 }
 
+.cancel-bids-button {
+    -fx-background-color: #fff1f2;
+    -fx-text-fill: #be123c;
+    -fx-background-radius: 20px;
+    -fx-padding: 10px 18px;
+    -fx-font-weight: bold;
+    -fx-cursor: hand;
+}
+
 .time-remaining {
     -fx-font-size: 16px;
     -fx-font-weight: bold;
@@ -150,21 +159,4 @@
 
 .auction-status:neutral {
     -fx-text-fill: #3f5569;
-}
-
-.auction-message {
-    -fx-font-size: 13px;
-    -fx-text-fill: #888888;
-}
-
-.auction-message:success {
-    -fx-text-fill: green;
-}
-
-.auction-message:error {
-    -fx-text-fill: red;
-}
-
-.auction-message:info {
-    -fx-text-fill: #666666;
 }

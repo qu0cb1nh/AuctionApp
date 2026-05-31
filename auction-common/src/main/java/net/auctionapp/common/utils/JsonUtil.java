@@ -69,6 +69,7 @@ public final class JsonUtil {
                 case UPDATE_AUCTION_REQUEST -> GSON.fromJson(json, UpdateAuctionRequestMessage.class);
                 case CANCEL_AUCTION_REQUEST -> GSON.fromJson(json, CancelAuctionRequestMessage.class);
                 case CLOSE_AUCTION_REQUEST -> GSON.fromJson(json, CloseAuctionRequestMessage.class);
+                case CANCEL_BIDS_REQUEST -> GSON.fromJson(json, CancelBidsRequestMessage.class);
                 case LOGIN_SUCCESS, LOGIN_FAILURE -> GSON.fromJson(json, LoginResponseMessage.class);
                 case FORCED_LOGOUT -> GSON.fromJson(json, ForcedLogoutResponseMessage.class);
                 case REGISTER_SUCCESS, REGISTER_FAILURE -> GSON.fromJson(json, RegisterResponseMessage.class);

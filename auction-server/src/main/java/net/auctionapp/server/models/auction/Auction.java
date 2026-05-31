@@ -111,57 +111,57 @@ public class Auction extends Entity {
         this.status = status == null ? AuctionStatus.RUNNING : status;
     }
 
-    public synchronized String getSellerId() {
+    public String getSellerId() {
         return sellerId;
     }
 
-    public synchronized LocalDateTime getStartTime() {
+    public LocalDateTime getStartTime() {
         return startTime;
     }
 
-    public synchronized LocalDateTime getEndTime() {
+    public LocalDateTime getEndTime() {
         return endTime;
     }
 
-    public synchronized Item getItem() {
+    public Item getItem() {
         return item.copy();
     }
 
-    public synchronized BigDecimal getStartingPrice() {
+    public BigDecimal getStartingPrice() {
         return startingPrice;
     }
 
-    public synchronized BigDecimal getMinimumBidIncrement() {
+    public BigDecimal getMinimumBidIncrement() {
         return minimumBidIncrement;
     }
 
-    public synchronized BigDecimal getCurrentPrice() {
+    public BigDecimal getCurrentPrice() {
         return currentPrice;
     }
 
-    public synchronized String getLeadingBidderId() {
+    public String getLeadingBidderId() {
         return leadingBidderId;
     }
 
-    public synchronized String getWinnerBidderId() {
+    public String getWinnerBidderId() {
         return winnerBidderId;
     }
 
-    public synchronized AuctionStatus getStatus() {
+    public AuctionStatus getStatus() {
         return status;
     }
 
-    public synchronized List<BidTransaction> getBidHistory() {
-        return new ArrayList<>(bidHistory);
+    public List<BidTransaction> getBidHistory() {
+        return List.copyOf(bidHistory);
     }
 
-    public synchronized List<BidTransaction> getActiveBidHistory() {
+    public List<BidTransaction> getActiveBidHistory() {
         return bidHistory.stream()
                 .filter(BidTransaction::isActive)
                 .toList();
     }
 
-    public synchronized void restoreBidHistory(List<BidTransaction> persistedBids) {
+    public void restoreBidHistory(List<BidTransaction> persistedBids) {
         bidHistory.clear();
         if (persistedBids == null || persistedBids.isEmpty()) {
             restoreLeadingBidFromAuctionState();
@@ -274,11 +274,11 @@ public class Auction extends Entity {
         return invalidatedBids;
     }
 
-    public synchronized BigDecimal getMinimumNextBid() {
+    public BigDecimal getMinimumNextBid() {
         return currentPrice.add(minimumBidIncrement);
     }
 
-    public synchronized Auction snapshotCopy() {
+    public Auction snapshotCopy() {
         Auction copy = new Auction(
                 getId(),
                 sellerId,
@@ -297,12 +297,16 @@ public class Auction extends Entity {
         return copy;
     }
 
-    public synchronized void applySnapshot(Auction snapshot) {
+    public void applySnapshot(Auction snapshot) {
         if (snapshot == null || !getId().equals(snapshot.getId())) {
             throw new IllegalArgumentException("Snapshot must belong to this auction.");
         }
         Item snapshotItem = snapshot.getItem();
-        item.updateDetails(snapshotItem.getTitle(), snapshotItem.getDescription(), snapshotItem.getBasePrice());
+        item.updateDetails(
+                snapshotItem.getTitle(),
+                snapshotItem.getDescription(),
+                snapshotItem.getBasePrice()
+        );
         item.setImageUrl(snapshotItem.getImageUrl());
         endTime = snapshot.getEndTime();
         currentPrice = snapshot.getCurrentPrice();

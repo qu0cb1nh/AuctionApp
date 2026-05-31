@@ -3,6 +3,7 @@ package net.auctionapp.client.services;
 import net.auctionapp.client.messages.MessageListener;
 import net.auctionapp.common.messages.Message;
 import net.auctionapp.common.messages.auction.BidRequestMessage;
+import net.auctionapp.common.messages.auction.CancelBidsRequestMessage;
 import net.auctionapp.common.messages.auction.CancelAuctionRequestMessage;
 import net.auctionapp.common.messages.auction.CloseAuctionRequestMessage;
 import net.auctionapp.common.messages.auction.CreateItemRequestMessage;
@@ -71,6 +72,11 @@ public final class AuctionService {
     public void placeBid(String auctionId, BigDecimal amount, MessageListener<Message> callback) {
         LOGGER.info("Submitting bid for auction {} with amount {}.", auctionId, amount);
         NetworkService.getInstance().sendRequest(new BidRequestMessage(auctionId, amount), callback);
+    }
+
+    public void cancelBids(String auctionId, MessageListener<Message> callback) {
+        LOGGER.info("Submitting bid cancellation for auction {}.", auctionId);
+        NetworkService.getInstance().sendRequest(new CancelBidsRequestMessage(auctionId), callback);
     }
 
     public void observeAuction(String auctionId, boolean observing) {

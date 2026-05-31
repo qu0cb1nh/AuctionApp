@@ -23,10 +23,16 @@ public final class AuctionBroadcaster {
     private final ConcurrentMap<String, Set<ClientHandler>> auctionSubscribers = new ConcurrentHashMap<>();
     private final AuctionQuery auctionQuery;
     private final NotificationManager notificationManager;
+    private final AuctionMutationExecutor auctionMutations;
 
-    public AuctionBroadcaster(AuctionQuery auctionQuery, NotificationManager notificationManager) {
+    public AuctionBroadcaster(
+            AuctionQuery auctionQuery,
+            NotificationManager notificationManager,
+            AuctionMutationExecutor auctionMutations
+    ) {
         this.auctionQuery = auctionQuery;
         this.notificationManager = notificationManager;
+        this.auctionMutations = auctionMutations;
     }
 
     public void subscribe(String auctionId, ClientHandler handler) {
@@ -50,15 +56,16 @@ public final class AuctionBroadcaster {
     }
 
     public void broadcastPriceUpdate(Auction auction) {
-        synchronized (auction) {
+        PriceUpdateResponseMessage update = auctionMutations.executeWithLock(() -> {
             LOGGER.info("Broadcasting price update for auction {} at price {}.", auction.getId(), auction.getCurrentPrice());
-            sendToSubscribers(auction.getId(), new PriceUpdateResponseMessage(
+            return new PriceUpdateResponseMessage(
                     auction.getId(),
                     auction.getCurrentPrice(),
                     auctionQuery.displayUsername(auction.getLeadingBidderId()),
                     auction.getEndTime()
-            ));
-        }
+            );
+        });
+        sendToSubscribers(auction.getId(), update);
     }
 
     public void broadcastAuctionUpdated(Auction auction) {
@@ -70,17 +77,23 @@ public final class AuctionBroadcaster {
     }
 
     public void broadcastAuctionStatusChanged(Auction auction) {
-        AuctionStatus status = auction.getStatus();
-        if (status != AuctionStatus.PAID && status != AuctionStatus.CANCELED) {
+        AuctionEndedResponseMessage update = auctionMutations.executeWithLock(() -> {
+            AuctionStatus status = auction.getStatus();
+            if (status != AuctionStatus.PAID && status != AuctionStatus.CANCELED) {
+                return null;
+            }
+            LOGGER.info("Broadcasting auction {} ended with status {}.", auction.getId(), status);
+            sendAuctionEndedNotifications(auction);
+            return new AuctionEndedResponseMessage(
+                    auction.getId(),
+                    auction.getWinnerBidderId(),
+                    auction.getCurrentPrice()
+            );
+        });
+        if (update == null) {
             return;
         }
-        LOGGER.info("Broadcasting auction {} ended with status {}.", auction.getId(), status);
-        sendAuctionEndedNotifications(auction);
-        sendToSubscribers(auction.getId(), new AuctionEndedResponseMessage(
-                auction.getId(),
-                auction.getWinnerBidderId(),
-                auction.getCurrentPrice()
-        ));
+        sendToSubscribers(auction.getId(), update);
     }
 
     private void sendToSubscribers(String auctionId, Message message) {

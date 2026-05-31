@@ -34,32 +34,42 @@ public final class AuctionQuery {
 
     private final Map<String, Auction> auctions;
     private final AuthManager authManager;
+    private final AuctionMutationExecutor auctionMutations;
 
-    public AuctionQuery(Map<String, Auction> auctions, AuthManager authManager) {
+    public AuctionQuery(
+            Map<String, Auction> auctions,
+            AuthManager authManager,
+            AuctionMutationExecutor auctionMutations
+    ) {
         this.auctions = auctions;
         this.authManager = authManager;
+        this.auctionMutations = auctionMutations;
     }
 
     public List<AuctionSummaryDto> getAuctionSummaries() {
-        List<AuctionSummaryDto> result = new ArrayList<>();
-        for (Auction auction : auctions.values()) {
-            result.add(buildAuctionSummary(auction));
-        }
-        return result;
+        return auctionMutations.executeWithLock(() -> {
+            List<AuctionSummaryDto> result = new ArrayList<>();
+            for (Auction auction : auctions.values()) {
+                result.add(buildAuctionSummaryUnlocked(auction));
+            }
+            return result;
+        });
     }
 
     public List<AuctionSummaryDto> getAuctionSummaries(Iterable<String> auctionIds) {
-        List<AuctionSummaryDto> result = new ArrayList<>();
-        if (auctionIds == null) {
-            return result;
-        }
-        for (String auctionId : auctionIds) {
-            Auction auction = auctions.get(auctionId);
-            if (auction != null) {
-                result.add(buildAuctionSummary(auction));
+        return auctionMutations.executeWithLock(() -> {
+            List<AuctionSummaryDto> result = new ArrayList<>();
+            if (auctionIds == null) {
+                return result;
             }
-        }
-        return result;
+            for (String auctionId : auctionIds) {
+                Auction auction = auctions.get(auctionId);
+                if (auction != null) {
+                    result.add(buildAuctionSummaryUnlocked(auction));
+                }
+            }
+            return result;
+        });
     }
 
     public boolean hasAuction(String auctionId) {
@@ -67,19 +77,19 @@ public final class AuctionQuery {
     }
 
     public List<ActivitySummaryDto> getActivityForUser(String userId) {
-        return auctions.values().stream()
+        return auctionMutations.executeWithLock(() -> auctions.values().stream()
                 .filter(auction -> auction.getActiveBidHistory().stream()
                         .anyMatch(bid -> userId.equals(StringUtil.normalizeString(bid.getBidderId()))))
                 .map(auction -> buildActivitySummary(auction, userId))
                 .filter(Objects::nonNull)
-                .toList();
+                .toList());
     }
 
     public List<ListingSummaryDto> getListingsForUser(String userId) {
-        return auctions.values().stream()
+        return auctionMutations.executeWithLock(() -> auctions.values().stream()
                 .filter(auction -> userId.equals(StringUtil.normalizeString(auction.getSellerId())))
                 .map(this::buildListingSummary)
-                .toList();
+                .toList());
     }
 
     public Auction requireAuction(String auctionId) {
@@ -94,53 +104,61 @@ public final class AuctionQuery {
     }
 
     public AuctionSummaryDto buildAuctionSummary(Auction auction) {
-        AuctionSnapshot snapshot = snapshotView(auction);
-        return new AuctionSummaryDto(
-                snapshot.auction().getId(),
-                snapshot.item().getTitle(),
-                snapshot.auction().getCurrentPrice(),
-                snapshot.auction().getMinimumNextBid(),
-                snapshot.auction().getStatus(),
-                snapshot.auction().getLeadingBidderId(),
-                snapshot.auction().getStartTime(),
-                snapshot.auction().getEndTime(),
-                snapshot.item().getImageUrl(),
-                snapshot.item().getType(),
-                snapshot.leadingName(),
-                snapshot.auction().getSellerId(),
-                snapshot.sellerName()
-        );
+        return auctionMutations.executeWithLock(() -> buildAuctionSummaryUnlocked(auction));
     }
 
     public AuctionDetailsResponseMessage buildAuctionDetailsResponse(Auction auction) {
-        AuctionSnapshot snapshot = snapshotView(auction);
-        List<BidDto> bids = toBidDtos(snapshot.auction().getActiveBidHistory());
+        return auctionMutations.executeWithLock(() -> buildAuctionDetailsResponseUnlocked(auction));
+    }
+
+    private AuctionSummaryDto buildAuctionSummaryUnlocked(Auction auction) {
+        AuctionView view = auctionView(auction);
+        return new AuctionSummaryDto(
+                view.auction().getId(),
+                view.item().getTitle(),
+                view.auction().getCurrentPrice(),
+                view.auction().getMinimumNextBid(),
+                view.auction().getStatus(),
+                view.auction().getLeadingBidderId(),
+                view.auction().getStartTime(),
+                view.auction().getEndTime(),
+                view.item().getImageUrl(),
+                view.item().getType(),
+                view.leadingName(),
+                view.auction().getSellerId(),
+                view.sellerName()
+        );
+    }
+
+    private AuctionDetailsResponseMessage buildAuctionDetailsResponseUnlocked(Auction auction) {
+        AuctionView view = auctionView(auction);
+        List<BidDto> bids = toBidDtos(view.auction().getActiveBidHistory());
         return new AuctionDetailsResponseMessage(
-                snapshot.auction().getId(),
-                snapshot.auction().getSellerId(),
-                snapshot.item().getTitle(),
-                snapshot.item().getDescription(),
-                snapshot.auction().getStartingPrice(),
-                snapshot.auction().getCurrentPrice(),
-                snapshot.auction().getMinimumNextBid(),
-                snapshot.auction().getStatus(),
-                snapshot.auction().getLeadingBidderId(),
-                snapshot.auction().getWinnerBidderId(),
-                snapshot.auction().getStartTime(),
-                snapshot.auction().getEndTime(),
-                snapshot.item().getImageUrl(),
-                snapshot.item().getType(),
+                view.auction().getId(),
+                view.auction().getSellerId(),
+                view.item().getTitle(),
+                view.item().getDescription(),
+                view.auction().getStartingPrice(),
+                view.auction().getCurrentPrice(),
+                view.auction().getMinimumNextBid(),
+                view.auction().getStatus(),
+                view.auction().getLeadingBidderId(),
+                view.auction().getWinnerBidderId(),
+                view.auction().getStartTime(),
+                view.auction().getEndTime(),
+                view.item().getImageUrl(),
+                view.item().getType(),
                 bids,
-                snapshot.leadingName(),
-                snapshot.winnerName(),
-                snapshot.sellerName()
+                view.leadingName(),
+                view.winnerName(),
+                view.sellerName()
         );
     }
 
     private ActivitySummaryDto buildActivitySummary(Auction auction, String userId) {
-        AuctionSnapshot snapshot = snapshotView(auction);
-        List<BidTransaction> bids = snapshot.auction().getActiveBidHistory();
-        List<BidTransaction> userBids = bids.stream()
+        AuctionView snapshot = auctionView(auction);
+        List<BidTransaction> activeBids = snapshot.auction().getActiveBidHistory();
+        List<BidTransaction> userBids = activeBids.stream()
                 .filter(bid -> userId.equals(StringUtil.normalizeString(bid.getBidderId())))
                 .filter(bid -> bid.getAmount() != null)
                 .toList();
@@ -160,7 +178,7 @@ public final class AuctionQuery {
                 snapshot.sellerName(),
                 yourMaxBid,
                 snapshot.auction().getCurrentPrice(),
-                bids.size(),
+                activeBids.size(),
                 snapshot.winnerName(),
                 snapshot.auction().getEndTime(),
                 snapshot.item().getImageUrl(),
@@ -169,7 +187,7 @@ public final class AuctionQuery {
     }
 
     private ListingSummaryDto buildListingSummary(Auction auction) {
-        AuctionSnapshot snapshot = snapshotView(auction);
+        AuctionView snapshot = auctionView(auction);
         String status = listingStatus(snapshot.auction());
         return new ListingSummaryDto(
                 snapshot.auction().getId(),
@@ -226,7 +244,7 @@ public final class AuctionQuery {
                 : "Top Bidder";
     }
 
-    private String listingBidderValue(AuctionSnapshot snapshot, String status) {
+    private String listingBidderValue(AuctionView snapshot, String status) {
         if (LISTING_CANCELED.equals(status)) {
             return "No winner";
         }
@@ -268,15 +286,14 @@ public final class AuctionQuery {
         }
     }
 
-    private AuctionSnapshot snapshotView(Auction auction) {
-        Auction snapshot = auction.snapshotCopy();
-        Item item = snapshot.getItem();
-        return new AuctionSnapshot(
-                snapshot,
+    private AuctionView auctionView(Auction auction) {
+        Item item = auction.getItem();
+        return new AuctionView(
+                auction,
                 item,
-                displayUsername(snapshot.getLeadingBidderId()),
-                displayUsername(snapshot.getWinnerBidderId()),
-                displayUsername(snapshot.getSellerId())
+                displayUsername(auction.getLeadingBidderId()),
+                displayUsername(auction.getWinnerBidderId()),
+                displayUsername(auction.getSellerId())
         );
     }
 
@@ -291,7 +308,7 @@ public final class AuctionQuery {
         return result;
     }
 
-    private record AuctionSnapshot(
+    private record AuctionView(
             Auction auction,
             Item item,
             String leadingName,
