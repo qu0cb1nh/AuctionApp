@@ -27,4 +27,8 @@ public final class NotificationService {
         LOGGER.info("Submitting clear-notification request for notification {}.", notificationId);
         NetworkService.getInstance().sendRequest(new ClearNotificationsRequestMessage(notificationId), callback);
     }
+
+    public void clearAllNotifications(MessageListener<Message> callback) {
+        NetworkService.getInstance().sendRequest(new ClearNotificationsRequestMessage(true), callback);
+    }
 }
