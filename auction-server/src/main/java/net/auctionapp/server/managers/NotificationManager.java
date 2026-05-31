@@ -74,14 +74,15 @@ public final class NotificationManager {
             String userId = requireAuthenticatedUserId(handler);
             if (request.isClearAll()) {
                 requireNotificationDao().clearByUserId(userId);
+                LOGGER.info("Cleared all notifications for user {}.", userId);
             } else {
                 String notificationId = requireNotificationId(request.getNotificationId());
                 boolean cleared = requireNotificationDao().clearById(userId, notificationId);
                 if (!cleared) {
                     throw new NotFoundException("Notification not found.");
                 }
+                LOGGER.info("Cleared notification {} for user {}.", notificationId, userId);
             }
-            LOGGER.info("Cleared notification {} for user {}.", notificationId, userId);
             handler.sendResponse(
                     new NotificationsResponseMessage(requireNotificationDao().findByUserId(userId)),
                     request
