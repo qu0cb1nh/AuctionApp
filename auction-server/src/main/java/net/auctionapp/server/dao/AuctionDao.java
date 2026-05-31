@@ -18,6 +18,12 @@ public interface AuctionDao {
 
     boolean settleAuction(Auction auction, Map<String, BigDecimal> committedAmountsByBidder);
 
+    boolean cancelBids(
+            Auction auction,
+            List<BidTransaction> invalidatedBids,
+            Map<String, BigDecimal> fundsToRelease
+    );
+
     boolean applyUserBanEffects(
             String bannedUserId,
             List<Auction> updatedAuctions,

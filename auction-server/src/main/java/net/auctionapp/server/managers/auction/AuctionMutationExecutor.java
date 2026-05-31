@@ -8,7 +8,7 @@ import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Supplier;
 
-public final class AuctionSafeUpdateExecutor {
+public final class AuctionMutationExecutor {
     private final ReentrantLock auctionMutationLock = new ReentrantLock();
 
     public <T> T executeWithLock(Supplier<T> operation) {
@@ -41,7 +41,7 @@ public final class AuctionSafeUpdateExecutor {
             }
             auction.applySnapshot(candidate);
             if (afterApply != null) {
-                afterApply.accept(candidate, result);
+                afterApply.accept(auction, result);
             }
             return result;
         });

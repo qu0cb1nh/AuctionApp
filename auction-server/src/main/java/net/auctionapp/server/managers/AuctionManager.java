@@ -8,6 +8,7 @@ import net.auctionapp.common.messages.auction.AuctionDetailsResponseMessage;
 import net.auctionapp.common.messages.auction.AuctionListResponseMessage;
 import net.auctionapp.common.messages.auction.BidRequestMessage;
 import net.auctionapp.common.messages.auction.BidResponseMessage;
+import net.auctionapp.common.messages.auction.CancelBidsRequestMessage;
 import net.auctionapp.common.messages.auction.CancelAuctionRequestMessage;
 import net.auctionapp.common.messages.auction.CloseAuctionRequestMessage;
 import net.auctionapp.common.messages.auction.CreateItemRequestMessage;
@@ -49,18 +50,21 @@ public final class AuctionManager {
     private final AuctionPersistence auctionPersistence;
     private final AuctionCreation auctionCreation;
     private final AuctionBid auctionBid;
+    private final AuctionBidCancellation auctionBidCancellation;
     private final AuctionLifecycle auctionLifecycle;
     private final AuctionBanEffect auctionBanEffect;
+    private final AuctionMutationExecutor auctionMutations;
 
     private AuctionManager() {
         ConcurrentMap<String, Auction> auctions = new ConcurrentHashMap<>();
-        AuctionSafeUpdateExecutor auctionMutations = new AuctionSafeUpdateExecutor();
+        AuctionMutationExecutor auctionMutations = new AuctionMutationExecutor();
+        this.auctionMutations = auctionMutations;
         Clock clock = Clock.systemDefaultZone();
         AuthManager authManager = AuthManager.getInstance();
         this.notificationManager = NotificationManager.getInstance();
         WalletManager walletManager = WalletManager.getInstance();
-        this.auctionQuery = new AuctionQuery(auctions, authManager);
-        this.auctionBroadcaster = new AuctionBroadcaster(auctionQuery, notificationManager);
+        this.auctionQuery = new AuctionQuery(auctions, authManager, auctionMutations);
+        this.auctionBroadcaster = new AuctionBroadcaster(auctionQuery, notificationManager, auctionMutations);
         this.auctionPersistence = new AuctionPersistence(auctions, walletManager);
         this.auctionLifecycle = new AuctionLifecycle(
                 auctions,
@@ -81,6 +85,14 @@ public final class AuctionManager {
                 clock
         );
         this.auctionBid = new AuctionBid(
+                auctionMutations,
+                authManager,
+                walletManager,
+                auctionQuery,
+                auctionPersistence,
+                clock
+        );
+        this.auctionBidCancellation = new AuctionBidCancellation(
                 auctionMutations,
                 authManager,
                 walletManager,
@@ -119,6 +131,8 @@ public final class AuctionManager {
                 this::handleObserveAuction);
         messageRouter.register(MessageType.CREATE_ITEM_REQUEST, CreateItemRequestMessage.class, this::handleCreateItem);
         messageRouter.register(MessageType.BID_REQUEST, BidRequestMessage.class, this::handleBidRequest);
+        messageRouter.register(MessageType.CANCEL_BIDS_REQUEST, CancelBidsRequestMessage.class,
+                this::handleCancelBidsRequest);
         messageRouter.register(MessageType.UPDATE_AUCTION_REQUEST, UpdateAuctionRequestMessage.class,
                 this::handleUpdateAuction);
         messageRouter.register(MessageType.CANCEL_AUCTION_REQUEST, CancelAuctionRequestMessage.class,
@@ -222,6 +236,30 @@ public final class AuctionManager {
         }
     }
 
+    public void handleCancelBidsRequest(CancelBidsRequestMessage request, ClientHandler handler) {
+        try {
+            String bidderId = requireAuthenticatedUserId(handler);
+            AuctionBidCancellation.CancelBidsResult result = auctionBidCancellation.cancelBids(
+                    request.getAuctionId(),
+                    bidderId
+            );
+            sendAuctionActionSuccess(
+                    handler,
+                    request,
+                    result.auction(),
+                    "Your bids were canceled and funds were released."
+            );
+            LOGGER.info(
+                    "User {} canceled {} bid(s) for auction {}.",
+                    bidderId,
+                    result.canceledBidCount(),
+                    result.auction().getId()
+            );
+        } catch (RuntimeException e) {
+            sendError(handler, request, e.getMessage());
+        }
+    }
+
     public void handleUpdateAuction(UpdateAuctionRequestMessage request, ClientHandler handler) {
         try {
             String actorId = requireAuthenticatedUserId(handler);
@@ -287,21 +325,24 @@ public final class AuctionManager {
         auctionBanEffect.applyUserBanEffects(bannedUserId);
     }
 
+    public AuctionBidCancellation.CancelBidsResult cancelBids(String auctionId, String bidderId) {
+        return auctionBidCancellation.cancelBids(auctionId, bidderId);
+    }
+
     public synchronized void setAuctionDao(AuctionDao auctionDao) {
         auctionPersistence.setAuctionDao(auctionDao);
     }
 
     private void sendBidAccepted(ClientHandler handler, BidRequestMessage request, Auction auction) {
-        synchronized (auction) {
-            handler.sendResponse(new BidResponseMessage(
+        BidResponseMessage response = auctionMutations.executeWithLock(() -> new BidResponseMessage(
                     MessageType.BID_ACCEPTED,
                     auction.getId(),
                     auction.getCurrentPrice(),
                     auction.getLeadingBidderId(),
                     auction.getEndTime(),
                     "Bid accepted."
-            ), request);
-        }
+        ));
+        handler.sendResponse(response, request);
     }
 
     private void sendAuctionActionSuccess(
@@ -321,20 +362,24 @@ public final class AuctionManager {
 
     private void trySendOutbidNotification(String previousLeadingBidderId, Auction updatedAuction) {
         String displacedBidderId = StringUtil.normalizeString(previousLeadingBidderId);
-        String newLeadingBidderId = StringUtil.normalizeString(updatedAuction.getLeadingBidderId());
-        if (displacedBidderId.isEmpty() || newLeadingBidderId.isEmpty() || displacedBidderId.equals(newLeadingBidderId)) {
-            return;
-        }
-        try {
-            notificationManager.sendOutbidNotification(
-                    displacedBidderId,
-                    updatedAuction.getId(),
-                    updatedAuction.getItem().getTitle(),
-                    updatedAuction.getCurrentPrice(),
-                    newLeadingBidderId
-            );
-        } catch (DatabaseException e) {
-            LOGGER.warn("Failed to send outbid notification for auction {}: {}", updatedAuction.getId(), e.getMessage());
-        }
+        auctionMutations.executeWithLock(() -> {
+            String newLeadingBidderId = StringUtil.normalizeString(updatedAuction.getLeadingBidderId());
+            if (displacedBidderId.isEmpty()
+                    || newLeadingBidderId.isEmpty()
+                    || displacedBidderId.equals(newLeadingBidderId)) {
+                return;
+            }
+            try {
+                notificationManager.sendOutbidNotification(
+                        displacedBidderId,
+                        updatedAuction.getId(),
+                        updatedAuction.getItem().getTitle(),
+                        updatedAuction.getCurrentPrice(),
+                        newLeadingBidderId
+                );
+            } catch (DatabaseException e) {
+                LOGGER.warn("Failed to send outbid notification for auction {}: {}", updatedAuction.getId(), e.getMessage());
+            }
+        });
     }
 }

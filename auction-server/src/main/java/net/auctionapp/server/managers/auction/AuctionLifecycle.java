@@ -24,7 +24,7 @@ public final class AuctionLifecycle {
     private static final Logger LOGGER = LoggerFactory.getLogger(AuctionLifecycle.class);
 
     private final ConcurrentMap<String, Auction> auctions;
-    private final AuctionSafeUpdateExecutor auctionMutations;
+    private final AuctionMutationExecutor auctionMutations;
     private final AuthManager authManager;
     private final AuctionQuery auctionQuery;
     private final AuctionPersistence auctionPersistence;
@@ -35,7 +35,7 @@ public final class AuctionLifecycle {
 
     public AuctionLifecycle(
             ConcurrentMap<String, Auction> auctions,
-            AuctionSafeUpdateExecutor auctionMutations,
+            AuctionMutationExecutor auctionMutations,
             AuthManager authManager,
             AuctionQuery auctionQuery,
             AuctionPersistence auctionPersistence,

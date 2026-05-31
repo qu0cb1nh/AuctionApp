@@ -23,7 +23,7 @@ public final class AuctionBanEffect {
     private static final Logger LOGGER = LoggerFactory.getLogger(AuctionBanEffect.class);
 
     private final ConcurrentMap<String, Auction> auctions;
-    private final AuctionSafeUpdateExecutor auctionMutations;
+    private final AuctionMutationExecutor auctionMutations;
     private final AuthManager authManager;
     private final NotificationManager notificationManager;
     private final WalletManager walletManager;
@@ -32,7 +32,7 @@ public final class AuctionBanEffect {
 
     public AuctionBanEffect(
             ConcurrentMap<String, Auction> auctions,
-            AuctionSafeUpdateExecutor auctionMutations,
+            AuctionMutationExecutor auctionMutations,
             AuthManager authManager,
             NotificationManager notificationManager,
             WalletManager walletManager,

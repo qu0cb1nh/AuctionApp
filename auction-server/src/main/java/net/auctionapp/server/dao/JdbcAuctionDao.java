@@ -230,6 +230,20 @@ public class JdbcAuctionDao implements AuctionDao {
     }
 
     @Override
+    public boolean cancelBids(
+            Auction auction,
+            List<BidTransaction> invalidatedBids,
+            Map<String, BigDecimal> fundsToRelease
+    ) {
+        return executeInTransaction(
+                "Failed to cancel bids.",
+                connection -> updateAuctionState(connection, auction)
+                        && invalidateBids(connection, invalidatedBids)
+                        && balanceDao.releaseFunds(connection, fundsToRelease)
+        );
+    }
+
+    @Override
     public boolean applyUserBanEffects(
             String bannedUserId,
             List<Auction> updatedAuctions,

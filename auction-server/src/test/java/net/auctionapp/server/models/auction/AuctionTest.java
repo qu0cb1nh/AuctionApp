@@ -16,7 +16,7 @@ import java.time.ZoneOffset;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-import static org.junit.jupiter.api.Assertions.assertFalse; // Thêm import này
+import static org.junit.jupiter.api.Assertions.assertFalse;
 
 class AuctionTest {
     @Test
@@ -171,16 +171,13 @@ class AuctionTest {
         LocalDateTime startTime = LocalDateTime.of(2026, 5, 25, 10, 0);
         LocalDateTime originalEndTime = startTime.plusMinutes(10);
         Auction auction = newAuction(startTime, originalEndTime, startTime.minusMinutes(1));
-        Auction candidate = auction.snapshotCopy();
 
         LocalDateTime newEndTime = originalEndTime.plusDays(1);
-        candidate.updateManagedListingDetails(
+        auction.updateManagedListingDetails(
                 "Updated laptop title",
                 "Updated description for the laptop",
                 newEndTime
         );
-
-        auction.applySnapshot(candidate);
 
         assertEquals("Updated laptop title", auction.getItem().getTitle());
         assertEquals("Updated description for the laptop", auction.getItem().getDescription());

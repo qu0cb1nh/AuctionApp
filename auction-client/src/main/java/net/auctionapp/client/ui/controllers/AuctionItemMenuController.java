@@ -31,6 +31,7 @@ import net.auctionapp.client.utils.ResourcesUtil;
 import net.auctionapp.common.exceptions.ValidationException;
 import net.auctionapp.common.messages.Message;
 import net.auctionapp.common.messages.MessageType;
+import net.auctionapp.common.messages.auction.AuctionActionResponseMessage;
 import net.auctionapp.common.messages.auction.AuctionDetailsResponseMessage;
 import net.auctionapp.common.dto.BidDto;
 import net.auctionapp.common.messages.auction.AuctionEndedResponseMessage;
@@ -62,9 +63,6 @@ public class AuctionItemMenuController implements AuctionContextController {
     private static final PseudoClass PAID_STATE = PseudoClass.getPseudoClass("paid");
     private static final PseudoClass CANCELED_STATE = PseudoClass.getPseudoClass("canceled");
     private static final PseudoClass NEUTRAL_STATE = PseudoClass.getPseudoClass("neutral");
-    private static final PseudoClass SUCCESS_STATE = PseudoClass.getPseudoClass("success");
-    private static final PseudoClass ERROR_STATE = PseudoClass.getPseudoClass("error");
-    private static final PseudoClass INFO_STATE = PseudoClass.getPseudoClass("info");
 
     @FXML
     private HeaderController appHeaderController;
@@ -91,13 +89,11 @@ public class AuctionItemMenuController implements AuctionContextController {
     @FXML
     private Button placeBidButton;
     @FXML
-    private Button useMinimumBidButton;
+    private Button cancelBidsButton;
     @FXML
     private Button watchListButton;
     @FXML
     private VBox bidSection;
-    @FXML
-    private Label messageLabel;
     @FXML
     private LineChart<String, Number> priceHistoryChart;
     @FXML
@@ -118,11 +114,14 @@ public class AuctionItemMenuController implements AuctionContextController {
     private boolean watchListStateLoaded;
     private boolean bidActionAvailable;
     private boolean bidRequestPending;
+    private boolean cancelBidsRequestPending;
+    private String currentLeadingBidderId;
 
     @FXML
     public void initialize() {
         appHeaderController.setupHeader("Auction Details");
         updateWatchListButton();
+        updateCancelBidsButtonState();
         priceHistoryChart.getData().clear();
         priceSeries.setName("Bid price");
         priceHistoryChart.getData().add(priceSeries);
@@ -151,9 +150,11 @@ public class AuctionItemMenuController implements AuctionContextController {
         closeRefreshRequested = false;
         watchListStateLoaded = false;
         updateWatchListButton();
+        updateCancelBidsButtonState();
         if (currentAuctionId == null || currentAuctionId.isBlank()) {
-            setErrorMessage("No auction selected.");
+            showError("No auction selected.");
             placeBidButton.setDisable(true);
+            updateCancelBidsButtonState();
             return;
         }
 
@@ -173,18 +174,24 @@ public class AuctionItemMenuController implements AuctionContextController {
             setBidRequestPending(true);
             AuctionService.getInstance().placeBid(currentAuctionId, bid, this::handleBidResult);
         } catch (IllegalArgumentException | ValidationException e) {
-            setErrorMessage(e.getMessage());
+            showError(e.getMessage());
         }
     }
 
     @FXML
-    public void handleUseMinimumBid() {
-        if (minimumNextBid == null || minimumNextBid.compareTo(BigDecimal.ZERO) <= 0) {
-            setErrorMessage("Minimum next bid is not available.");
+    public void handleCancelBids() {
+        if (currentAuctionId == null || currentAuctionId.isBlank()) {
+            showError("No auction selected.");
             return;
         }
-        bidAmountField.setText(minimumNextBid.stripTrailingZeros().toPlainString());
-        setInfoMessage("Minimum next bid has been filled in.");
+        ClientSession session = ClientSession.getInstance();
+        if (session.getUserId() != null
+                && session.getUserId().equalsIgnoreCase(currentLeadingBidderId)) {
+            showError("You cannot cancel your leading bid.");
+            return;
+        }
+        setCancelBidsRequestPending(true);
+        AuctionService.getInstance().cancelBids(currentAuctionId, this::handleCancelBidsResult);
     }
 
     @FXML
@@ -208,11 +215,11 @@ public class AuctionItemMenuController implements AuctionContextController {
 
     private void handleAuctionDetailsResponse(Message message) {
         if (message instanceof ErrorResponseMessage errorMessage) {
-            setErrorMessage(errorMessage.getErrorMessage());
+            showError(errorMessage.getErrorMessage());
             return;
         }
         if (!(message instanceof AuctionDetailsResponseMessage response)) {
-            setErrorMessage("Unexpected response from server.");
+            showError("Unexpected response from server.");
             return;
         }
         if (!currentAuctionId.equals(response.getAuctionId())) {
@@ -229,6 +236,7 @@ public class AuctionItemMenuController implements AuctionContextController {
         ));
         currentHighestBid = response.getCurrentPrice() == null ? BigDecimal.ZERO : response.getCurrentPrice();
         minimumNextBid = response.getMinimumNextBid() == null ? currentHighestBid : response.getMinimumNextBid();
+        currentLeadingBidderId = response.getLeadingBidderId();
         currentBidLabel.setText("$" + currentHighestBid.toPlainString());
         minimumNextBidLabel.setText("$" + minimumNextBid.stripTrailingZeros().toPlainString());
         leadingBidderLabel.setText(AuctionDisplayUtil.formatBidder(response.getLeadingBidderUsername()));
@@ -241,11 +249,11 @@ public class AuctionItemMenuController implements AuctionContextController {
 
     private void handleWatchListResponse(Message message) {
         if (message instanceof ErrorResponseMessage errorMessage) {
-            setErrorMessage(errorMessage.getErrorMessage());
+            showError(errorMessage.getErrorMessage());
             return;
         }
         if (!(message instanceof WatchListResponseMessage response)) {
-            setErrorMessage("Unexpected watch list response from server.");
+            showError("Unexpected watch list response from server.");
             return;
         }
         inWatchList = response.getAuctions().stream()
@@ -256,11 +264,11 @@ public class AuctionItemMenuController implements AuctionContextController {
 
     private void handleWatchListUpdateResponse(Message message) {
         if (message instanceof ErrorResponseMessage errorMessage) {
-            setErrorMessage(errorMessage.getErrorMessage());
+            showError(errorMessage.getErrorMessage());
             return;
         }
         if (!(message instanceof WatchListChangedResponseMessage changed)) {
-            setErrorMessage("Unexpected watch list response from server.");
+            showError("Unexpected watch list response from server.");
             return;
         }
         handleWatchListChanged(changed);
@@ -287,11 +295,11 @@ public class AuctionItemMenuController implements AuctionContextController {
     private void handleBidResult(Message message) {
         setBidRequestPending(false);
         if (message instanceof ErrorResponseMessage errorMessage) {
-            setErrorMessage(errorMessage.getErrorMessage());
+            showError(errorMessage.getErrorMessage());
             return;
         }
         if (!(message instanceof BidResponseMessage result)) {
-            setErrorMessage("Unexpected response from server.");
+            showError("Unexpected response from server.");
             return;
         }
         if (!currentAuctionId.equals(result.getAuctionId())) {
@@ -304,7 +312,6 @@ public class AuctionItemMenuController implements AuctionContextController {
                 currentBidLabel.setText("$" + currentHighestBid.toPlainString());
             }
             setAuctionEndTime(result.getEndTime());
-            setSuccessMessage(result.getMessage());
             NotificationToastManager.showSuccess(result.getMessage());
             bidAmountField.clear();
             requestAuctionDetails();
@@ -314,13 +321,28 @@ public class AuctionItemMenuController implements AuctionContextController {
             String rejectionMessage = "Bid was rejected.";
             if(result.getMessage() != null)
                 rejectionMessage += result.getMessage();
-            setErrorMessage(rejectionMessage);
-            NotificationToastManager.showError(rejectionMessage);
+            showError(rejectionMessage);
             bidAmountField.clear();
             requestAuctionDetails();
             return;
         }
-        setErrorMessage("Unexpected bid response from server.");
+        showError("Unexpected bid response from server.");
+    }
+
+    private void handleCancelBidsResult(Message message) {
+        setCancelBidsRequestPending(false);
+        if (message instanceof ErrorResponseMessage errorMessage) {
+            showError(errorMessage.getErrorMessage());
+            requestAuctionDetails();
+            return;
+        }
+        if (!(message instanceof AuctionActionResponseMessage response)) {
+            showError("Unexpected response from server.");
+            return;
+        }
+
+        NotificationToastManager.showSuccess(response.getMessage());
+        requestAuctionDetails();
     }
 
     private void handlePriceUpdate(PriceUpdateResponseMessage update) {
@@ -335,7 +357,6 @@ public class AuctionItemMenuController implements AuctionContextController {
         leadingBidderLabel.setText(AuctionDisplayUtil.formatBidder(update.getLeadingUserName()));
         setAuctionEndTime(update.getEndTime());
         requestAuctionDetails();
-        setInfoMessage("New highest bid by " + update.getLeadingUserName());
     }
 
     private void handleAuctionEnded(AuctionEndedResponseMessage update) {
@@ -437,14 +458,11 @@ public class AuctionItemMenuController implements AuctionContextController {
         FxViewUtil.setVisible(bidSection, !closedAuction);
         if (closedAuction) {
             applyClosedBidState();
-            messageLabel.setText("");
             return;
         }
         if (!session.isAuthenticated()) {
             bidActionAvailable = false;
             updatePlaceBidButtonState();
-            useMinimumBidButton.setDisable(true);
-            setInfoMessage("Please log in before bidding.");
             return;
         }
         String currentUserId = session.getUserId();
@@ -454,31 +472,20 @@ public class AuctionItemMenuController implements AuctionContextController {
         if (isSellerViewingOwnAuction) {
             bidActionAvailable = false;
             updatePlaceBidButtonState();
-            useMinimumBidButton.setDisable(true);
-            setInfoMessage("You are the seller of this auction, so bidding is disabled.");
             return;
         }
 
         if (response.getStatus() != AuctionStatus.RUNNING) {
             bidActionAvailable = false;
             updatePlaceBidButtonState();
-            useMinimumBidButton.setDisable(true);
-            String state = response.getStatus() == null
-                    ? "unavailable"
-                    : response.getStatus().name().toLowerCase(Locale.ROOT);
-            setInfoMessage("Bidding is unavailable because the auction is " + state + ".");
             return;
         }
 
         bidActionAvailable = true;
         updatePlaceBidButtonState();
-        useMinimumBidButton.setDisable(false);
-        if (minimumNextBid == null) {
-            setInfoMessage("Place a bid higher than $" + currentHighestBid.toPlainString());
-            return;
+        if (minimumNextBid != null) {
+            bidAmountField.setPromptText("At least $" + minimumNextBid.stripTrailingZeros().toPlainString());
         }
-        bidAmountField.setPromptText("At least $" + minimumNextBid.stripTrailingZeros().toPlainString());
-        setInfoMessage("Place a bid of at least $" + minimumNextBid.toPlainString() + ".");
     }
 
     private String formatTimeRemaining(LocalDateTime endTime) {
@@ -559,7 +566,6 @@ public class AuctionItemMenuController implements AuctionContextController {
         FxViewUtil.setVisible(bidSection, false);
         bidActionAvailable = false;
         updatePlaceBidButtonState();
-        useMinimumBidButton.setDisable(true);
         stopCountdownTimer();
         timeRemainingLabel.setText("Ended");
         updateTimeRemainingStyle(LocalDateTime.now());
@@ -574,24 +580,17 @@ public class AuctionItemMenuController implements AuctionContextController {
         updatePlaceBidButtonState();
     }
 
-    private void setSuccessMessage(String text) {
-        messageLabel.setText(text);
-        setMessageState(SUCCESS_STATE);
+    private void setCancelBidsRequestPending(boolean pending) {
+        cancelBidsRequestPending = pending;
+        updateCancelBidsButtonState();
     }
 
-    private void setErrorMessage(String text) {
-        messageLabel.setText(text);
-        setMessageState(ERROR_STATE);
+    private void updateCancelBidsButtonState() {
+        cancelBidsButton.setDisable(currentAuctionId == null || currentAuctionId.isBlank() || cancelBidsRequestPending);
+        cancelBidsButton.setText(cancelBidsRequestPending ? "Canceling..." : "Cancel My Bids");
     }
 
-    private void setInfoMessage(String text) {
-        messageLabel.setText(text);
-        setMessageState(INFO_STATE);
-    }
-
-    private void setMessageState(PseudoClass activeState) {
-        messageLabel.pseudoClassStateChanged(SUCCESS_STATE, activeState == SUCCESS_STATE);
-        messageLabel.pseudoClassStateChanged(ERROR_STATE, activeState == ERROR_STATE);
-        messageLabel.pseudoClassStateChanged(INFO_STATE, activeState == INFO_STATE);
+    private void showError(String text) {
+        NotificationToastManager.showError(text == null || text.isBlank() ? "Unexpected error." : text);
     }
 }

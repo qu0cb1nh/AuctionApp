@@ -81,7 +81,7 @@ class AuctionQueryTest {
     }
 
     private AuctionQuery query(Auction auction) {
-        return new AuctionQuery(Map.of(auction.getId(), auction), AuthManager.getInstance());
+        return new AuctionQuery(Map.of(auction.getId(), auction), AuthManager.getInstance(), new AuctionMutationExecutor());
     }
 
     private Auction auction(

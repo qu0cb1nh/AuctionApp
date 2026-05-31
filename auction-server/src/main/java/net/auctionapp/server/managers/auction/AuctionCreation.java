@@ -25,7 +25,7 @@ public final class AuctionCreation {
     private static final Logger LOGGER = LoggerFactory.getLogger(AuctionCreation.class);
 
     private final ConcurrentMap<String, Auction> auctions;
-    private final AuctionSafeUpdateExecutor auctionMutations;
+    private final AuctionMutationExecutor auctionMutations;
     private final AuthManager authManager;
     private final CloudinaryImageService cloudinaryImageService;
     private final AuctionPersistence auctionPersistence;
@@ -33,7 +33,7 @@ public final class AuctionCreation {
 
     public AuctionCreation(
             ConcurrentMap<String, Auction> auctions,
-            AuctionSafeUpdateExecutor auctionMutations,
+            AuctionMutationExecutor auctionMutations,
             AuthManager authManager,
             CloudinaryImageService cloudinaryImageService,
             AuctionPersistence auctionPersistence,

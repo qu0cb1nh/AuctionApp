@@ -17,7 +17,7 @@ import java.util.UUID;
 public final class AuctionBid {
     private static final Logger LOGGER = LoggerFactory.getLogger(AuctionBid.class);
 
-    private final AuctionSafeUpdateExecutor auctionMutations;
+    private final AuctionMutationExecutor auctionMutations;
     private final AuthManager authManager;
     private final WalletManager walletManager;
     private final AuctionQuery auctionQuery;
@@ -25,7 +25,7 @@ public final class AuctionBid {
     private final Clock clock;
 
     public AuctionBid(
-            AuctionSafeUpdateExecutor auctionMutations,
+            AuctionMutationExecutor auctionMutations,
             AuthManager authManager,
             WalletManager walletManager,
             AuctionQuery auctionQuery,

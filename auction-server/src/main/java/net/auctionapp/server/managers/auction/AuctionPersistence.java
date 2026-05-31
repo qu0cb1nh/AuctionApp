@@ -57,6 +57,22 @@ public final class AuctionPersistence {
         LOGGER.debug("Persisted bid {} for auction {} and locked amount {}.", bid.getId(), auction.getId(), amountToLock);
     }
 
+    public void persistCanceledBids(
+            Auction auction,
+            List<BidTransaction> invalidatedBids,
+            Map<String, BigDecimal> fundsToRelease
+    ) {
+        executeDaoAction(dao -> requireSuccess(
+                dao.cancelBids(auction, invalidatedBids, fundsToRelease),
+                "Canceled bids could not be persisted."
+        ));
+        LOGGER.info(
+                "Persisted {} canceled bid(s) for auction {}.",
+                invalidatedBids == null ? 0 : invalidatedBids.size(),
+                auction.getId()
+        );
+    }
+
     public void persistAuctionDetails(Auction auction) {
         executeDaoAction(dao -> requireSuccess(dao.updateAuction(auction), "Auction details could not be persisted."));
         LOGGER.info("Persisted auction detail update for auction {}.", auction.getId());
