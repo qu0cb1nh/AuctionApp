@@ -6,15 +6,15 @@
 <?import javafx.scene.layout.HBox?>
 <?import javafx.scene.layout.VBox?>
 
-<HBox fx:id="toastRoot" alignment="TOP_LEFT" spacing="8.0" style="-fx-background-color: #2f80ed; -fx-background-radius: 10;" styleClass="notification-toast" stylesheets="@../../styles/ui-states.css" xmlns="http://javafx.com/javafx/25" xmlns:fx="http://javafx.com/fxml/1" fx:controller="net.auctionapp.client.ui.controllers.components.NotificationToastController">
+<HBox fx:id="toastRoot" alignment="TOP_LEFT" spacing="8.0" style="-fx-background-color: white; -fx-background-radius: 12px; -fx-border-color: #D7E2EA; -fx-border-radius: 12px; -fx-border-width: 1; -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.14), 14, 0.15, 0, 4);;" styleClass="notification-toast" stylesheets="@../../styles/ui-states.css" xmlns="http://javafx.com/javafx/25" xmlns:fx="http://javafx.com/fxml/1" fx:controller="net.auctionapp.client.ui.controllers.components.NotificationToastController">
     <padding>
         <Insets bottom="12.0" left="12.0" right="12.0" top="12.0" />
     </padding>
     <children>
         <VBox spacing="6.0">
             <children>
-                <Label fx:id="titleLabel" style="-fx-font-weight: bold; -fx-font-size: 13px; -fx-text-fill: #ffffff;" text="Notification" />
-                <Label fx:id="bodyLabel" maxWidth="280.0" style="-fx-text-fill: #f0f5ff;" text="" wrapText="true" />
+                <Label fx:id="titleLabel" style="-fx-font-weight: bold; -fx-font-size: 13px; -fx-text-fill: #1F2A33;" text="Notification" />
+                <Label fx:id="bodyLabel" maxWidth="280.0" style="-fx-text-fill: #40515F;" text="abc" wrapText="true" />
             </children>
         </VBox>
         <Button accessibleText="Close notification" focusTraversable="false" mnemonicParsing="false" onAction="#handleClose" onMouseClicked="#consumeCloseClick" styleClass="notification-toast-close-button" text="x" />

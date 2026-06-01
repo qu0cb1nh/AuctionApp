@@ -11,9 +11,9 @@
 <?import javafx.scene.layout.HBox?>
 <?import javafx.scene.layout.StackPane?>
 
-<StackPane maxHeight="64.0" minHeight="64.0" prefHeight="64.0" prefWidth="945.0" style="-fx-background-color: #3bb3c3;" xmlns="http://javafx.com/javafx/25" xmlns:fx="http://javafx.com/fxml/1" fx:controller="net.auctionapp.client.ui.controllers.components.HeaderController">
+<StackPane maxHeight="64.0" minHeight="64.0" prefHeight="64.0" prefWidth="945.0" style="-fx-background-color: #f7f7f5; -fx-border-color: transparent transparent #dedbd4 transparent; -fx-border-width: 0 0 1 0;" stylesheets="@../../styles/ui-states.css" xmlns="http://javafx.com/javafx/25" xmlns:fx="http://javafx.com/fxml/1" fx:controller="net.auctionapp.client.ui.controllers.components.HeaderController">
     <children>
-        <Label fx:id="titleLabel" style="-fx-font-size: 24px; -fx-font-weight: bold; -fx-text-fill: white;" text="Auction App" StackPane.alignment="CENTER">
+        <Label fx:id="titleLabel" style="-fx-font-size: 17px; -fx-font-weight: 700; -fx-text-fill: #2f3437;" text="Auction App" StackPane.alignment="CENTER">
          <StackPane.margin>
             <Insets left="15.0" />
          </StackPane.margin>
@@ -33,19 +33,19 @@
                            </image></ImageView>
                             </graphic>
                         </Button>
-                        <Button fx:id="backButton" mnemonicParsing="false" onAction="#handleBack" prefHeight="34.0" prefWidth="88.0" style="-fx-background-color: white; -fx-text-fill: #3bb3c3; -fx-background-radius: 18px; -fx-font-weight: bold; -fx-cursor: hand;" text="Back" />
+                        <Button fx:id="backButton" mnemonicParsing="false" onAction="#handleBack" prefHeight="34.0" prefWidth="88.0" style="-fx-background-color: #F4EAE4; -fx-text-fill: #8E5B45; -fx-background-radius: 16px; -fx-border-color: #D8C8BE; -fx-border-radius: 16px; -fx-font-size: 14px; -fx-font-weight: 600; -fx-cursor: hand;" text="Back" />
                     </children>
                 </HBox>
             </left>
             <right>
-                <MenuButton fx:id="userMenuButton" alignment="CENTER_RIGHT" maxWidth="200.0" minWidth="128.0" prefWidth="200.0" style="-fx-background-color: transparent; -fx-text-fill: white; -fx-font-size: 14px; -fx-font-weight: bold; -fx-cursor: hand;" text="Guest" BorderPane.alignment="CENTER_RIGHT">
+                <MenuButton fx:id="userMenuButton" alignment="CENTER_RIGHT" maxWidth="200.0" minWidth="128.0" prefWidth="200.0" style="-fx-background-color: transparent; -fx-text-fill: #81503e; -fx-mark-color: #81503e; -fx-font-size: 14px; -fx-font-weight: 700; -fx-cursor: hand;" text="Guest" BorderPane.alignment="CENTER_RIGHT">
                     <items>
                         <MenuItem mnemonicParsing="false" onAction="#handleOpenWallet" text="Wallet" />
                         <MenuItem mnemonicParsing="false" onAction="#handleOpenNotifications" text="Notifications" />
-                        <MenuItem mnemonicParsing="false" onAction="#handleOpenActivity" text="My Activities" />
-                        <MenuItem mnemonicParsing="false" onAction="#handleOpenMyListings" text="My Listings" />
-                        <MenuItem mnemonicParsing="false" onAction="#handleOpenWatchList" text="My Watchlist" />
-                        <MenuItem fx:id="adminPanelMenuItem" mnemonicParsing="false" onAction="#handleOpenAdminPanel" text="Admin Panel" />
+                        <MenuItem mnemonicParsing="false" onAction="#handleOpenActivity" text="My activities" />
+                        <MenuItem mnemonicParsing="false" onAction="#handleOpenMyListings" text="My listings" />
+                        <MenuItem mnemonicParsing="false" onAction="#handleOpenWatchList" text="My watchlist" />
+                        <MenuItem fx:id="adminPanelMenuItem" mnemonicParsing="false" onAction="#handleOpenAdminPanel" text="Admin panel" />
                         <MenuItem mnemonicParsing="false" onAction="#handleLogout" text="Logout" />
                     </items>
                 </MenuButton>

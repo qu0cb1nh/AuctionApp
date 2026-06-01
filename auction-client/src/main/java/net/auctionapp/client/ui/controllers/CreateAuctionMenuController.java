@@ -96,7 +96,7 @@ public class CreateAuctionMenuController {
 
     @FXML
     public void initialize() {
-        appHeaderController.setupHeader("Create Auction");
+        appHeaderController.setupHeader("Create auction");
 
         categoryComboBox.getItems().setAll(ItemType.values());
         categoryComboBox.getSelectionModel().select(ItemType.ELECTRONICS);

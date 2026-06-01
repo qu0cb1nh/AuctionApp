@@ -22,7 +22,7 @@
                 <VBox spacing="12.0" style="-fx-padding: 20;">
                     <children>
                         <Label fx:id="statusLabel" managed="false" styleClass="manage-status" text="" visible="false" />
-                        <Label fx:id="auctionInfoLabel" style="-fx-font-size: 18px; -fx-font-weight: bold; -fx-text-fill: #153e5c;" text="Auction Management" />
+                        <Label fx:id="auctionInfoLabel" style="-fx-font-size: 18px; -fx-font-weight: bold; -fx-text-fill: #2f3437;" text="Auction management" />
                         <Separator />
                         <Label style="-fx-font-size: 13px; -fx-font-weight: bold; -fx-text-fill: #3f5569;" text="Title" />
                         <TextField fx:id="titleField" promptText="Auction title" />
@@ -32,11 +32,11 @@
                         <TextField fx:id="endTimeField" promptText="yyyy-MM-dd HH:mm" />
                         <HBox spacing="10.0">
                             <children>
-                                <Button fx:id="saveButton" mnemonicParsing="false" onAction="#handleSave" style="-fx-background-color: #1f8f4c; -fx-text-fill: white; -fx-font-weight: bold;" text="Save Changes" />
-                                <Button fx:id="closeButton" mnemonicParsing="false" onAction="#handleClose" style="-fx-background-color: #d9822b; -fx-text-fill: white; -fx-font-weight: bold;" text="Close Auction" />
-                                <Button fx:id="cancelButton" mnemonicParsing="false" onAction="#handleCancel" style="-fx-background-color: #c13c21; -fx-text-fill: white; -fx-font-weight: bold;" text="Cancel Auction" />
+                                <Button fx:id="saveButton" mnemonicParsing="false" onAction="#handleSave" style="-fx-background-color: #1f8f4c; -fx-text-fill: white; -fx-font-weight: bold;" text="Save changes" />
+                                <Button fx:id="closeButton" mnemonicParsing="false" onAction="#handleClose" style="-fx-background-color: #d9822b; -fx-text-fill: white; -fx-font-weight: bold;" text="Close auction" />
+                                <Button fx:id="cancelButton" mnemonicParsing="false" onAction="#handleCancel" style="-fx-background-color: #c13c21; -fx-text-fill: white; -fx-font-weight: bold;" text="Cancel auction" />
                                 <Region HBox.hgrow="ALWAYS" />
-                                <Button mnemonicParsing="false" onAction="#handleRefresh" style="-fx-background-color: #3bb3d1; -fx-text-fill: white; -fx-font-weight: bold;" text="Refresh" />
+                                <Button mnemonicParsing="false" onAction="#handleRefresh" style="-fx-background-color: #9a5f49; -fx-text-fill: white; -fx-font-weight: bold;" text="Refresh" />
                             </children>
                         </HBox>
                     </children>

@@ -57,7 +57,7 @@
 
                         <HBox alignment="CENTER_LEFT" spacing="15.0">
                             <children>
-                                <Label style="-fx-font-size: 18px; -fx-text-fill: #333333;" text="Current Bid:" />
+                                <Label style="-fx-font-size: 18px; -fx-text-fill: #333333;" text="Current bid:" />
                                 <Label fx:id="currentBidLabel" style="-fx-font-size: 24px; -fx-font-weight: bold; -fx-text-fill: #d9534f;" text="\$1,199" />
                             </children>
                         </HBox>
@@ -90,12 +90,12 @@
 
                         <VBox fx:id="bidSection" spacing="8.0">
                             <children>
-                        <Label style="-fx-font-size: 18px; -fx-font-weight: bold; -fx-text-fill: #333333;" text="Place Your Bid" />
+                        <Label style="-fx-font-size: 18px; -fx-font-weight: bold; -fx-text-fill: #333333;" text="Place your bid" />
                         <HBox alignment="CENTER_LEFT" spacing="15.0">
                             <children>
                                 <TextField fx:id="bidAmountField" prefWidth="250.0" promptText="Enter higher amount..." style="-fx-background-radius: 20px; -fx-padding: 10px 15px; -fx-font-size: 14px;" />
-                                <Button fx:id="placeBidButton" disable="true" mnemonicParsing="false" onAction="#handlePlaceBid" style="-fx-background-color: #3bb3c3; -fx-text-fill: white; -fx-background-radius: 20px; -fx-padding: 10px 30px; -fx-font-weight: bold; -fx-cursor: hand;" text="Place Bid" />
-                                <Button fx:id="cancelBidsButton" disable="true" mnemonicParsing="false" onAction="#handleCancelBids" styleClass="cancel-bids-button" text="Cancel My Bids" />
+                                <Button fx:id="placeBidButton" disable="true" mnemonicParsing="false" onAction="#handlePlaceBid" style="-fx-background-color: #9a5f49; -fx-text-fill: white; -fx-background-radius: 20px; -fx-padding: 10px 30px; -fx-font-weight: bold; -fx-cursor: hand;" text="Place bid" />
+                                <Button fx:id="cancelBidsButton" disable="true" mnemonicParsing="false" onAction="#handleCancelBids" styleClass="cancel-bids-button" text="Cancel my bids" />
                             </children>
                         </HBox>
                             </children>
@@ -109,7 +109,7 @@
                                 <HBox alignment="CENTER_LEFT" spacing="8.0">
                                     <children>
                                         <Label styleClass="chart-title" text="Price trend" />
-                                        <Label styleClass="live-pill" text="LIVE" />
+                                        <Label styleClass="live-pill" text="Live" />
                                         <Region HBox.hgrow="ALWAYS" />
                                         <Label fx:id="chartBidCountLabel" styleClass="chart-count" text="0 bids" />
                                     </children>

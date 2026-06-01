@@ -102,7 +102,7 @@
 .admin-nav-label:active {
     -fx-font-weight: bold;
     -fx-underline: true;
-    -fx-text-fill: #153e5c;
+    -fx-text-fill: #81503e;
 }
 
 .create-status {
@@ -131,10 +131,11 @@
 .notification-filter-label {
     -fx-text-fill: #6b7280;
     -fx-cursor: hand;
+    -fx-font-weight: 700;
 }
 
 .notification-filter-label:active {
-    -fx-text-fill: #3bb3d1;
+    -fx-text-fill: #81503e;
     -fx-font-weight: bold;
 }
 
@@ -144,7 +145,7 @@
 }
 
 .notification-filter-underline:active {
-    -fx-background-color: #2f80ed;
+    -fx-background-color: #9a5f49;
 }
 
 .notification-status {
@@ -178,7 +179,7 @@
 }
 
 .auction-card-metric-value:primary {
-    -fx-text-fill: #0057ff;
+    -fx-text-fill: #4f6f82;
 }
 
 .auction-card-metric-value:danger {
@@ -186,8 +187,8 @@
 }
 
 .auction-card-watch-button {
-    -fx-background-color: #e7f8fb;
-    -fx-text-fill: #217b93;
+    -fx-background-color: #f5ebe6;
+    -fx-text-fill: #81503e;
     -fx-background-radius: 6px;
     -fx-font-weight: bold;
     -fx-cursor: hand;
@@ -208,8 +209,8 @@
 }
 
 .notification-card:card-hover {
-    -fx-background-color: #f0f8ff;
-    -fx-border-color: #3bb3d1;
+    -fx-background-color: #faf9f6;
+    -fx-border-color: #cfc7bd;
 }
 
 .notification-card:card-hover:openable {
@@ -228,9 +229,31 @@
 }
 
 .notification-clear-button:hover {
-    -fx-background-color: #e0f2fe;
-    -fx-border-color: #3bb3d1;
-    -fx-text-fill: #153e5c;
+    -fx-background-color: #f1f2ef;
+    -fx-border-color: #cfc7bd;
+    -fx-text-fill: #2f3437;
+}
+
+.context-menu {
+    -fx-background-color: #ffffff;
+    -fx-border-color: #dedbd4;
+    -fx-border-width: 1px;
+    -fx-padding: 4px;
+}
+
+.menu-item {
+    -fx-background-radius: 4px;
+    -fx-padding: 7px 12px;
+}
+
+.menu-item:focused,
+.menu-item:hover {
+    -fx-background-color: #f5ebe6;
+}
+
+.menu-item:focused .label,
+.menu-item:hover .label {
+    -fx-text-fill: #81503e;
 }
 
 .notification-toast.openable {
@@ -243,7 +266,7 @@
     -fx-padding: 0 4px 2px 4px;
     -fx-font-size: 14px;
     -fx-font-weight: bold;
-    -fx-text-fill: #ffffff;
+    -fx-text-fill: #6B7C88;
     -fx-cursor: hand;
 }
 
@@ -261,4 +284,12 @@
 
 .assistant-bubble:success {
     -fx-text-fill: #27ae60;
+}
+
+.assistant-bubble {
+    -fx-background-color: #ffffff;
+    -fx-background-radius: 15px;
+    -fx-border-color: #eeeeee;
+    -fx-border-radius: 15px;
+    -fx-padding: 10px;
 }

@@ -11,13 +11,13 @@
 <HBox alignment="CENTER_LEFT" maxWidth="Infinity" minHeight="126.0" spacing="16.0" style="-fx-background-color: white; -fx-background-radius: 8; -fx-border-color: #d4e1ee; -fx-border-width: 1; -fx-border-radius: 8; -fx-effect: dropshadow(three-pass-box, rgba(0,0,0,0.08), 6, 0, 0, 1); -fx-padding: 10;" stylesheets="@../../styles/ui-states.css" xmlns="http://javafx.com/javafx/25" xmlns:fx="http://javafx.com/fxml/1" fx:controller="net.auctionapp.client.ui.controllers.components.AuctionCardController">
     <children>
         <ImageView fx:id="thumbnailImageView" fitHeight="104.0" fitWidth="120.0" pickOnBounds="true" preserveRatio="false" />
-        <VBox minWidth="220.0" spacing="4.0" HBox.hgrow="ALWAYS">
+        <VBox alignment="CENTER_LEFT" minWidth="220.0" spacing="5.0" HBox.hgrow="ALWAYS">
             <children>
-                <Label fx:id="titleLabel" style="-fx-font-weight: bold; -fx-font-size: 13px;" text="Auction title" wrapText="true" />
+                <Label fx:id="titleLabel" style="-fx-font-weight: bold; -fx-font-size: 14px; -fx-text-fill: #111827;" text="Auction title" wrapText="true" />
                 <Label fx:id="statusLabel" styleClass="auction-card-status" text="Status" wrapText="true" />
-                <Label fx:id="detailOneLabel" style="-fx-font-size: 11px; -fx-text-fill: #4a5f73;" text="Detail one" wrapText="true" />
-                <Label fx:id="detailTwoLabel" style="-fx-font-size: 11px; -fx-text-fill: #4a5f73;" text="Detail two" wrapText="true" />
-                <Label fx:id="detailThreeLabel" style="-fx-font-size: 11px; -fx-text-fill: #6b7280;" text="Detail three" wrapText="true" />
+                <Label fx:id="detailOneLabel" style="-fx-font-size: 12px; -fx-text-fill: #28445c;" text="Detail one" wrapText="true" />
+                <Label fx:id="detailTwoLabel" style="-fx-font-size: 12px; -fx-text-fill: #28445c;" text="Detail two" wrapText="true" />
+                <Label fx:id="detailThreeLabel" style="-fx-font-size: 12px; -fx-text-fill: #4b5563;" text="Detail three" wrapText="true" />
             </children>
         </VBox>
         <HBox minWidth="305.0" spacing="15.0">
@@ -46,8 +46,8 @@
             <children>
                 <Region VBox.vgrow="ALWAYS" />
                 <Button fx:id="watchListButton" maxWidth="Infinity" mnemonicParsing="false" onAction="#handleWatchListAction" styleClass="auction-card-watch-button" text="Add to watchlist" />
-                <Button fx:id="primaryButton" maxWidth="Infinity" mnemonicParsing="false" onAction="#handlePrimaryAction" style="-fx-background-color: #0057ff; -fx-text-fill: white; -fx-background-radius: 6; -fx-font-weight: bold; -fx-cursor: hand;" text="View" />
-                <Button fx:id="secondaryButton" maxWidth="Infinity" mnemonicParsing="false" onAction="#handleSecondaryAction" style="-fx-background-color: #153e5c; -fx-text-fill: white; -fx-background-radius: 6; -fx-font-weight: bold; -fx-cursor: hand;" text="Manage" />
+                <Button fx:id="primaryButton" maxWidth="Infinity" mnemonicParsing="false" onAction="#handlePrimaryAction" style="-fx-background-color: #9a5f49; -fx-text-fill: white; -fx-background-radius: 6; -fx-font-weight: bold; -fx-cursor: hand;" text="View" />
+                <Button fx:id="secondaryButton" maxWidth="Infinity" mnemonicParsing="false" onAction="#handleSecondaryAction" style="-fx-background-color: #4f6f82; -fx-text-fill: white; -fx-background-radius: 6; -fx-font-weight: bold; -fx-cursor: hand;" text="Manage" />
                 <Region VBox.vgrow="ALWAYS" />
             </children>
             <padding>

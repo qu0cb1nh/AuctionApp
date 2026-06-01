@@ -17,7 +17,7 @@ public final class AuctionCardUtil {
     }
 
     public static HBox create(AuctionCardController.CardData data, String failureText) {
-        return create(data, null, false, failureText);
+        return create(data, null, failureText);
     }
 
     public static HBox createWithMetricCountdown(
@@ -25,21 +25,12 @@ public final class AuctionCardUtil {
             LocalDateTime endTime,
             String failureText
     ) {
-        return create(data, endTime, false, failureText);
-    }
-
-    public static HBox createWithDetailCountdown(
-            AuctionCardController.CardData data,
-            LocalDateTime endTime,
-            String failureText
-    ) {
-        return create(data, endTime, true, failureText);
+        return create(data, endTime, failureText);
     }
 
     private static HBox create(
             AuctionCardController.CardData data,
             LocalDateTime endTime,
-            boolean detailCountdown,
             String failureText
     ) {
         try {
@@ -47,11 +38,7 @@ public final class AuctionCardUtil {
             HBox card = loader.load();
             AuctionCardController controller = loader.getController();
             controller.bindCard(data);
-            if (detailCountdown) {
-                controller.startDetailTwoCountdown(endTime);
-            } else {
-                controller.startMetricTwoCountdown(endTime);
-            }
+            controller.startMetricThreeCountdown(endTime);
             return card;
         } catch (IOException | RuntimeException e) {
             LOGGER.warn("Failed to render auction card.", e);

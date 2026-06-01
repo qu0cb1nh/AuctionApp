@@ -84,23 +84,23 @@
 }
 
 .price-chart .default-color0.chart-series-line {
-    -fx-stroke: #21a7b7;
+    -fx-stroke: #4f6f82;
     -fx-stroke-width: 2.5px;
 }
 
 .price-chart .default-color0.chart-line-symbol {
-    -fx-background-color: #21a7b7, white;
+    -fx-background-color: #4f6f82, white;
     -fx-background-radius: 7px;
     -fx-padding: 5px;
 }
 
 .price-chart .default-color0.chart-line-symbol:hover {
-    -fx-background-color: #167d8d, white;
+    -fx-background-color: #81503e, white;
 }
 
 .auction-watch-button {
-    -fx-background-color: #e7f8fb;
-    -fx-text-fill: #217b93;
+    -fx-background-color: #f5ebe6;
+    -fx-text-fill: #81503e;
     -fx-background-radius: 20px;
     -fx-padding: 10px 24px;
     -fx-font-weight: bold;
@@ -142,7 +142,7 @@
 .auction-status {
     -fx-font-size: 16px;
     -fx-font-weight: bold;
-    -fx-text-fill: #2962ff;
+    -fx-text-fill: #4f6f82;
 }
 
 .auction-status:running {

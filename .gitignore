@@ -38,6 +38,7 @@ build/
 .vscode/
 
 AGENTS.md
+DESIGN.md
 
 ### Local environment ###
 .env

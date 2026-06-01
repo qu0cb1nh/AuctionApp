@@ -39,13 +39,13 @@
                </VBox.margin>
             </PasswordField>
 
-                        <Button fx:id="loginButton" mnemonicParsing="false" onAction="#onLoginButtonClicked" prefHeight="42.0" prefWidth="110.0" style="-fx-background-color: #2193b0; -fx-text-fill: white; -fx-font-size: 15px; -fx-font-weight: bold; -fx-background-radius: 8; -fx-cursor: hand;" text="Login">
+                        <Button fx:id="loginButton" mnemonicParsing="false" onAction="#onLoginButtonClicked" prefHeight="42.0" prefWidth="110.0" style="-fx-background-color: #9a5f49; -fx-text-fill: white; -fx-font-size: 15px; -fx-font-weight: 600; -fx-background-radius: 8; -fx-cursor: hand;" text="Login">
                <VBox.margin>
                   <Insets top="20.0" />
                </VBox.margin>
             </Button>
       
-                        <Label onMouseClicked="#switchToRegister" style="-fx-text-fill: #2193b0; -fx-cursor: hand; -fx-underline: true;" text="Don't have an account? Register now">
+                        <Label onMouseClicked="#switchToRegister" style="-fx-text-fill: #81503e; -fx-cursor: hand; -fx-underline: true;" text="Don't have an account? Register now">
                <font>
                   <Font size="14.0" />
                </font>

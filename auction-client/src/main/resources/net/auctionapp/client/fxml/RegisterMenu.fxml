@@ -33,7 +33,7 @@
                   <Insets top="10.0" />
                </VBox.margin>
             </PasswordField>
-            <Button fx:id="registerButton" mnemonicParsing="false" onAction="#handleRegister" prefHeight="40.0" prefWidth="120.0" style="-fx-background-color: #2193b0; -fx-text-fill: white; -fx-font-size: 16px; -fx-font-weight: bold; -fx-pref-height: 45px; -fx-background-radius: 8; -fx-cursor: hand;" text="Register">
+            <Button fx:id="registerButton" mnemonicParsing="false" onAction="#handleRegister" prefHeight="40.0" prefWidth="120.0" style="-fx-background-color: #9a5f49; -fx-text-fill: white; -fx-font-size: 16px; -fx-font-weight: 600; -fx-pref-height: 45px; -fx-background-radius: 8; -fx-cursor: hand;" text="Register">
                <font>
                   <Font size="16.0" />
                </font>
@@ -41,7 +41,7 @@
                   <Insets top="10.0" />
                </VBox.margin>
             </Button>
-            <Label alignment="CENTER" onMouseClicked="#switchToLogin" prefHeight="39.0" prefWidth="234.0" style="-fx-text-fill: #2193b0; -fx-cursor: hand; -fx-underline: true;" text="Already have an account? Log in">
+            <Label alignment="CENTER" onMouseClicked="#switchToLogin" prefHeight="39.0" prefWidth="234.0" style="-fx-text-fill: #81503e; -fx-cursor: hand; -fx-underline: true;" text="Already have an account? Log in">
                <font>
                   <Font size="14.0" />
                </font>

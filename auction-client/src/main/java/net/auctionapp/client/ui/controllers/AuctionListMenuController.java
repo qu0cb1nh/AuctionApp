@@ -53,7 +53,7 @@ public class AuctionListMenuController {
 
     @FXML
     public void initialize() {
-        appHeaderController.setupHeader("Explore Auctions");
+        appHeaderController.setupHeader("Explore auctions");
         authenticatedUser = ClientSession.getInstance().isAuthenticated();
         auctionToolBarController.setup(
                 "Search for products...",
@@ -159,18 +159,18 @@ public class AuctionListMenuController {
                 auction.getTitle(),
                 "Owner: " + AuctionDisplayUtil.formatOwner(auction.getSellerUsername()),
                 AuctionCardController.TextTone.MUTED,
-                "Minimum Next Bid: " + AuctionDisplayUtil.formatPrice(auction.getMinimumNextBid()),
+                "Minimum next bid: " + AuctionDisplayUtil.formatPrice(auction.getMinimumNextBid()),
                 "Start: " + AuctionDisplayUtil.formatDateTime(auction.getStartTime()),
                 null,
-                "Current Bid",
+                "Current bid",
                 AuctionDisplayUtil.formatPrice(auction.getCurrentPrice()),
                 AuctionCardController.TextTone.PRIMARY,
-                active ? "Ends In" : "Ended At",
-                active ? "00:00:00" : AuctionDisplayUtil.formatDateTime(auction.getEndTime()),
-                AuctionCardController.TextTone.DANGER,
-                "Top Bidder",
+                "Top bidder",
                 AuctionDisplayUtil.formatBidder(auction.getLeadingBidderUsername()),
                 AuctionCardController.TextTone.DEFAULT,
+                active ? "Ends in" : "Ended at",
+                active ? "00:00:00" : AuctionDisplayUtil.formatDateTime(auction.getEndTime()),
+                active ? AuctionCardController.TextTone.DANGER : AuctionCardController.TextTone.DEFAULT,
                 "View auction",
                 () -> SceneManager.switchToAuctionDetails(auction.getAuctionId()),
                 canManageAuction ? "Manage auction" : null,

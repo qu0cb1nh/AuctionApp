@@ -10,7 +10,7 @@
     <children>
         <VBox spacing="6.0" HBox.hgrow="ALWAYS">
             <children>
-                <Label fx:id="typeLabel" style="-fx-text-fill: #3bb3d1; -fx-font-weight: bold; -fx-font-size: 13px;" text="Notification" />
+                <Label fx:id="typeLabel" style="-fx-text-fill: #81503e; -fx-font-weight: bold; -fx-font-size: 13px;" text="Notification" />
                 <Label fx:id="titleLabel" style="-fx-font-weight: bold; -fx-font-size: 12px; -fx-text-fill: #1f2937;" text="Notification title" wrapText="true">
                     <VBox.margin>
                         <Insets top="2.0" />

@@ -20,7 +20,7 @@
             <content>
                 <VBox spacing="10.0" style="-fx-padding: 20;">
                     <children>
-                        <Label style="-fx-font-size: 20px; -fx-font-weight: bold; -fx-text-fill: #153e5c;" text="Auction Marketplace" />
+                        <Label style="-fx-font-size: 20px; -fx-font-weight: bold; -fx-text-fill: #2f3437;" text="Auction marketplace" />
                         <Label fx:id="listStatusLabel" styleClass="list-status" text="Loading auctions..." />
                         <VBox fx:id="auctionFlowPane" spacing="8.0" />
                     </children>

@@ -119,7 +119,7 @@ public class AuctionItemMenuController implements AuctionContextController {
 
     @FXML
     public void initialize() {
-        appHeaderController.setupHeader("Auction Details");
+        appHeaderController.setupHeader("Auction details");
         updateWatchListButton();
         updateCancelBidsButtonState();
         priceHistoryChart.getData().clear();

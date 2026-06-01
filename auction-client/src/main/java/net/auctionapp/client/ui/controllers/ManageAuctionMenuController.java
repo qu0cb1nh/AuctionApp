@@ -62,7 +62,7 @@ public class ManageAuctionMenuController implements AuctionContextController {
 
     @FXML
     public void initialize() {
-        appHeaderController.setupHeader("Manage Auction");
+        appHeaderController.setupHeader("Manage auction");
     }
 
     @Override

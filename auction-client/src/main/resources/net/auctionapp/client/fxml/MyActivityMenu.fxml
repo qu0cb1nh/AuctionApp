@@ -20,7 +20,7 @@
             <content>
                 <VBox spacing="10.0" style="-fx-padding: 20;">
                     <children>
-                        <Label style="-fx-font-size: 20px; -fx-font-weight: bold; -fx-text-fill: #153e5c;" text="My Activities" />
+                        <Label style="-fx-font-size: 20px; -fx-font-weight: bold; -fx-text-fill: #2f3437;" text="My activities" />
                         <Label fx:id="statusLabel" styleClass="activity-status" text="Loading activities..." />
                         <Label fx:id="summaryLabel" style="-fx-text-fill: #3f5569; -fx-font-size: 12px;" text="" />
                         <VBox fx:id="activityFlowPane" spacing="8.0" />
