@@ -55,7 +55,7 @@ public class MyListingsMenuController {
 
     @FXML
     public void initialize() {
-        appHeaderController.setupHeader("My Listings");
+        appHeaderController.setupHeader("My listings");
         auctionToolBarController.setup(
                 "Search your listings...",
                 List.of(STATUS_ACTIVE, STATUS_SOLD, STATUS_CANCELED),
@@ -162,14 +162,14 @@ public class MyListingsMenuController {
                 "Auction state: " + listing.getStatus(),
                 null,
                 null,
-                active ? "Current Price" : "Final Price",
+                active ? "Current price" : "Final price",
                 AuctionDisplayUtil.formatPrice(listing.getCurrentPrice()),
                 active ? AuctionCardController.TextTone.PRIMARY : AuctionCardController.TextTone.DEFAULT,
-                active ? "Ends In" : "Ended At",
-                active ? "00:00:00" : AuctionDisplayUtil.formatDateTime(listing.getEndTime()),
-                AuctionCardController.TextTone.DEFAULT,
                 listing.getBidderCaption(),
                 listing.getBidderValue(),
+                AuctionCardController.TextTone.DEFAULT,
+                active ? "Ends in" : "Ended at",
+                active ? "00:00:00" : AuctionDisplayUtil.formatDateTime(listing.getEndTime()),
                 AuctionCardController.TextTone.DEFAULT,
                 "View auction",
                 () -> {

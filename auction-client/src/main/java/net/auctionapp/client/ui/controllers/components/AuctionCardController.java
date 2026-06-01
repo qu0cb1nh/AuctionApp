@@ -96,12 +96,8 @@ public final class AuctionCardController {
         );
     }
 
-    public void startDetailTwoCountdown(LocalDateTime endTime) {
-        startCountdown(detailTwoLabel, "Ends in: ", endTime);
-    }
-
-    public void startMetricTwoCountdown(LocalDateTime endTime) {
-        startCountdown(metricTwoValueLabel, "", endTime);
+    public void startMetricThreeCountdown(LocalDateTime endTime) {
+        startCountdown(metricThreeValueLabel, "", endTime);
     }
 
     @FXML

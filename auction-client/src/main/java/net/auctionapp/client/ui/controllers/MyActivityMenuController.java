@@ -56,7 +56,7 @@ public class MyActivityMenuController {
 
     @FXML
     public void initialize() {
-        appHeaderController.setupHeader("My Activities");
+        appHeaderController.setupHeader("My activities");
         auctionToolBarController.setup(
                 "Search your activities...",
                 List.of(STATUS_ACTIVE, STATUS_WON, STATUS_LOST),
@@ -163,16 +163,16 @@ public class MyActivityMenuController {
                 "Owner: " + AuctionDisplayUtil.formatOwner(activity.getSellerUsername()),
                 AuctionCardController.TextTone.MUTED,
                 "Bid state: " + activity.getBidPosition(),
-                active ? "Ends in: 00:00:00" : "Ended at: " + AuctionDisplayUtil.formatDateTime(activity.getEndTime()),
+                null,
                 "Bid count: " + activity.getBidCount(),
-                "Your Max Bid",
-                AuctionDisplayUtil.formatPrice(activity.getYourMaxBid()),
-                AuctionCardController.TextTone.PRIMARY,
-                active ? "Current Price" : "Final Price",
+                active ? "Current price" : "Final price",
                 AuctionDisplayUtil.formatPrice(activity.getCurrentPrice()),
                 active ? AuctionCardController.TextTone.DANGER : AuctionCardController.TextTone.DEFAULT,
-                active ? null : "Winner",
-                active ? null : safeWinnerName(activity.getWinnerBidderName()),
+                active ? "Your max bid" : "Winner",
+                active ? AuctionDisplayUtil.formatPrice(activity.getYourMaxBid()) : safeWinnerName(activity.getWinnerBidderName()),
+                active ? AuctionCardController.TextTone.PRIMARY : AuctionCardController.TextTone.DEFAULT,
+                active ? "Ends in" : "Ended at",
+                active ? "00:00:00" : AuctionDisplayUtil.formatDateTime(activity.getEndTime()),
                 AuctionCardController.TextTone.DEFAULT,
                 "View auction",
                 () -> {
@@ -186,7 +186,7 @@ public class MyActivityMenuController {
                         : null,
                 watchListLoaded ? () -> handleToggleWatchList(activity.getAuctionId()) : null
         );
-        return AuctionCardUtil.createWithDetailCountdown(
+        return AuctionCardUtil.createWithMetricCountdown(
                 cardData,
                 active ? activity.getEndTime() : null,
                 "Failed to load activity card."

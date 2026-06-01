@@ -46,7 +46,7 @@ public class WatchListMenuController {
 
     @FXML
     public void initialize() {
-        appHeaderController.setupHeader("My Watchlist");
+        appHeaderController.setupHeader("My watchlist");
         auctionToolBarController.setup(
                 "Search your watchlist...",
                 List.of(STATUS_ALL, STATUS_RUNNING, STATUS_PAID, STATUS_CANCELED),
@@ -117,6 +117,7 @@ public class WatchListMenuController {
     }
 
     private HBox loadAuctionCard(AuctionSummaryDto auction) {
+        boolean active = "RUNNING".equals(AuctionDisplayUtil.displayStatus(auction));
         boolean canManageAuction = ClientSession.getInstance().canManageAuction(auction.getSellerId());
         AuctionCardController.CardData cardData = new AuctionCardController.CardData(
                 auction.getImageUrl(),
@@ -124,18 +125,18 @@ public class WatchListMenuController {
                 auction.getTitle(),
                 "Owner: " + AuctionDisplayUtil.formatOwner(auction.getSellerUsername()),
                 AuctionCardController.TextTone.MUTED,
-                "Minimum Next Bid: " + AuctionDisplayUtil.formatPrice(auction.getMinimumNextBid()),
+                "Minimum next bid: " + AuctionDisplayUtil.formatPrice(auction.getMinimumNextBid()),
                 "Start: " + AuctionDisplayUtil.formatDateTime(auction.getStartTime()),
                 null,
-                "Current Bid",
+                "Current bid",
                 AuctionDisplayUtil.formatPrice(auction.getCurrentPrice()),
                 AuctionCardController.TextTone.PRIMARY,
-                "Ends At",
-                AuctionDisplayUtil.formatDateTime(auction.getEndTime()),
-                AuctionCardController.TextTone.DANGER,
-                "Top Bidder",
+                "Top bidder",
                 AuctionDisplayUtil.formatBidder(auction.getLeadingBidderUsername()),
                 AuctionCardController.TextTone.DEFAULT,
+                active ? "Ends in" : "Ended at",
+                active ? "00:00:00" : AuctionDisplayUtil.formatDateTime(auction.getEndTime()),
+                active ? AuctionCardController.TextTone.DANGER : AuctionCardController.TextTone.DEFAULT,
                 "View auction",
                 () -> SceneManager.switchToAuctionDetails(auction.getAuctionId()),
                 canManageAuction ? "Manage auction" : null,
@@ -147,7 +148,11 @@ public class WatchListMenuController {
                         this::handleUpdateResponse
                 )
         );
-        return AuctionCardUtil.create(cardData, "Failed to load watchlist auction.");
+        return AuctionCardUtil.createWithMetricCountdown(
+                cardData,
+                active ? auction.getEndTime() : null,
+                "Failed to load watchlist auction."
+        );
     }
 
     private void handleUpdateResponse(Message message) {

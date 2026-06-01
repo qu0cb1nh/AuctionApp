@@ -8,32 +8,32 @@
 <?import javafx.scene.layout.BorderPane?>
 <?import javafx.scene.layout.VBox?>
 
-<BorderPane prefHeight="634.0" prefWidth="967.0" style="-fx-background-color: #f4f4f4;" stylesheets="@../styles/ui-states.css" xmlns="http://javafx.com/javafx/25" xmlns:fx="http://javafx.com/fxml/1" fx:controller="net.auctionapp.client.ui.controllers.DashboardMenuController">
+<BorderPane prefHeight="634.0" prefWidth="967.0" style="-fx-background-color: #f7f7f5;" stylesheets="@../styles/ui-states.css" xmlns="http://javafx.com/javafx/25" xmlns:fx="http://javafx.com/fxml/1" fx:controller="net.auctionapp.client.ui.controllers.DashboardMenuController">
    <center>
-      <VBox alignment="CENTER" maxHeight="-Infinity" maxWidth="-Infinity" prefHeight="500.0" prefWidth="450.0" BorderPane.alignment="CENTER">
+      <VBox alignment="CENTER" maxHeight="-Infinity" maxWidth="-Infinity" prefHeight="436.0" prefWidth="420.0" spacing="14.0" BorderPane.alignment="CENTER">
          <children>
-                  <Label fx:id="usernameLabel" alignment="CENTER" contentDisplay="CENTER" style="-fx-font-size: 26px; -fx-font-weight: bold; -fx-text-fill: #333333;" text="Welcome back, Guest" textAlignment="CENTER" wrapText="true">
+                  <Label fx:id="usernameLabel" alignment="CENTER" contentDisplay="CENTER" style="-fx-font-size: 36px; -fx-font-weight: 600; -fx-text-fill: #2f3437;" text="Welcome back, Guest" textAlignment="CENTER" wrapText="true">
                <VBox.margin>
-                  <Insets bottom="35.0" />
+                  <Insets bottom="30.0" />
                </VBox.margin>
             </Label>
 
-                        <Button maxHeight="-Infinity" maxWidth="-Infinity" mnemonicParsing="false" onAction="#handleBrowseAuctions" prefHeight="48.0" prefWidth="350.0" style="-fx-background-color: #3bb3c3; -fx-text-fill: white; -fx-background-radius: 12px; -fx-font-size: 16px; -fx-font-weight: bold; -fx-cursor: hand;" text="Browse Auctions">
+                        <Button maxHeight="-Infinity" maxWidth="-Infinity" mnemonicParsing="false" onAction="#handleBrowseAuctions" prefHeight="67.0" prefWidth="330.0" style="-fx-background-color: #8F5B45; -fx-text-fill: white; -fx-background-radius: 12px; -fx-font-size: 16px; -fx-font-weight: 700; -fx-cursor: hand;" text="Browse auctions">
                <graphic>
-                  <ImageView fitHeight="36.0" fitWidth="49.0" pickOnBounds="true" preserveRatio="true">
+                  <ImageView fitHeight="33.0" fitWidth="312.0" pickOnBounds="true" preserveRatio="true" translateX="-2.0">
                      <image>
                         <Image url="@../images/BrowseAuction.png" />
                      </image>
                   </ImageView>
                </graphic>
                <VBox.margin>
-                  <Insets top="20.0" />
+                  <Insets bottom="25.0" top="4.0" />
                </VBox.margin>
                <padding>
-                  <Insets bottom="20.0" top="20.0" />
+                  <Insets bottom="14.0" top="14.0" />
                </padding>
             </Button>
-                  <Button fx:id="sellItemButton" maxHeight="-Infinity" maxWidth="-Infinity" mnemonicParsing="false" onAction="#handleSellItem" prefHeight="48.0" prefWidth="350.0" style="-fx-background-color: #ffffff; -fx-border-radius: 12px; -fx-border-color: #3bb3c3; -fx-text-fill: #3bb3c3; -fx-background-radius: 12px; -fx-font-size: 16px; -fx-font-weight: bold; -fx-cursor: hand;" text="Sell Item">
+                  <Button fx:id="sellItemButton" maxHeight="-Infinity" maxWidth="-Infinity" mnemonicParsing="false" onAction="#handleSellItem" prefHeight="67.0" prefWidth="330.0" style="-fx-background-color: #F8F3EF; -fx-border-radius: 12px; -fx-border-color: #D8C8BE; -fx-text-fill: #2f3437; -fx-background-radius: 12px; -fx-font-size: 16px; -fx-font-weight: 700; -fx-cursor: hand;" text="Create an auction">
                <graphic>
                   <ImageView fitHeight="36.0" fitWidth="26.0" pickOnBounds="true" preserveRatio="true">
                      <image>
@@ -42,16 +42,19 @@
                   </ImageView>
                </graphic>
                <VBox.margin>
-                  <Insets bottom="95.0" top="50.0" />
+                  <Insets top="0.0" />
                </VBox.margin>
                 <padding>
-                    <Insets bottom="20.0" top="20.0" />
+                    <Insets bottom="14.0" top="14.0" />
                  </padding>
               </Button>
          </children>
          <opaqueInsets>
             <Insets />
          </opaqueInsets>
+         <BorderPane.margin>
+            <Insets bottom="40.0" />
+         </BorderPane.margin>
       </VBox>
    </center>
    <top>

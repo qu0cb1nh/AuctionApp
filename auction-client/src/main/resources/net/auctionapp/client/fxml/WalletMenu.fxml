@@ -24,19 +24,19 @@
                     <children>
                         <VBox alignment="CENTER" minHeight="125.0" prefHeight="125.0" prefWidth="245.0" spacing="10.0" style="-fx-background-color: white; -fx-background-radius: 8px; -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.08), 12, 0, 0, 3);">
                             <children>
-                                <Label style="-fx-font-size: 15px; -fx-font-weight: bold; -fx-text-fill: #153e5c;" text="Total Balance" />
-                                <TextField fx:id="totalBalanceField" alignment="CENTER" editable="false" focusTraversable="false" prefHeight="48.0" prefWidth="220.0" style="-fx-background-color: transparent; -fx-border-color: transparent; -fx-text-fill: #153e5c; -fx-font-size: 26px; -fx-font-weight: bold;" text="0" />
+                                <Label style="-fx-font-size: 15px; -fx-font-weight: bold; -fx-text-fill: #2f3437;" text="Total balance" />
+                                <TextField fx:id="totalBalanceField" alignment="CENTER" editable="false" focusTraversable="false" prefHeight="48.0" prefWidth="220.0" style="-fx-background-color: transparent; -fx-border-color: transparent; -fx-text-fill: #2f3437; -fx-font-size: 26px; -fx-font-weight: bold;" text="0" />
                             </children>
                         </VBox>
                         <VBox alignment="CENTER" minHeight="125.0" prefHeight="125.0" prefWidth="245.0" spacing="10.0" style="-fx-background-color: white; -fx-background-radius: 8px; -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.08), 12, 0, 0, 3);">
                             <children>
-                                <Label style="-fx-font-size: 15px; -fx-font-weight: bold; -fx-text-fill: #153e5c;" text="Available Balance" />
-                                <TextField fx:id="availableBalanceField" alignment="CENTER" editable="false" focusTraversable="false" prefHeight="48.0" prefWidth="220.0" style="-fx-background-color: transparent; -fx-border-color: transparent; -fx-text-fill: #3bb3c3; -fx-font-size: 26px; -fx-font-weight: bold;" text="0" />
+                                <Label style="-fx-font-size: 15px; -fx-font-weight: bold; -fx-text-fill: #2f3437;" text="Available balance" />
+                                <TextField fx:id="availableBalanceField" alignment="CENTER" editable="false" focusTraversable="false" prefHeight="48.0" prefWidth="220.0" style="-fx-background-color: transparent; -fx-border-color: transparent; -fx-text-fill: #4f6f82; -fx-font-size: 26px; -fx-font-weight: bold;" text="0" />
                             </children>
                         </VBox>
                         <VBox alignment="CENTER" minHeight="125.0" prefHeight="125.0" prefWidth="245.0" spacing="10.0" style="-fx-background-color: white; -fx-background-radius: 8px; -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.08), 12, 0, 0, 3);">
                             <children>
-                                <Label style="-fx-font-size: 15px; -fx-font-weight: bold; -fx-text-fill: #153e5c;" text="On Hold for Bids" />
+                                <Label style="-fx-font-size: 15px; -fx-font-weight: bold; -fx-text-fill: #2f3437;" text="On hold for bids" />
                                 <TextField fx:id="pendingBalanceField" alignment="CENTER" editable="false" focusTraversable="false" prefHeight="48.0" prefWidth="220.0" style="-fx-background-color: transparent; -fx-border-color: transparent; -fx-text-fill: #d97706; -fx-font-size: 26px; -fx-font-weight: bold;" text="0" />
                             </children>
                         </VBox>
@@ -45,11 +45,11 @@
 
                 <VBox maxWidth="640.0" spacing="10.0">
                     <children>
-                        <Label style="-fx-font-size: 18px; -fx-font-weight: bold; -fx-text-fill: #153e5c;" text="Deposit" />
+                        <Label style="-fx-font-size: 18px; -fx-font-weight: bold; -fx-text-fill: #2f3437;" text="Deposit" />
                         <HBox alignment="CENTER_LEFT" spacing="14.0">
                             <children>
                                 <TextField fx:id="depositField" prefHeight="42.0" prefWidth="430.0" promptText="Enter amount" style="-fx-background-color: white; -fx-background-radius: 8px; -fx-border-radius: 8px; -fx-border-color: #b6dfe7; -fx-font-size: 14px;" />
-                                <Button fx:id="depositButton" mnemonicParsing="false" onAction="#handleDeposit" prefHeight="42.0" prefWidth="145.0" style="-fx-background-color: #3bb3c3; -fx-text-fill: white; -fx-background-radius: 8px; -fx-font-size: 14px; -fx-font-weight: bold; -fx-cursor: hand;" text="Deposit" />
+                                <Button fx:id="depositButton" mnemonicParsing="false" onAction="#handleDeposit" prefHeight="42.0" prefWidth="145.0" style="-fx-background-color: #9a5f49; -fx-text-fill: white; -fx-background-radius: 8px; -fx-font-size: 14px; -fx-font-weight: bold; -fx-cursor: hand;" text="Deposit" />
                             </children>
                         </HBox>
                     </children>
@@ -57,11 +57,11 @@
 
                 <VBox maxWidth="640.0" spacing="10.0">
                     <children>
-                        <Label style="-fx-font-size: 18px; -fx-font-weight: bold; -fx-text-fill: #153e5c;" text="Withdraw" />
+                        <Label style="-fx-font-size: 18px; -fx-font-weight: bold; -fx-text-fill: #2f3437;" text="Withdraw" />
                         <HBox alignment="CENTER_LEFT" spacing="14.0">
                             <children>
                                 <TextField fx:id="withdrawField" prefHeight="42.0" prefWidth="430.0" promptText="Enter amount" style="-fx-background-color: white; -fx-background-radius: 8px; -fx-border-radius: 8px; -fx-border-color: #b6dfe7; -fx-font-size: 14px;" />
-                                <Button fx:id="withdrawButton" mnemonicParsing="false" onAction="#handleWithdraw" prefHeight="42.0" prefWidth="145.0" style="-fx-background-color: #3bb3c3; -fx-text-fill: white; -fx-background-radius: 8px; -fx-font-size: 14px; -fx-font-weight: bold; -fx-cursor: hand;" text="Withdraw" />
+                                <Button fx:id="withdrawButton" mnemonicParsing="false" onAction="#handleWithdraw" prefHeight="42.0" prefWidth="145.0" style="-fx-background-color: #9a5f49; -fx-text-fill: white; -fx-background-radius: 8px; -fx-font-size: 14px; -fx-font-weight: bold; -fx-cursor: hand;" text="Withdraw" />
                             </children>
                         </HBox>
                     </children>

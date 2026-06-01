@@ -90,7 +90,7 @@ public class AdminPanelMenuController {
 
     @FXML
     public void initialize() {
-        appHeaderController.setupHeader("Admin Panel");
+        appHeaderController.setupHeader("Admin panel");
         configureTables();
         banButton.disableProperty().bind(userBanButtonsDisabled);
         unbanButton.disableProperty().bind(userBanButtonsDisabled);

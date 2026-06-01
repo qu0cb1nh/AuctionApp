@@ -13,6 +13,7 @@ import javafx.scene.layout.Pane;
 import javafx.scene.layout.Region;
 import javafx.scene.layout.VBox;
 import net.auctionapp.client.services.NotificationService;
+import net.auctionapp.client.ui.managers.NotificationToastManager;
 import net.auctionapp.client.ui.managers.SceneManager;
 import net.auctionapp.client.utils.ResourcesUtil;
 import net.auctionapp.common.messages.Message;
@@ -43,9 +44,6 @@ public class NotificationsMenuController {
 
     @FXML
     private VBox notificationCardsContainer;
-
-    @FXML
-    private Label filterStatusLabel;
 
     @FXML
     private Button clearAllButton;
@@ -126,18 +124,17 @@ public class NotificationsMenuController {
             filterLabels[i].pseudoClassStateChanged(ACTIVE_STATE, active);
             filterUnderlines[i].pseudoClassStateChanged(ACTIVE_STATE, active);
         }
-        filterStatusLabel.setText("Showing: " + nameForStatus);
         renderNotifications();
     }
 
     private void handleNotificationsResponse(Message message) {
         if (message instanceof ErrorResponseMessage errorMessage) {
-            setStatusText(errorMessage.getErrorMessage(), true);
+            setStatusText(errorMessage.getErrorMessage());
             updateClearAllButton();
             return;
         }
         if (!(message instanceof NotificationsResponseMessage response)) {
-            setStatusText("Unexpected response from server.", true);
+            setStatusText("Unexpected response from server.");
             return;
         }
         updateNotifications(response.getNotifications());
@@ -207,7 +204,7 @@ public class NotificationsMenuController {
             return card;
         } catch (IOException | RuntimeException e) {
             LOGGER.warn("Failed to render notification card.", e);
-            setStatusText("Failed to load one notification card.", true);
+            setStatusText("Failed to load one notification card.");
             return new Pane();
         }
     }
@@ -281,8 +278,7 @@ public class NotificationsMenuController {
         return notification.getId().equals(notificationId);
     }
 
-    private void setStatusText(String text, boolean isError) {
-        filterStatusLabel.setText(text);
-        filterStatusLabel.pseudoClassStateChanged(ERROR_STATE, isError);
+    private void setStatusText(String text) {
+        NotificationToastManager.showError(text);
     }
 }

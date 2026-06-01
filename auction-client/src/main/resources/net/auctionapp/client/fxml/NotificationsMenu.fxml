@@ -7,37 +7,34 @@
 <?import javafx.scene.layout.Region?>
 <?import javafx.scene.layout.VBox?>
 
-<VBox prefHeight="634.0" prefWidth="967.0" spacing="18" style="-fx-background-color: #f4fbff;" stylesheets="@../styles/ui-states.css" xmlns="http://javafx.com/javafx/25" xmlns:fx="http://javafx.com/fxml/1" fx:controller="net.auctionapp.client.ui.controllers.NotificationsMenuController">
+<VBox prefHeight="634.0" prefWidth="967.0" spacing="12.0" style="-fx-background-color: #f4fbff;" stylesheets="@../styles/ui-states.css" xmlns="http://javafx.com/javafx/25" xmlns:fx="http://javafx.com/fxml/1" fx:controller="net.auctionapp.client.ui.controllers.NotificationsMenuController">
     <fx:include fx:id="appHeader" source="components/Header.fxml" />
 
     <VBox spacing="5" style="-fx-padding: 0 18;">
         <HBox alignment="CENTER_LEFT" spacing="25">
-            <VBox spacing="3">
-                <Label fx:id="filterLabelAll" onMouseClicked="#handleFilterAll" styleClass="notification-filter-label" text="All" />
+            <VBox alignment="CENTER" spacing="3">
+                <Label fx:id="filterLabelAll" onMouseClicked="#handleFilterAll" prefWidth="16.0" styleClass="notification-filter-label" text="All" />
                 <Region fx:id="filterUnderlineAll" styleClass="notification-filter-underline" />
             </VBox>
-            <VBox spacing="3">
+            <VBox alignment="CENTER" spacing="3">
                 <Label fx:id="filterLabelBids" onMouseClicked="#handleFilterBids" styleClass="notification-filter-label" text="Bids" />
                 <Region fx:id="filterUnderlineBids" styleClass="notification-filter-underline" />
             </VBox>
-            <VBox spacing="3">
+            <VBox alignment="CENTER" spacing="3">
                 <Label fx:id="filterLabelMyAuctions" onMouseClicked="#handleFilterMyAuctions" styleClass="notification-filter-label" text="My Auctions" />
                 <Region fx:id="filterUnderlineMyAuctions" styleClass="notification-filter-underline" />
             </VBox>
-            <VBox spacing="3">
+            <VBox alignment="CENTER" spacing="3">
                 <Label fx:id="filterLabelSystem" onMouseClicked="#handleFilterSystem" styleClass="notification-filter-label" text="System" />
                 <Region fx:id="filterUnderlineSystem" styleClass="notification-filter-underline" />
             </VBox>
-            <VBox spacing="3">
+            <VBox alignment="CENTER" spacing="3">
                 <Label fx:id="filterLabelResults" onMouseClicked="#handleFilterResults" styleClass="notification-filter-label" text="Results" />
                 <Region fx:id="filterUnderlineResults" styleClass="notification-filter-underline" />
             </VBox>
             <Region HBox.hgrow="ALWAYS" />
             <Button fx:id="clearAllButton" mnemonicParsing="false" onAction="#handleClearAll" styleClass="notification-clear-button" text="Clear all" />
         </HBox>
-
-        <Region style="-fx-background-color: #e6f0ff; -fx-pref-height: 1;" />
-        <Label fx:id="filterStatusLabel" styleClass="notification-status" text="Showing: All" />
     </VBox>
 
     <ScrollPane fitToWidth="true" prefHeight="530.0" prefWidth="446.0" VBox.vgrow="ALWAYS">

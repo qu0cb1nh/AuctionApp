@@ -3,19 +3,20 @@
 }
 
 .page-header {
-    -fx-background-color: linear-gradient(to right, #243447 0%, #2f4f69 70%, #3bb3c3 100%);
+    -fx-background-color: #f7f7f5;
+    -fx-border-color: transparent transparent #dedbd4 transparent;
     -fx-effect: dropshadow(gaussian, rgba(20, 31, 45, 0.22), 16, 0.2, 0, 3);
 }
 
 .header-title {
     -fx-font-size: 30px;
     -fx-font-weight: 800;
-    -fx-text-fill: white;
+    -fx-text-fill: #2f3437;
 }
 
 .header-subtitle {
     -fx-font-size: 13px;
-    -fx-text-fill: rgba(255, 255, 255, 0.9);
+    -fx-text-fill: #74706a;
 }
 
 .back-button {
@@ -152,4 +153,3 @@
     -fx-font-size: 12px;
     -fx-text-fill: #637991;
 }
-

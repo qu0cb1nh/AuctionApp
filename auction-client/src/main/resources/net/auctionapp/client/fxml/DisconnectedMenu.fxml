@@ -24,7 +24,7 @@
                   <Insets bottom="12.0" />
                </VBox.margin>
             </Label>
-            <Button mnemonicParsing="false" onAction="#handleRetryConnection" prefHeight="42.0" prefWidth="160.0" style="-fx-background-color: #2193b0; -fx-text-fill: white; -fx-font-size: 15px; -fx-font-weight: bold; -fx-background-radius: 8; -fx-cursor: hand;" text="Retry Connection" />
+            <Button mnemonicParsing="false" onAction="#handleRetryConnection" prefHeight="42.0" prefWidth="160.0" style="-fx-background-color: #9a5f49; -fx-text-fill: white; -fx-font-size: 15px; -fx-font-weight: 600; -fx-background-radius: 8; -fx-cursor: hand;" text="Retry connection" />
          </children>
       </VBox>
    </children>

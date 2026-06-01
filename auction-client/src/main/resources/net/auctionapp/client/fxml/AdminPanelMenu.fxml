@@ -25,8 +25,8 @@
                         <Label fx:id="statusLabel" styleClass="admin-status" text="Ready." />
                         <HBox alignment="CENTER_LEFT" prefHeight="40.0" spacing="8.0">
                             <children>
-                                <Label fx:id="userManagementNavLabel" minWidth="180.0" onMouseClicked="#handleShowUserManagement" prefWidth="180.0" styleClass="admin-nav-label" text="User Management" />
-                                <Label fx:id="auctionManagementNavLabel" minWidth="230.0" onMouseClicked="#handleShowAuctionManagement" prefWidth="230.0" styleClass="admin-nav-label" text="Auction Management" />
+                                <Label fx:id="userManagementNavLabel" minWidth="180.0" onMouseClicked="#handleShowUserManagement" prefWidth="180.0" styleClass="admin-nav-label" text="User management" />
+                                <Label fx:id="auctionManagementNavLabel" minWidth="230.0" onMouseClicked="#handleShowAuctionManagement" prefWidth="230.0" styleClass="admin-nav-label" text="Auction management" />
                                 <Region HBox.hgrow="ALWAYS" />
                             </children>
                         </HBox>
@@ -46,10 +46,10 @@
                                         </TableView>
                                         <HBox spacing="10.0">
                                             <children>
-                                                <Button fx:id="banButton" mnemonicParsing="false" onAction="#handleBanSelected" style="-fx-background-color: #c13c21; -fx-text-fill: white; -fx-font-weight: bold;" text="Ban Selected" />
-                                                <Button fx:id="unbanButton" mnemonicParsing="false" onAction="#handleUnbanSelected" style="-fx-background-color: #1f8f4c; -fx-text-fill: white; -fx-font-weight: bold;" text="Unban Selected" />
+                                                <Button fx:id="banButton" mnemonicParsing="false" onAction="#handleBanSelected" style="-fx-background-color: #c13c21; -fx-text-fill: white; -fx-font-weight: bold;" text="Ban selected" />
+                                                <Button fx:id="unbanButton" mnemonicParsing="false" onAction="#handleUnbanSelected" style="-fx-background-color: #1f8f4c; -fx-text-fill: white; -fx-font-weight: bold;" text="Unban selected" />
                                                 <Region HBox.hgrow="ALWAYS" />
-                                                <Button mnemonicParsing="false" onAction="#handleRefreshUsers" style="-fx-background-color: #3bb3d1; -fx-text-fill: white; -fx-font-weight: bold;" text="Refresh Users" />
+                                                <Button mnemonicParsing="false" onAction="#handleRefreshUsers" style="-fx-background-color: #9a5f49; -fx-text-fill: white; -fx-font-weight: bold;" text="Refresh users" />
                                             </children>
                                         </HBox>
                                     </children>
@@ -68,10 +68,10 @@
                                         </TableView>
                                         <HBox spacing="10.0">
                                             <children>
-                                                <Button fx:id="openAuctionButton" mnemonicParsing="false" onAction="#handleOpenAuction" style="-fx-background-color: #3bb3d1; -fx-text-fill: white; -fx-font-weight: bold;" text="Open Details" />
-                                                <Button fx:id="manageAuctionButton" mnemonicParsing="false" onAction="#handleManageAuction" style="-fx-background-color: #153e5c; -fx-text-fill: white; -fx-font-weight: bold;" text="Manage Auction" />
+                                                <Button fx:id="openAuctionButton" mnemonicParsing="false" onAction="#handleOpenAuction" style="-fx-background-color: #9a5f49; -fx-text-fill: white; -fx-font-weight: bold;" text="Open details" />
+                                                <Button fx:id="manageAuctionButton" mnemonicParsing="false" onAction="#handleManageAuction" style="-fx-background-color: #4f6f82; -fx-text-fill: white; -fx-font-weight: bold;" text="Manage auction" />
                                                 <Region HBox.hgrow="ALWAYS" />
-                                                <Button mnemonicParsing="false" onAction="#handleRefreshAuctions" style="-fx-background-color: #3bb3d1; -fx-text-fill: white; -fx-font-weight: bold;" text="Refresh Auctions" />
+                                                <Button mnemonicParsing="false" onAction="#handleRefreshAuctions" style="-fx-background-color: #9a5f49; -fx-text-fill: white; -fx-font-weight: bold;" text="Refresh auctions" />
                                             </children>
                                         </HBox>
                                     </children>
