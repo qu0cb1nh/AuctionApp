@@ -14,7 +14,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 public class JdbcWatchListDao implements WatchListDao {
-    private static final String CREATE_WATCH_LIST_TABLE_QUERY = """
+    public static final String CREATE_WATCH_LIST_TABLE_QUERY = """
             CREATE TABLE IF NOT EXISTS watch_list (
                 user_id VARCHAR(64) NOT NULL,
                 auction_id VARCHAR(64) NOT NULL,
@@ -38,7 +38,7 @@ public class JdbcWatchListDao implements WatchListDao {
             DELETE FROM watch_list
             WHERE user_id = ? AND auction_id = ?
             """;
-    private static final String CREATE_WATCH_LIST_REMINDERS_TABLE_QUERY = """
+    public static final String CREATE_WATCH_LIST_REMINDERS_TABLE_QUERY = """
             CREATE TABLE IF NOT EXISTS watch_list_reminders (
                 user_id VARCHAR(255) NOT NULL,
                 auction_id VARCHAR(64) NOT NULL,
