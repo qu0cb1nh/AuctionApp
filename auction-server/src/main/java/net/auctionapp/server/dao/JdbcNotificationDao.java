@@ -17,7 +17,7 @@ import java.util.List;
 import java.util.UUID;
 
 public class JdbcNotificationDao implements NotificationDao {
-    private static final String CREATE_NOTIFICATIONS_TABLE_QUERY = """
+    public static final String CREATE_NOTIFICATIONS_TABLE_QUERY = """
             CREATE TABLE IF NOT EXISTS notifications (
                 id VARCHAR(64) PRIMARY KEY,
                 user_id VARCHAR(64) NOT NULL,
