@@ -39,8 +39,8 @@ jobs:
         with:
           name: auctionapp-jars
           path: |
-            auction-client/target/AuctionApp-*-Client.jar
-            auction-server/target/AuctionApp-*-Server.jar
+            auction-client/target/AuctionApp-*-Local-Client.jar
+            auction-server/target/AuctionApp-*-Local-Server.jar
           if-no-files-found: error
 
   release:
@@ -88,10 +88,44 @@ jobs:
           name: auctionapp-jars
           path: dist
 
+      - name: Build production client jar
+        run: |
+          if [ -z "${{ vars.CLIENT_SERVER_HOST }}" ]; then
+            echo "::error::CLIENT_SERVER_HOST repository variable is missing."
+            exit 1
+          fi
+
+          if [ -z "${{ vars.CLIENT_SERVER_PORT }}" ]; then
+            echo "::error::CLIENT_SERVER_PORT repository variable is missing."
+            exit 1
+          fi
+
+          cat > auction-client/src/main/resources/client.properties <<EOF
+          server.host=${{ vars.CLIENT_SERVER_HOST }}
+          server.port=${{ vars.CLIENT_SERVER_PORT }}
+          EOF
+
+          echo "Production client.properties:"
+          cat auction-client/src/main/resources/client.properties
+
+          mvn -B -ntp clean package --file pom.xml -pl auction-client -am
+
+          VERSION=$(mvn -q -DforceStdout help:evaluate -Dexpression=project.version | tail -n 1)
+          cp auction-client/target/AuctionApp-*-Local-Client.jar "dist/AuctionApp-${VERSION}.jar"
+
       - name: Create GitHub release
         uses: softprops/action-gh-release@v2
         with:
           generate_release_notes: true
+          body: |
+            ## Downloads
+
+            - `AuctionApp-*.jar`: main app for users. This connects to the public server.
+            - `AuctionApp-*-Local-Client.jar`: local client for testing with a local server.
+            - `AuctionApp-*-Local-Server.jar`: local server for local testing or deployment.
+
+            Normal users should download `AuctionApp-*.jar`.
           files: |
-            dist/auction-client/target/AuctionApp-*-Client.jar
-            dist/auction-server/target/AuctionApp-*-Server.jar
+            dist/auction-client/target/AuctionApp-*-Local-Client.jar
+            dist/auction-server/target/AuctionApp-*-Local-Server.jar
+            dist/AuctionApp-*.jar
