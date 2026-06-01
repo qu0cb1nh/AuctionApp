@@ -18,7 +18,7 @@ import java.util.Objects;
 import java.util.Optional;
 
 public class JdbcUserDao implements UserDao {
-    private static final String CREATE_USERS_TABLE_QUERY = """
+    public static final String CREATE_USERS_TABLE_QUERY = """
             CREATE TABLE IF NOT EXISTS users (
                 id VARCHAR(64) PRIMARY KEY,
                 username VARCHAR(255) NOT NULL UNIQUE,
