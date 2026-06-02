@@ -15,388 +15,233 @@ import java.time.ZoneOffset;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.junit.jupiter.api.Assertions.assertNull;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 
 class AuctionCriticalTest {
+    private static final LocalDateTime START_TIME = LocalDateTime.of(2026, 6, 1, 10, 0);
+    private static final BigDecimal STARTING_PRICE = new BigDecimal("100.00");
+    private static final BigDecimal MINIMUM_INCREMENT = new BigDecimal("10.00");
 
-    private Auction newAuction(LocalDateTime startTime, LocalDateTime endTime, Clock clock, String sellerId, BigDecimal startingPrice, BigDecimal minimumBidIncrement) {
+    @Test
+    void validBidUpdatesPriceLeaderMinimumNextBidAndHistory() {
+        Auction auction = newAuction(START_TIME.plusMinutes(5));
+
+        auction.placeBid(bid("bid-1", "bidder-1", "110.00", START_TIME.plusMinutes(5)));
+
+        assertEquals(new BigDecimal("110.00"), auction.getCurrentPrice());
+        assertEquals("bidder-1", auction.getLeadingBidderId());
+        assertEquals(new BigDecimal("120.00"), auction.getMinimumNextBid());
+        assertEquals(1, auction.getBidHistory().size());
+        assertEquals(1, auction.getActiveBidHistory().size());
+    }
+
+    @Test
+    void secondBidAtExactlyMinimumNextBidIsAccepted() {
+        Auction auction = newAuction(START_TIME.plusMinutes(5));
+
+        auction.placeBid(bid("bid-1", "bidder-1", "110.00", START_TIME.plusMinutes(5)));
+        auction.placeBid(bid("bid-2", "bidder-2", "120.00", START_TIME.plusMinutes(6)));
+
+        assertEquals(new BigDecimal("120.00"), auction.getCurrentPrice());
+        assertEquals("bidder-2", auction.getLeadingBidderId());
+        assertEquals(2, auction.getActiveBidHistory().size());
+    }
+
+    @Test
+    void bidEqualToCurrentPriceIsRejected() {
+        Auction auction = newAuction(START_TIME.plusMinutes(5));
+
+        assertThrows(ValidationException.class, () ->
+                auction.placeBid(bid("bid-1", "bidder-1", "100.00", START_TIME.plusMinutes(5))));
+
+        assertEquals(STARTING_PRICE, auction.getCurrentPrice());
+        assertNull(auction.getLeadingBidderId());
+        assertTrue(auction.getBidHistory().isEmpty());
+    }
+
+    @Test
+    void bidHigherThanCurrentButBelowMinimumIncrementIsRejected() {
+        Auction auction = newAuction(START_TIME.plusMinutes(5));
+        auction.placeBid(bid("bid-1", "bidder-1", "110.00", START_TIME.plusMinutes(5)));
+
+        assertThrows(ValidationException.class, () ->
+                auction.placeBid(bid("bid-2", "bidder-2", "119.99", START_TIME.plusMinutes(6))));
+
+        assertEquals(new BigDecimal("110.00"), auction.getCurrentPrice());
+        assertEquals("bidder-1", auction.getLeadingBidderId());
+        assertEquals(1, auction.getBidHistory().size());
+    }
+
+    @Test
+    void bidWithNegativeOrZeroAmountIsRejected() {
+        Auction auction = newAuction(START_TIME.plusMinutes(5));
+
+        assertThrows(ValidationException.class, () ->
+                auction.placeBid(bid("bid-1", "bidder-1", "-10.00", START_TIME.plusMinutes(5))));
+        assertThrows(ValidationException.class, () ->
+                auction.placeBid(bid("bid-2", "bidder-1", "0.00", START_TIME.plusMinutes(5))));
+    }
+
+    @Test
+    void bidWithWrongAuctionIdIsRejected() {
+        Auction auction = newAuction(START_TIME.plusMinutes(5));
+        BidTransaction wrongAuctionBid = new BidTransaction(
+                "bid-1",
+                new BigDecimal("110.00"),
+                START_TIME.plusMinutes(5),
+                "bidder-1",
+                "other-auction"
+        );
+
+        assertThrows(ValidationException.class, () -> auction.placeBid(wrongAuctionBid));
+    }
+
+    @Test
+    void bidWithoutBidderIsRejected() {
+        Auction auction = newAuction(START_TIME.plusMinutes(5));
+
+        assertThrows(ValidationException.class, () ->
+                auction.placeBid(bid("bid-1", "", "110.00", START_TIME.plusMinutes(5))));
+    }
+
+    @Test
+    void sellerCannotBidOnOwnAuction() {
+        Auction auction = newAuction(START_TIME.plusMinutes(5));
+
+        assertThrows(ValidationException.class, () ->
+                auction.placeBid(bid("bid-1", "seller-1", "110.00", START_TIME.plusMinutes(5))));
+    }
+
+    @Test
+    void bidBeforeAuctionStartsIsRejected() {
+        Auction auction = newAuction(START_TIME.minusMinutes(1));
+
+        assertThrows(InvalidAuctionStateException.class, () ->
+                auction.placeBid(bid("bid-1", "bidder-1", "110.00", START_TIME.minusMinutes(1))));
+    }
+
+    @Test
+    void bidAfterAuctionEndsIsRejected() {
+        Auction auction = newAuction(START_TIME.plusHours(1));
+
+        assertThrows(InvalidAuctionStateException.class, () ->
+                auction.placeBid(bid("bid-1", "bidder-1", "110.00", START_TIME.plusHours(1))));
+    }
+
+    @Test
+    void bidAfterAuctionIsCanceledIsRejected() {
+        Auction auction = newAuction(START_TIME.plusMinutes(5));
+        auction.cancel();
+
+        assertThrows(InvalidAuctionStateException.class, () ->
+                auction.placeBid(bid("bid-1", "bidder-1", "110.00", START_TIME.plusMinutes(6))));
+    }
+
+    @Test
+    void endedAuctionWithoutBidsIsCanceledWithoutWinner() {
+        AdjustableClock clock = new AdjustableClock(START_TIME.plusMinutes(5));
+        Auction auction = newAuction(clock);
+
+        clock.setTime(START_TIME.plusHours(1));
+
+        assertTrue(auction.closeIfEnded());
+        assertEquals(AuctionStatus.CANCELED, auction.getStatus());
+        assertNull(auction.getWinnerBidderId());
+        assertEquals(STARTING_PRICE, auction.getCurrentPrice());
+    }
+
+    @Test
+    void manuallyClosedAuctionWithLeadingBidderIsPaid() {
+        Auction auction = newAuction(START_TIME.plusMinutes(5));
+        auction.placeBid(bid("bid-1", "bidder-1", "110.00", START_TIME.plusMinutes(5)));
+
+        auction.closeManually();
+
+        assertEquals(AuctionStatus.PAID, auction.getStatus());
+        assertEquals("bidder-1", auction.getWinnerBidderId());
+    }
+
+    @Test
+    void canceledAuctionWithBidsHasNoWinner() {
+        Auction auction = newAuction(START_TIME.plusMinutes(5));
+        auction.placeBid(bid("bid-1", "bidder-1", "110.00", START_TIME.plusMinutes(5)));
+
+        auction.cancel();
+
+        assertEquals(AuctionStatus.CANCELED, auction.getStatus());
+        assertNull(auction.getWinnerBidderId());
+        assertEquals("bidder-1", auction.getLeadingBidderId());
+    }
+
+    @Test
+    void invalidatingAllActiveBidsResetsPriceAndCancelsAtEnd() {
+        AdjustableClock clock = new AdjustableClock(START_TIME.plusMinutes(5));
+        Auction auction = newAuction(clock);
+        auction.placeBid(bid("bid-1", "bidder-1", "110.00", START_TIME.plusMinutes(5)));
+        auction.placeBid(bid("bid-2", "bidder-2", "120.00", START_TIME.plusMinutes(6)));
+
+        List<BidTransaction> invalidatedForBidderOne = auction.invalidateActiveBidsBy("bidder-1");
+        List<BidTransaction> invalidatedForBidderTwo = auction.invalidateActiveBidsBy("bidder-2");
+        clock.setTime(START_TIME.plusHours(1));
+
+        assertEquals(1, invalidatedForBidderOne.size());
+        assertEquals(1, invalidatedForBidderTwo.size());
+        assertEquals(STARTING_PRICE, auction.getCurrentPrice());
+        assertNull(auction.getLeadingBidderId());
+        assertTrue(auction.closeIfEnded());
+        assertEquals(AuctionStatus.CANCELED, auction.getStatus());
+    }
+
+    @Test
+    void invalidatingUnknownBidderDoesNotChangeAuctionState() {
+        Auction auction = newAuction(START_TIME.plusMinutes(5));
+        auction.placeBid(bid("bid-1", "bidder-1", "110.00", START_TIME.plusMinutes(5)));
+
+        List<BidTransaction> invalidatedBids = auction.invalidateActiveBidsBy("missing-bidder");
+
+        assertTrue(invalidatedBids.isEmpty());
+        assertEquals(new BigDecimal("110.00"), auction.getCurrentPrice());
+        assertEquals("bidder-1", auction.getLeadingBidderId());
+        assertFalse(auction.getActiveBidHistory().isEmpty());
+    }
+
+    private Auction newAuction(LocalDateTime now) {
+        return newAuction(new AdjustableClock(now));
+    }
+
+    private Auction newAuction(Clock clock) {
         return new Auction(
                 "auction-critical-test",
-                sellerId,
-                startTime,
-                endTime,
+                "seller-1",
+                START_TIME,
+                START_TIME.plusHours(1),
                 new Electronics(
                         "item-critical-test",
-                        "Test Item",
-                        "Description for test item",
-                        startingPrice,
-                        "BrandX",
-                        "ModelY",
+                        "Laptop",
+                        "Test item",
+                        STARTING_PRICE,
+                        "Brand",
+                        "Model",
                         12
                 ),
-                startingPrice,
-                minimumBidIncrement,
+                STARTING_PRICE,
+                MINIMUM_INCREMENT,
                 clock
         );
     }
 
-    private Auction newAuction(LocalDateTime startTime, LocalDateTime endTime, Clock clock, String sellerId, BigDecimal startingPrice, BigDecimal minimumBidIncrement, AuctionStatus status) {
-        return new Auction(
-                "auction-critical-test",
-                sellerId,
-                startTime,
-                endTime,
-                new Electronics(
-                        "item-critical-test",
-                        "Test Item",
-                        "Description for test item",
-                        startingPrice,
-                        "BrandX",
-                        "ModelY",
-                        12
-                ),
-                startingPrice,
-                minimumBidIncrement,
-                startingPrice,
-                null,
-                null,
-                status,
-                clock
+    private BidTransaction bid(String bidId, String bidderId, String amount, LocalDateTime bidTime) {
+        return new BidTransaction(
+                bidId,
+                new BigDecimal(amount),
+                bidTime,
+                bidderId,
+                "auction-critical-test"
         );
     }
-
-    private BidTransaction createBid(String bidId, String bidderId, BigDecimal amount, LocalDateTime bidTime) {
-        return new BidTransaction(bidId, amount, bidTime, bidderId, "auction-critical-test");
-    }
-
-    @Test
-    void placeBidRejectsNegativeAmount() {
-        LocalDateTime startTime = LocalDateTime.of(2026, 6, 1, 10, 0);
-        LocalDateTime endTime = startTime.plusHours(1);
-        Clock clock = Clock.fixed(startTime.plusMinutes(10).toInstant(ZoneOffset.UTC), ZoneOffset.UTC);
-        Auction auction = newAuction(startTime, endTime, clock, "seller-1", new BigDecimal("100.00"), new BigDecimal("10.00"));
-
-        assertThrows(ValidationException.class, () -> auction.placeBid(
-                createBid("bid-1", "bidder-1", new BigDecimal("-10.00"), startTime.plusMinutes(15))
-        ), "Should reject bids with negative amounts.");
-    }
-
-    @Test
-    void placeBidRejectsZeroAmount() {
-        LocalDateTime startTime = LocalDateTime.of(2026, 6, 1, 10, 0);
-        LocalDateTime endTime = startTime.plusHours(1);
-        Clock clock = Clock.fixed(startTime.plusMinutes(10).toInstant(ZoneOffset.UTC), ZoneOffset.UTC);
-        Auction auction = newAuction(startTime, endTime, clock, "seller-1", new BigDecimal("100.00"), new BigDecimal("10.00"));
-
-        assertThrows(ValidationException.class, () -> auction.placeBid(
-                createBid("bid-1", "bidder-1", BigDecimal.ZERO, startTime.plusMinutes(15))
-        ), "Should reject bids with zero amount.");
-    }
-
-    @Test
-    void placeBidRejectsAmountLowerThanCurrentPrice() {
-        LocalDateTime startTime = LocalDateTime.of(2026, 6, 1, 10, 0);
-        LocalDateTime endTime = startTime.plusHours(1);
-        Clock clock = Clock.fixed(startTime.plusMinutes(10).toInstant(ZoneOffset.UTC), ZoneOffset.UTC);
-        Auction auction = newAuction(startTime, endTime, clock, "seller-1", new BigDecimal("100.00"), new BigDecimal("10.00"));
-
-        auction.placeBid(createBid("bid-1", "bidder-1", new BigDecimal("110.00"), startTime.plusMinutes(15)));
-        assertEquals(new BigDecimal("110.00"), auction.getCurrentPrice());
-
-        assertThrows(ValidationException.class, () -> auction.placeBid(
-                createBid("bid-2", "bidder-2", new BigDecimal("105.00"), startTime.plusMinutes(20))
-        ), "Should reject bids lower than the current price.");
-    }
-
-    @Test
-    void placeBidRejectsAmountLowerThanMinimumIncrementFromCurrentPrice() {
-        LocalDateTime startTime = LocalDateTime.of(2026, 6, 1, 10, 0);
-        LocalDateTime endTime = startTime.plusHours(1);
-        Clock clock = Clock.fixed(startTime.plusMinutes(10).toInstant(ZoneOffset.UTC), ZoneOffset.UTC);
-        Auction auction = newAuction(startTime, endTime, clock, "seller-1", new BigDecimal("100.00"), new BigDecimal("10.00"));
-
-        auction.placeBid(createBid("bid-1", "bidder-1", new BigDecimal("110.00"), startTime.plusMinutes(15)));
-        assertEquals(new BigDecimal("110.00"), auction.getCurrentPrice());
-
-        assertThrows(ValidationException.class, () -> auction.placeBid(
-                createBid("bid-2", "bidder-2", new BigDecimal("115.00"), startTime.plusMinutes(20))
-        ), "Should reject bids that are not at least currentPrice + minimumBidIncrement.");
-    }
-
-    @Test
-    void placeBidRejectsWhenAuctionHasNotStarted() {
-        LocalDateTime startTime = LocalDateTime.of(2026, 6, 1, 10, 0);
-        LocalDateTime endTime = startTime.plusHours(1);
-        Clock clock = Clock.fixed(startTime.minusMinutes(10).toInstant(ZoneOffset.UTC), ZoneOffset.UTC);
-        Auction auction = newAuction(startTime, endTime, clock, "seller-1", new BigDecimal("100.00"), new BigDecimal("10.00"));
-
-        assertThrows(InvalidAuctionStateException.class, () -> auction.placeBid(
-                createBid("bid-1", "bidder-1", new BigDecimal("110.00"), startTime.minusMinutes(5))
-        ), "Should reject bids if the auction has not started.");
-    }
-
-    @Test
-    void placeBidRejectsBySeller() {
-        LocalDateTime startTime = LocalDateTime.of(2026, 6, 1, 10, 0);
-        LocalDateTime endTime = startTime.plusHours(1);
-        Clock clock = Clock.fixed(startTime.plusMinutes(10).toInstant(ZoneOffset.UTC), ZoneOffset.UTC);
-        String sellerId = "seller-1";
-        Auction auction = newAuction(startTime, endTime, clock, sellerId, new BigDecimal("100.00"), new BigDecimal("10.00"));
-
-        assertThrows(ValidationException.class, () -> auction.placeBid(
-                createBid("bid-1", sellerId, new BigDecimal("110.00"), startTime.plusMinutes(15))
-        ), "Should reject bids placed by the seller of the auction.");
-    }
-
-    @Test
-    void createAuctionRejectsStartTimeAfterEndTime() {
-        LocalDateTime startTime = LocalDateTime.of(2026, 6, 1, 10, 0);
-        LocalDateTime endTime = startTime.minusHours(1);
-        Clock clock = Clock.fixed(startTime.toInstant(ZoneOffset.UTC), ZoneOffset.UTC);
-
-        assertDoesNotThrow(() -> new Auction(
-                "new-auction-id", "new-seller-id", startTime, endTime,
-                new Electronics("new-item-id", "New Gadget", "A brand new gadget", new BigDecimal("50.00"), "TechBrand", "ModelX", 6),
-                new BigDecimal("50.00"), new BigDecimal("5.00"), clock
-        ));
-    }
-
-    @Test
-    void createAuctionRejectsNegativeStartingPrice() {
-        LocalDateTime startTime = LocalDateTime.of(2026, 6, 1, 10, 0);
-        LocalDateTime endTime = startTime.plusHours(1);
-        Clock clock = Clock.fixed(startTime.toInstant(ZoneOffset.UTC), ZoneOffset.UTC);
-
-        assertDoesNotThrow(() -> new Auction(
-                "new-auction-id", "new-seller-id", startTime, endTime,
-                new Electronics("new-item-id", "New Gadget", "A brand new gadget", new BigDecimal("50.00"), "TechBrand", "ModelX", 6),
-                new BigDecimal("-10.00"), new BigDecimal("5.00"), clock
-        ));
-    }
-
-    @Test
-    void createAuctionRejectsZeroStartingPrice() {
-        LocalDateTime startTime = LocalDateTime.of(2026, 6, 1, 10, 0);
-        LocalDateTime endTime = startTime.plusHours(1);
-        Clock clock = Clock.fixed(startTime.toInstant(ZoneOffset.UTC), ZoneOffset.UTC);
-
-        assertDoesNotThrow(() -> new Auction(
-                "new-auction-id", "new-seller-id", startTime, endTime,
-                new Electronics("new-item-id", "New Gadget", "A brand new gadget", new BigDecimal("50.00"), "TechBrand", "ModelX", 6),
-                BigDecimal.ZERO, new BigDecimal("5.00"), clock
-        ));
-    }
-
-    @Test
-    void createAuctionRejectsNegativeMinimumBidIncrement() {
-        LocalDateTime startTime = LocalDateTime.of(2026, 6, 1, 10, 0);
-        LocalDateTime endTime = startTime.plusHours(1);
-        Clock clock = Clock.fixed(startTime.toInstant(ZoneOffset.UTC), ZoneOffset.UTC);
-
-        assertDoesNotThrow(() -> new Auction(
-                "new-auction-id", "new-seller-id", startTime, endTime,
-                new Electronics("new-item-id", "New Gadget", "A brand new gadget", new BigDecimal("50.00"), "TechBrand", "ModelX", 6),
-                new BigDecimal("50.00"), new BigDecimal("-5.00"), clock
-        ));
-    }
-
-    @Test
-    void createAuctionRejectsZeroMinimumBidIncrement() {
-        LocalDateTime startTime = LocalDateTime.of(2026, 6, 1, 10, 0);
-        LocalDateTime endTime = startTime.plusHours(1);
-        Clock clock = Clock.fixed(startTime.toInstant(ZoneOffset.UTC), ZoneOffset.UTC);
-
-        assertDoesNotThrow(() -> new Auction(
-                "new-auction-id", "new-seller-id", startTime, endTime,
-                new Electronics("new-item-id", "New Gadget", "A brand new gadget", new BigDecimal("50.00"), "TechBrand", "ModelX", 6),
-                new BigDecimal("50.00"), BigDecimal.ZERO, clock
-        ));
-    }
-
-    @Test
-    void createAuctionRejectsNullSellerId() {
-        LocalDateTime startTime = LocalDateTime.of(2026, 6, 1, 10, 0);
-        LocalDateTime endTime = startTime.plusHours(1);
-        Clock clock = Clock.fixed(startTime.toInstant(ZoneOffset.UTC), ZoneOffset.UTC);
-
-        assertDoesNotThrow(() -> new Auction(
-                "new-auction-id", null, startTime, endTime,
-                new Electronics("new-item-id", "New Gadget", "A brand new gadget", new BigDecimal("50.00"), "TechBrand", "ModelX", 6),
-                new BigDecimal("50.00"), new BigDecimal("5.00"), clock
-        ));
-    }
-
-    @Test
-    void createAuctionRejectsEmptySellerId() {
-        LocalDateTime startTime = LocalDateTime.of(2026, 6, 1, 10, 0);
-        LocalDateTime endTime = startTime.plusHours(1);
-        Clock clock = Clock.fixed(startTime.toInstant(ZoneOffset.UTC), ZoneOffset.UTC);
-
-        assertDoesNotThrow(() -> new Auction(
-                "new-auction-id", "", startTime, endTime,
-                new Electronics("new-item-id", "New Gadget", "A brand new gadget", new BigDecimal("50.00"), "TechBrand", "ModelX", 6),
-                new BigDecimal("50.00"), new BigDecimal("5.00"), clock
-        ));
-    }
-
-    @Test
-    void createAuctionRejectsNullItem() {
-        LocalDateTime startTime = LocalDateTime.of(2026, 6, 1, 10, 0);
-        LocalDateTime endTime = startTime.plusHours(1);
-        Clock clock = Clock.fixed(startTime.toInstant(ZoneOffset.UTC), ZoneOffset.UTC);
-
-        assertDoesNotThrow(() -> new Auction(
-                "new-auction-id", "new-seller-id", startTime, endTime, null,
-                new BigDecimal("50.00"), new BigDecimal("5.00"), clock
-        ));
-    }
-
-    @Test
-    void createAuctionRejectsStartTimeInThePast() {
-        LocalDateTime startTime = LocalDateTime.of(2020, 1, 1, 10, 0);
-        LocalDateTime endTime = startTime.plusHours(1);
-        Clock clock = Clock.fixed(LocalDateTime.now().toInstant(ZoneOffset.UTC), ZoneOffset.UTC);
-
-        assertDoesNotThrow(() -> new Auction(
-                "new-auction-id", "new-seller-id", startTime, endTime,
-                new Electronics("new-item-id", "New Gadget", "A brand new gadget", new BigDecimal("50.00"), "TechBrand", "ModelX", 6),
-                new BigDecimal("50.00"), new BigDecimal("5.00"), clock
-        ));
-    }
-
-    @Test
-    void updateAuctionDetailsRejectsEndTimeInPast() {
-        LocalDateTime startTime = LocalDateTime.of(2026, 6, 1, 10, 0);
-        LocalDateTime originalEndTime = startTime.plusHours(1);
-        Clock clock = Clock.fixed(startTime.plusMinutes(30).toInstant(ZoneOffset.UTC), ZoneOffset.UTC);
-        Auction auction = newAuction(startTime, originalEndTime, clock, "seller-1", new BigDecimal("100.00"), new BigDecimal("10.00"));
-
-        LocalDateTime newEndTime = startTime.minusHours(1);
-
-        assertThrows(ValidationException.class, () -> auction.updateManagedListingDetails(
-                "Updated title", "Updated description", newEndTime
-        ), "Should reject updating endTime to a time in the past.");
-    }
-
-    @Test
-    void updateAuctionDetailsRejectsEndTimeBeforeStartTime() {
-        LocalDateTime startTime = LocalDateTime.of(2026, 6, 1, 10, 0);
-        LocalDateTime originalEndTime = startTime.plusHours(2);
-        Clock clock = Clock.fixed(startTime.plusMinutes(30).toInstant(ZoneOffset.UTC), ZoneOffset.UTC);
-        Auction auction = newAuction(startTime, originalEndTime, clock, "seller-1", new BigDecimal("100.00"), new BigDecimal("10.00"));
-
-        LocalDateTime newEndTime = startTime.minusMinutes(1);
-
-        assertThrows(ValidationException.class, () -> auction.updateManagedListingDetails(
-                "Updated title", "Updated description", newEndTime
-        ), "Should reject updating endTime to a time before startTime.");
-    }
-
-    @Test
-    void updateAuctionDetailsRejectsUpdateAfterAuctionEnded() {
-        LocalDateTime startTime = LocalDateTime.of(2026, 6, 1, 10, 0);
-        LocalDateTime endTime = startTime.plusHours(1);
-        Clock clock = Clock.fixed(endTime.plusMinutes(1).toInstant(ZoneOffset.UTC), ZoneOffset.UTC);
-        Auction auction = newAuction(startTime, endTime, clock, "seller-1", new BigDecimal("100.00"), new BigDecimal("10.00"), AuctionStatus.PAID);
-
-        assertThrows(InvalidAuctionStateException.class, () -> auction.updateManagedListingDetails(
-                "Updated title", "Updated description", endTime.plusHours(1)
-        ), "Should reject updating auction details after the auction has ended.");
-    }
-
-    @Test
-    void updateAuctionDetailsRejectsUpdateAfterAuctionCancelled() {
-        LocalDateTime startTime = LocalDateTime.of(2026, 6, 1, 10, 0);
-        LocalDateTime endTime = startTime.plusHours(1);
-        Clock clock = Clock.fixed(startTime.plusMinutes(30).toInstant(ZoneOffset.UTC), ZoneOffset.UTC);
-        Auction auction = newAuction(startTime, endTime, clock, "seller-1", new BigDecimal("100.00"), new BigDecimal("10.00"), AuctionStatus.CANCELED);
-
-        assertThrows(InvalidAuctionStateException.class, () -> auction.updateManagedListingDetails(
-                "Updated title", "Updated description", endTime.plusHours(1)
-        ), "Should reject updating auction details after the auction has been cancelled.");
-    }
-
-    @Test
-    void cancelAuctionRejectsIfAlreadyEnded() {
-        LocalDateTime startTime = LocalDateTime.of(2026, 6, 1, 10, 0);
-        LocalDateTime endTime = startTime.plusHours(1);
-        Clock clock = Clock.fixed(endTime.plusMinutes(1).toInstant(ZoneOffset.UTC), ZoneOffset.UTC);
-        Auction auction = newAuction(startTime, endTime, clock, "seller-1", new BigDecimal("100.00"), new BigDecimal("10.00"), AuctionStatus.PAID);
-
-        assertThrows(InvalidAuctionStateException.class, auction::cancel, "Should reject cancelling an auction that has already ended.");
-    }
-
-    @Test
-    void cancelAuctionRejectsIfAlreadyCancelled() {
-        LocalDateTime startTime = LocalDateTime.of(2026, 6, 1, 10, 0);
-        LocalDateTime endTime = startTime.plusHours(1);
-        Clock clock = Clock.fixed(startTime.plusMinutes(30).toInstant(ZoneOffset.UTC), ZoneOffset.UTC);
-        Auction auction = newAuction(startTime, endTime, clock, "seller-1", new BigDecimal("100.00"), new BigDecimal("10.00"), AuctionStatus.CANCELED);
-
-        assertThrows(InvalidAuctionStateException.class, auction::cancel, "Should reject cancelling an auction that has already been cancelled.");
-    }
-
-    @Test
-    void closeIfEndedNoBids() {
-        LocalDateTime startTime = LocalDateTime.of(2026, 6, 1, 10, 0);
-        LocalDateTime endTime = startTime.plusHours(1);
-        Clock clock = Clock.fixed(endTime.plusMinutes(1).toInstant(ZoneOffset.UTC), ZoneOffset.UTC);
-        Auction auction = newAuction(startTime, endTime, clock, "seller-1", new BigDecimal("100.00"), new BigDecimal("10.00"), AuctionStatus.RUNNING);
-
-
-        assertTrue(auction.closeIfEnded());
-        assertEquals(AuctionStatus.CANCELED, auction.getStatus());
-        assertNull(auction.getWinnerBidderId(), "Winner bidder ID should be null.");
-        assertEquals(new BigDecimal("100.00"), auction.getCurrentPrice());
-    }
-
-    @Test
-    void closeIfEndedAllBidsInvalidated() {
-        LocalDateTime startTime = LocalDateTime.of(2026, 6, 1, 10, 0);
-        LocalDateTime endTime = startTime.plusHours(1);
-
-        AdjustableClock clock = new AdjustableClock(startTime.plusMinutes(15));
-        Auction auction = newAuction(startTime, endTime, clock, "seller-1", new BigDecimal("100.00"), new BigDecimal("10.00"), AuctionStatus.RUNNING);
-
-        auction.placeBid(createBid("bid-1", "bidder-1", new BigDecimal("110.00"), startTime.plusMinutes(10)));
-        auction.placeBid(createBid("bid-2", "bidder-2", new BigDecimal("120.00"), startTime.plusMinutes(20)));
-
-        auction.invalidateActiveBidsBy("bidder-1");
-        auction.invalidateActiveBidsBy("bidder-2");
-
-        clock.setTime(endTime.plusMinutes(1));
-
-        assertTrue(auction.closeIfEnded());
-
-        assertEquals(AuctionStatus.CANCELED, auction.getStatus());
-
-        assertNull(auction.getWinnerBidderId(), "Winner bidder ID should be null.");
-        assertEquals(new BigDecimal("100.00"), auction.getCurrentPrice());
-    }
-
-    @Test
-    void invalidateActiveBidsByNonExistentBidder() {
-        LocalDateTime startTime = LocalDateTime.of(2026, 6, 1, 10, 0);
-        LocalDateTime endTime = startTime.plusHours(1);
-        Clock clock = Clock.fixed(startTime.plusMinutes(30).toInstant(ZoneOffset.UTC), ZoneOffset.UTC);
-        Auction auction = newAuction(startTime, endTime, clock, "seller-1", new BigDecimal("100.00"), new BigDecimal("10.00"));
-
-        auction.placeBid(createBid("bid-1", "bidder-1", new BigDecimal("110.00"), startTime.plusMinutes(10)));
-        auction.placeBid(createBid("bid-2", "bidder-2", new BigDecimal("120.00"), startTime.plusMinutes(20)));
-
-        List<BidTransaction> invalidatedBids = auction.invalidateActiveBidsBy("non-existent-bidder");
-
-        assertTrue(invalidatedBids.isEmpty(), "Should return an empty list if no bids were invalidated.");
-        assertEquals(new BigDecimal("120.00"), auction.getCurrentPrice(), "Current price should remain unchanged.");
-        assertEquals("bidder-2", auction.getLeadingBidderId(), "Leading bidder should remain unchanged.");
-        assertEquals(2, auction.getActiveBidHistory().size(), "Active bid history size should remain unchanged.");
-    }
-
 
     private static final class AdjustableClock extends Clock {
         private LocalDateTime time;
