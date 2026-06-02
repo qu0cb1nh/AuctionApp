@@ -8,7 +8,7 @@
     <parent>
         <groupId>net.auctionapp</groupId>
         <artifactId>AuctionApp</artifactId>
-        <version>1.1.0</version>
+        <version>1.1.1</version>
         <relativePath>../pom.xml</relativePath>
     </parent>
 
@@ -44,18 +44,6 @@
         <dependency>
             <groupId>org.junit.jupiter</groupId>
             <artifactId>junit-jupiter</artifactId>
-            <scope>test</scope>
-        </dependency>
-        <dependency>
-            <groupId>org.mockito</groupId>
-            <artifactId>mockito-core</artifactId>
-            <version>5.11.0</version>
-            <scope>test</scope>
-        </dependency>
-        <dependency>
-            <groupId>com.h2database</groupId>
-            <artifactId>h2</artifactId>
-            <version>2.2.224</version>
             <scope>test</scope>
         </dependency>
     </dependencies>
