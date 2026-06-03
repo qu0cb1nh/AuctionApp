@@ -137,5 +137,5 @@ Normal users only need Java 25 and the released user JAR.
 
 ## Report and Demo
 
-* Report PDF: [report.pdf](./docs/report.pdf)
+* Report PDF: [report.pdf](https://drive.google.com/file/d/1f_ADAoKqTzyVta5ZQujxx1FhPXqjR5Ky/view?usp=sharing)
 * Demo video: [auctionapp_demo](https://drive.google.com/file/d/1JYPCfgOzePoTlcG2pmrUXt2xjPJGtBvx/view?usp=drive_link)
