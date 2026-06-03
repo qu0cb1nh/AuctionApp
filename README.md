@@ -185,5 +185,5 @@ If you built from source, run these commands from the project root:
 
 ## Report and Demo
 
-* Report PDF: [report.pdf](https://drive.google.com/file/d/1f_ADAoKqTzyVta5ZQujxx1FhPXqjR5Ky/view?usp=sharing)
+* Report PDF: [report.pdf](https://drive.google.com/file/d/1YV05aDp68jf5YtOMmELmYkh_Ap8MelPB/view?usp=sharing)
 * Demo video: [auctionapp_demo](https://drive.google.com/file/d/1JYPCfgOzePoTlcG2pmrUXt2xjPJGtBvx/view?usp=drive_link)
