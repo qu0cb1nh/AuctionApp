@@ -14,7 +14,7 @@ System scope includes a JavaFX desktop client, a Java socket server, JSON messag
 
 * Register and log in.
 * User and admin roles.
-* Session tracking and forced logout.
+* Track active user sessions and log out banned users automatically.
 
 ### Auction System
 
@@ -58,6 +58,7 @@ Normal users only need Java 25 and the released user JAR.
 
 ## Project Structure
 ```text
+AuctionApp
 |-- .github/workflows/    Github actions workflow files
 |-- auction-client/       JavaFX app, FXML screens, controllers, client services
 |-- auction-server/       Socket server, managers, DAOs, models and business logic.
@@ -74,7 +75,7 @@ Normal users only need Java 25 and the released user JAR.
 * MVC-style layers.
 * Socket JSON protocol.
 * [System architecture](docs/system-architecture.png)
-* [Models diagram](docs/diagrams/models-diagram/models-diagram.png)
+* [Models diagram](docs/diagrams/models-diagram.png)
 
 ## Installation and Running
 
@@ -95,17 +96,51 @@ Normal users only need Java 25 and the released user JAR.
 
 ### For Developers and Local Testing
 
-* JDK 25.
+#### Requirements:
+* Java 25.
+* Maven.
+* Git.
 * MySQL database access.
 * Cloudinary account for image upload.
-* Local JARs from [GitHub releases](https://github.com/qu0cb1nh/AuctionApp/releases):
+
+You can run local testing from released local JARs or build the JARs yourself from source.
+
+#### Option 1: Use Released Local JARs
+
+Download local JARs from [GitHub releases](https://github.com/qu0cb1nh/AuctionApp/releases):
 
   ```text
   AuctionApp-<version>-Local-Server.jar
   AuctionApp-<version>-Local-Client.jar
   ```
 
-* Create `.env` beside the local server JAR:
+#### Option 2: Clone and Build From Source
+
+Building from source requires Java 25, Maven, and Git.
+
+Clone the repository:
+
+  ```console
+  git clone https://github.com/qu0cb1nh/AuctionApp.git
+  cd AuctionApp
+  ```
+
+Build all modules and run tests:
+
+  ```console
+  mvn clean package
+  ```
+
+After the build finishes, the runnable local JARs are created in:
+
+  ```text
+  auction-server/target/AuctionApp-<version>-Local-Server.jar
+  auction-client/target/AuctionApp-<version>-Local-Client.jar
+  ```
+
+#### Configure Local Environment
+
+Create `.env` beside the local server JAR, or in the project root when running the server from source:
 
   ```env
   DB_URL=jdbc:mysql://host:port/db?sslMode=REQUIRED
@@ -119,16 +154,29 @@ Normal users only need Java 25 and the released user JAR.
 * Server creates required tables automatically.
 * Local client uses `localhost:3667`.
 * Change `auction-client/src/main/resources/client.properties` for another host or port.
-* Run local server:
 
-  ```bash
+#### Run Local JARs
+
+The commands in this section use standard CLI syntax that works in Windows PowerShell, macOS Terminal, and Linux shells. Start the server first, then start the client in another terminal.
+
+If you downloaded released local JARs, run these commands from the directory that contains the downloaded files:
+
+  ```console
   java -jar AuctionApp-<version>-Local-Server.jar
   ```
 
-* Run local client:
-
-  ```bash
+  ```console
   java -jar AuctionApp-<version>-Local-Client.jar
+  ```
+
+If you built from source, run these commands from the project root:
+
+  ```console
+  java -jar auction-server/target/AuctionApp-<version>-Local-Server.jar
+  ```
+
+  ```console
+  java -jar auction-client/target/AuctionApp-<version>-Local-Client.jar
   ```
 
 ## Workflow Guide for Contributors
